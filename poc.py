@@ -269,9 +269,7 @@ class WorkflowEngine:
         result_collections = self._find_result_collections(
                 workflow, inputs)
         print('Result collections: {}'.format(result_collections))
-        sorted_steps = self._sort_workflow(workflow)
-        print('Sorted steps: {}'.format(sorted_steps))
-        plans = self._make_plans(submitter, sorted_steps, result_collections)
+        plans = self._make_plans(submitter, workflow, result_collections)
         print('Plans: {}'.format(plans))
         # split plan by site
         # execute subplans on sites
@@ -442,9 +440,9 @@ class WorkflowEngine:
         return requirements
 
     def _make_plans(
-            self, submitter: str, sorted_steps: List[WorkflowStep],
+            self, submitter: str, workflow: Workflow,
             result_collections: Dict[str, List[Set[str]]]
-            ) -> List[List[Site]]:
+            ) -> List[Dict[WorkflowStep, Site]]:
         """Assigns a site to each workflow step.
 
         Uses the given result collections to determine where steps can
@@ -454,55 +452,46 @@ class WorkflowEngine:
             A list of plans, each consisting of a list of sites
             corresponding to the given list of steps.
         """
-        dummy_site = Site('', '', {})
-        plan = list(repeat(dummy_site, len(sorted_steps)))  # type: List[Site]
-
         def may_run(step: WorkflowStep, site: Site) -> bool:
             """Checks whether the given site may run the given step.
             """
             party = site.administrator
-            # print('party: {}'.format(party))
 
             # check each input
             for inp_name in step.inputs:
                 inp_key = 'steps.{}.inputs.{}'.format(step.name, inp_name)
-                # print('inp_key: {}'.format(inp_key))
                 asset_coll = result_collections[inp_key]
-                # print('asset_coll: {}'.format(asset_coll))
                 if not self._policy_manager.may_access(asset_coll, party):
-                    # print('may not access')
                     return False
 
             # check step itself (i.e. outputs)
             step_key = 'steps.{}'.format(step.name)
-            # print('step_key: {}'.format(step_key))
             asset_coll = result_collections[step_key]
-            # print('asset_coll: {}'.format(asset_coll))
             if not self._policy_manager.may_access(asset_coll, party):
-                # print('may not access')
                 return False
 
-            # print('may access')
             return True
+
+        sorted_steps = self._sort_workflow(workflow)
+        dummy_site = Site('', '', {})
+        plan = list(repeat(dummy_site, len(sorted_steps)))  # type: List[Site]
 
         def plan_from(cur_step: int) -> Generator[List[Site], None, None]:
             """Make remaining plan, starting at cur_step.
 
             Yields any complete plans found
             """
-            # print('Planning from: {}'.format(cur_step))
             step_name = sorted_steps[cur_step].name
             for site in self._sites:
-                # print('Trying {}'.format(site))
                 if may_run(sorted_steps[cur_step], site):
                     plan[cur_step] = site
-                    # print('Partial plan: {}'.format(plan))
                     if cur_step == len(plan) - 1:
                         yield copy(plan)
                     else:
                         yield from plan_from(cur_step + 1)
 
-        return list(plan_from(0))
+        return [{step: site for step, site in zip(sorted_steps, plan)}
+                for plan in plan_from(0)]
 
 
 def scenario_saas_with_data() -> Dict[str, Any]:

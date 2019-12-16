@@ -1,5 +1,6 @@
 from copy import copy
 from itertools import repeat
+from textwrap import indent
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 
@@ -7,17 +8,6 @@ class Rule:
     """Abstract base class for policy rules.
     """
     pass
-
-
-class MayAccess(Rule):
-    """Says that Party party may access Asset asset.
-    """
-    def __init__(self, party: str, asset: str) -> None:
-        self.party = party
-        self.asset = asset
-
-    def __repr__(self) -> str:
-        return '("{}" may access "{}")'.format(self.party, self.asset)
 
 
 class InAssetCollection(Rule):
@@ -29,6 +19,28 @@ class InAssetCollection(Rule):
 
     def __repr__(self) -> str:
         return '("{}" is in "{}")'.format(self.asset, self.collection)
+
+
+class InPartyCollection(Rule):
+    """Says that Party party is in PartyCollection collection.
+    """
+    def __init__(self, party: str, collection: str) -> None:
+        self.party = party
+        self.collection = collection
+
+    def __repr__(self) -> str:
+        return '("{}" is in "{}")'.format(self.party, self.collection)
+
+
+class MayAccess(Rule):
+    """Says that Party party may access Asset asset.
+    """
+    def __init__(self, party: str, asset: str) -> None:
+        self.party = party
+        self.asset = asset
+
+    def __repr__(self) -> str:
+        return '("{}" may access "{}")'.format(self.party, self.asset)
 
 
 class ResultOfIn(Rule):
@@ -46,17 +58,6 @@ class ResultOfIn(Rule):
     def __repr__(self) -> str:
         return '(result of "{}" on "{}" is in collection "{}")'.format(
                 self.compute_asset, self.data_asset, self.collection)
-
-
-class InPartyCollection(Rule):
-    """Says that Party party is in PartyCollection collection.
-    """
-    def __init__(self, party: str, collection: str) -> None:
-        self.party = party
-        self.collection = collection
-
-    def __repr__(self) -> str:
-        return '("{}" is in "{}")'.format(self.party, self.collection)
 
 
 class WorkflowStep:
@@ -116,6 +117,13 @@ class Workflow:
         # TODO: check validity
         # every step input must match a workflow input or a step output
         # every output must match a workflow input or a step output
+
+    def __str__(self) -> str:
+        steps = ''
+        for step in self.steps.values():
+            steps += '    {}\n'.format(step)
+        return 'Workflow({} -> {}:\n{})'.format(
+                self.inputs, self.outputs, steps)
 
     def __repr__(self) -> str:
         return 'Workflow({}, {}, {})'.format(
@@ -268,10 +276,19 @@ class WorkflowEngine:
         """
         result_collections = self._find_result_collections(
                 workflow, inputs)
-        print('Result collections: {}'.format(result_collections))
+        print('Result collections:')
+        for result, coll in result_collections.items():
+            print('    {} -> {}'.format(result, coll))
+        print()
+
         plans = self._make_plans(submitter, workflow, result_collections)
-        print('Plans: {}'.format(plans))
-        # split plan by site
+        print('Plans:')
+        for plan in plans:
+            for step, site in plan.items():
+                print('    {} -> {}'.format(step.name, site))
+            print()
+        print()
+
         # execute subplans on sites
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
@@ -574,10 +591,17 @@ def run_scenario(scenario: Dict[str, Any]) -> None:
     workflow_engine = WorkflowEngine(scenario['sites'], policy_manager)
 
     # run
-    print('Rules: {}'.format(scenario['rules']))
+    print('Rules:')
+    for rule in scenario['rules']:
+        print('    {}'.format(rule))
+    print()
     print('On behalf of: {}'.format(scenario['user']))
-    print('Workflow: {}'.format(scenario['workflow']))
+    print()
+    print('Workflow:')
+    print(indent(str(scenario['workflow']), ' '*4))
+    print()
     print('Inputs: {}'.format(scenario['inputs']))
+    print()
 
     workflow_engine.execute(
             scenario['user'], scenario['workflow'], scenario['inputs'])

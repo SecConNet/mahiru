@@ -628,10 +628,23 @@ class WorkflowEngine:
         Uses the given result collections to determine where steps can
         be executed.
 
+        Args:
+            submitter: Name of the site that submitted this, and to
+                    which results should be returned.
+            workflow: The workflow to plan.
+            result_collections: List of sets of collections
+                    representing access permissions for previously
+                    computed results.
+
         Returns:
             A list of plans, each consisting of a list of sites
             corresponding to the given list of steps.
         """
+        def may_access_step(step: WorkflowStep, party: str) -> bool:
+            step_key = 'steps.{}'.format(step.name)
+            asset_coll = result_collections[step_key]
+            return self._policy_manager.may_access(asset_coll, party)
+
         def may_run(step: WorkflowStep, site: Site) -> bool:
             """Checks whether the given site may run the given step.
             """
@@ -645,33 +658,29 @@ class WorkflowEngine:
                     return False
 
             # check step itself (i.e. outputs)
-            step_key = 'steps.{}'.format(step.name)
-            asset_coll = result_collections[step_key]
-            if not self._policy_manager.may_access(asset_coll, party):
-                return False
-
-            return True
+            return may_access_step(step, party)
 
         sorted_steps = self._sort_workflow(workflow)
         dummy_site = Site('', '', {})
         plan = list(repeat(dummy_site, len(sorted_steps)))  # type: List[Site]
 
-        def plan_from(cur_step: int) -> Generator[List[Site], None, None]:
+        def plan_from(cur_step_idx: int) -> Generator[List[Site], None, None]:
             """Make remaining plan, starting at cur_step.
 
-            Yields any complete plans found
+            Yields any complete plans found.
             """
-            step_name = sorted_steps[cur_step].name
+            cur_step = sorted_steps[cur_step_idx]
+            step_name = cur_step.name
             for site in self._sites:
-                if may_run(sorted_steps[cur_step], site):
-                    plan[cur_step] = site
-                    if cur_step == len(plan) - 1:
-                        yield copy(plan)
+                if may_run(cur_step, site):
+                    plan[cur_step_idx] = site
+                    if cur_step_idx == len(plan) - 1:
+                        if may_access_step(cur_step, submitter):
+                            yield copy(plan)
                     else:
-                        yield from plan_from(cur_step + 1)
+                        yield from plan_from(cur_step_idx + 1)
 
-        return [{step: site for step, site in zip(sorted_steps, plan)}
-                for plan in plan_from(0)]
+        return [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
 
 
 def scenario_saas_with_data() -> Dict[str, Any]:
@@ -689,6 +698,7 @@ def scenario_saas_with_data() -> Dict[str, Any]:
             ResultOfIn('site2:data2', 'Addition', 'result2'),
             MayAccess('party2', 'result1'),
             MayAccess('party1', 'result1'),
+            MayAccess('party1', 'result2'),
             MayAccess('party2', 'result2'),
             ]
 
@@ -699,7 +709,7 @@ def scenario_saas_with_data() -> Dict[str, Any]:
                 ])
 
     result['inputs'] = {'x1': 'site1:data1', 'x2': 'site2:data2'}
-    result['user'] = 'party2'
+    result['user'] = 'party1'
 
     return result
 

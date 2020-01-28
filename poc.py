@@ -1,6 +1,8 @@
 from copy import copy
 from itertools import repeat
 from textwrap import indent
+from threading import Thread
+from time import sleep
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 
@@ -130,6 +132,129 @@ class Workflow:
                 self.inputs, self.steps, self.outputs)
 
 
+Plan = Dict[WorkflowStep, 'Site']
+
+
+class Job(Thread):
+    def __init__(
+            self, this_site: 'Site', sites: List['Site'],
+            workflow: Workflow, inputs: Dict[str, str], plan: Plan) -> None:
+        """Creates a Job object.
+
+        This represents the execution of (parts of) a workflow at a
+        site.
+
+        Args:
+            this_site: The site we're running at.
+            sites: A list of all sites in the system.
+            workflow: The workflow to execute.
+            plan: The plan for the workflow to execute.
+        """
+        super().__init__(name='JobAtSite-{}'.format(this_site.name))
+        self._this_site = this_site
+        self._sites = {site.name: site for site in sites}
+        self._workflow = workflow
+        self._inputs = inputs
+        self._plan = {step.name: site for step, site in plan.items()}
+
+    def run(self) -> None:
+        """Runs the job.
+
+        This executes the steps in the job one at a time, in an order
+        compatible with their dependencies.
+        """
+        steps_to_do = {
+                step for step in self._workflow.steps.values()
+                if self._plan[step.name] == self._this_site}
+
+        while len(steps_to_do) > 0:
+            for step in steps_to_do:
+                inputs = self._get_step_inputs(step)
+                if inputs is not None:
+                    print('Job at {} executing step {}'.format(
+                        self._this_site, step))
+                    # run step
+                    outputs = dict()
+                    if step.compute_asset == 'Combine':
+                        outputs['y'] = [inputs['x1'], inputs['x2']]
+                    elif step.compute_asset == 'Anonymise':
+                        outputs['y'] = [x - 10 for x in inputs['x1']]
+                    elif step.compute_asset == 'Aggregate':
+                        outputs['y'] = sum(inputs['x1']) / len(inputs['x1'])
+                    elif step.compute_asset == 'Addition':
+                        outputs['y'] = inputs['x1'] + inputs['x2']
+                    else:
+                        raise RuntimeError('Unknown compute asset')
+
+                    # save output to store
+                    for output_name, output_value in outputs.items():
+                        data_key = 'steps.{}.outputs.{}'.format(
+                                step.name, output_name)
+                        self._this_site._store_data(data_key, output_value)
+
+                    steps_to_do.remove(step)
+                    break
+            else:
+                sleep(0.5)
+        print('Job at {} done'.format(self._this_site))
+
+    def _get_step_inputs(self, step: WorkflowStep) -> Optional[Dict[str, Any]]:
+        """Find and obtain inputs for the steps.
+
+        If all inputs are available, returns a dictionary mapping their
+        keys to their values. If at least one input is not yet
+        available, returns None.
+
+        Args:
+            step: The step to obtain inputs for.
+
+        Return:
+            A dictionary keyed by output name with corresponding
+            values.
+        """
+        step_input_data = dict()
+        for inp_name, inp_source in step.inputs.items():
+            source_site, data_key = self._source(inp_source)
+            print('Job at {} getting input {} from site {}'.format(
+                self._this_site, data_key, source_site))
+            data = source_site.get_data(data_key)
+            if data is None:
+                print('Job at {} found input {} not yet available.'.format(
+                    self._this_site, data_key))
+                return None
+            else:
+                print('Job at {} found input {} available.'.format(
+                    self._this_site, data_key))
+                step_input_data[inp_name] = data
+
+        return step_input_data
+
+    def _source(self, inp_source: str) -> Tuple['Site', str]:
+        """Extracts the source from a source description.
+
+        If the input is of the form 'step/output', this will return the
+        site which is to execute that step according to the current
+        plan, and the output name.
+
+        If the input is of the form 'site:data', this will return the
+        given site and the name of the input data set.
+        """
+        if '/' in inp_source:
+            step_name, output_name = inp_source.split('/')
+            source_site = self._plan[step_name]
+            return source_site, 'steps.{}.outputs.{}'.format(
+                    step_name, output_name)
+        else:
+            inp_source = self._inputs[inp_source]
+            if ':' in inp_source:
+                site_name, data_name = inp_source.split(':')
+                source_site = self._sites[site_name]
+                return source_site, data_name
+            else:
+                raise RuntimeError('Invalid input specification "{}"'.format(
+                    inp_source))
+
+
 class Site:
     def __init__(
             self, name: str, administrator: str, stored_data: Dict[str, int]
@@ -148,13 +273,23 @@ class Site:
     def __repr__(self) -> str:
         return 'Site({})'.format(self.name)
 
-    def get_data(self, key: str) -> int:
-        return self._stored_data[key]
+    def get_data(self, key: str) -> Any:
+        print('{} servicing request for data {}, '.format(self, key), end='')
+        if key in self._stored_data:
+            print('sending...')
+        else:
+            print('not found.')
+        return self._stored_data.get(key)
 
-    def execute_workflow_locally(self, workflow: Workflow) -> None:
-        pass
+    def execute_plan(
+            self, sites: List['Site'],
+            workflow: Workflow, inputs: Dict[str, str], plan: Plan
+            ) -> None:
+        job = Job(self, sites, workflow, inputs, plan)
+        job.start()
 
     def _store_data(self, key: str, value: int) -> None:
+        # called by class Job
         self._stored_data[key] = value
 
 
@@ -266,10 +401,11 @@ class WorkflowEngine:
 
     def execute(
             self, submitter: str, workflow: Workflow, inputs: Dict[str, str]
-            ) -> None:
+            ) -> Dict[str, Any]:
         """Plans and executes the given workflow.
 
         Args:
+            submitter: Name of the site to submit this request.
             workflow: The workflow to execute.
             inputs: A dictionary mapping the workflow's input
                     parameters to references to data sets.
@@ -289,7 +425,34 @@ class WorkflowEngine:
             print()
         print()
 
-        # execute subplans on sites
+        if not plans:
+            print('This workflow cannot be run due to insufficient'
+                  ' permissions.')
+            return
+
+        selected_plan = plans[-1]
+        selected_sites = {site for site in selected_plan.values()}
+        for site in selected_sites:
+            site.execute_plan(self._sites, workflow, inputs, selected_plan)
+
+        # get workflow outputs
+        results = dict()
+        while len(results) < len(workflow.outputs):
+            for wf_outp_name, wf_outp_source in workflow.outputs.items():
+                if wf_outp_name not in results:
+                    src_step_name, src_step_output = wf_outp_source.split('/')
+                    source_site = selected_plan[workflow.steps[src_step_name]]
+                    outp_key = 'steps.{}.outputs.{}'.format(
+                            src_step_name, src_step_output)
+                    data = source_site.get_data(outp_key)
+                    if data is None:
+                        continue
+                    else:
+                        results[wf_outp_name] = source_site.get_data(outp_key)
+            sleep(0.5)
+
+        return results
+
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
         """Sorts the workflow's steps topologically.
@@ -370,7 +533,7 @@ class WorkflowEngine:
                 ) -> None:
             """Propagates requirements of a step input from its source.
 
-            Raises KeyError if the input source is not (yet) available.
+            Raises InputNotAvailable if the input source is not (yet) available.
             """
             for inp, inp_source in step.inputs.items():
                 inp_key = '{}.inputs.{}'.format(step_key, inp)
@@ -459,7 +622,7 @@ class WorkflowEngine:
     def _make_plans(
             self, submitter: str, workflow: Workflow,
             result_collections: Dict[str, List[Set[str]]]
-            ) -> List[Dict[WorkflowStep, Site]]:
+            ) -> List[Plan]:
         """Assigns a site to each workflow step.
 
         Uses the given result collections to determine where steps can
@@ -519,21 +682,23 @@ def scenario_saas_with_data() -> Dict[str, Any]:
             Site('site2', 'party2', {'data2': 3})]
 
     result['rules'] = [
-            MayAccess('party1', 'data1'),
-            MayAccess('party2', 'data1'),
-            MayAccess('party2', 'data2'),
-            ResultOfIn('data1', 'addition', 'result1'),
+            MayAccess('party1', 'site1:data1'),
+            MayAccess('party2', 'site1:data1'),
+            MayAccess('party2', 'site2:data2'),
+            ResultOfIn('site1:data1', 'Addition', 'result1'),
+            ResultOfIn('site2:data2', 'Addition', 'result2'),
             MayAccess('party2', 'result1'),
-            MayAccess('party1', 'result2'),
+            MayAccess('party1', 'result1'),
+            MayAccess('party2', 'result2'),
             ]
 
     result['workflow'] = Workflow(
             ['x1', 'x2'], {'y': 'addstep/y'}, [
                 WorkflowStep(
-                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'addition')
+                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
                 ])
 
-    result['inputs'] = {'x1': 'data1', 'x2': 'data2'}
+    result['inputs'] = {'x1': 'site1:data1', 'x2': 'site2:data2'}
     result['user'] = 'party2'
 
     return result
@@ -548,7 +713,7 @@ def scenario_pii() -> Dict[str, Any]:
             Site('site3', 'party3', {})]
 
     scenario['rules'] = [
-            InAssetCollection('pii1', 'PII1'),
+            InAssetCollection('site1:pii1', 'PII1'),
             MayAccess('party1', 'PII1'),
             ResultOfIn('PII1', '*', 'PII1'),
             ResultOfIn('PII1', 'Anonymise', 'ScienceOnly1'),
@@ -557,7 +722,7 @@ def scenario_pii() -> Dict[str, Any]:
             InAssetCollection('ScienceOnly1', 'ScienceOnly'),
             ResultOfIn('Public', '*', 'Public'),
 
-            InAssetCollection('pii2', 'PII2'),
+            InAssetCollection('site2:pii2', 'PII2'),
             MayAccess('party2', 'PII2'),
             MayAccess('party1', 'PII2'),
             ResultOfIn('PII2', '*', 'PII2'),
@@ -580,7 +745,7 @@ def scenario_pii() -> Dict[str, Any]:
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise/y'}, ['y'], 'Aggregate')])
 
-    scenario['inputs'] = {'x1': 'pii1', 'x2': 'pii2'}
+    scenario['inputs'] = {'x1': 'site1:pii1', 'x2': 'site2:pii2'}
     scenario['user'] = 'party3'
 
     return scenario
@@ -603,8 +768,11 @@ def run_scenario(scenario: Dict[str, Any]) -> None:
     print('Inputs: {}'.format(scenario['inputs']))
     print()
 
-    workflow_engine.execute(
+    result = workflow_engine.execute(
             scenario['user'], scenario['workflow'], scenario['inputs'])
+    print()
+    print('Result:')
+    print(result)
 
 
 run_scenario(scenario_pii())

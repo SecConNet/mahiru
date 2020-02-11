@@ -132,30 +132,236 @@ class Workflow:
                 self.inputs, self.steps, self.outputs)
 
 
-Plan = Dict[WorkflowStep, 'Site']
+class AssetStore:
+    """A simple store for assets.
+    """
+    def __init__(self, name: str) -> None:
+        """Create a new empty AssetStore.
+        """
+        self.name = name
+        self._assets = dict()
+
+    def __repr__(self) -> str:
+        return 'AssetStore({})'.format(self.name)
+
+    def store(self, name: str, data: Any) -> None:
+        """Stores an asset.
+
+        Args:
+            name: Name to store asset under.
+            data: Asset data to store.
+
+        Raises:
+            KeyError: If there's already an asset with name ``name``.
+        """
+        if name in self._assets:
+            raise KeyError('There is already an asset with that name')
+        self._assets[name] = data
+
+    def retrieve(self, name: str) -> Any:
+        """Retrieves an asset.
+
+        Args:
+            name: Name of the asset to retrieve.
+
+        Return:
+            The asset data stored under the given name.
+
+        Raises:
+            KeyError: If no asset with the given name is stored here.
+        """
+        print('{} servicing request for data {}, '.format(self, name), end='')
+        try:
+            data = self._assets[name]
+            print('sending...')
+            return data
+        except KeyError:
+            print('not found.')
+            raise
+
+
+class Registry:
+    """Global registry of data stores and local workflow runners.
+
+    In a real system, these would just be identified by the URL, and
+    use the DNS to resolve. Here, we use this registry instead.
+    """
+    def __init__(self) -> None:
+        """Create a new registry.
+        """
+        self._runners = dict()          # type: Dict[str, LocalWorkflowRunner]
+        self._runner_admins = dict()    # type: Dict[str, str]
+        self._stores = dict()           # type: Dict[str, AssetStore]
+
+    def register_runner(
+            self, admin: str, runner: 'LocalWorkflowRunner'
+            ) -> None:
+        """Register a LocalWorkflowRunner with the Registry.
+
+        Args:
+            admin: The party administrating this runner.
+            runner: The runner to register.
+        """
+        if runner.name in self._runners:
+            raise RuntimeError('There is already a runner with this name')
+        self._runners[runner.name] = runner
+        self._runner_admins[runner.name] = admin
+
+    def register_store(self, store: 'AssetStore') -> None:
+        """Register a AssetStore with the Registry.
+
+        Args:
+            store: The data store to register.
+        """
+        if store.name in self._stores:
+            raise RuntimeError('There is already a store with this name')
+        self._stores[store.name] = store
+
+    def list_runners(self) -> List[str]:
+        """List names of all registered runners.
+
+        Returns:
+            A list of names as strings.
+        """
+        return list(self._runners.keys())
+
+    def get_runner(self, name: str) -> 'LocalWorkflowRunner':
+        """Look up a LocalWorkflowRunner.
+
+        Args:
+            name: The name of the runner to look up.
+
+        Return:
+            The runner with that name.
+
+        Raises:
+            KeyError: If no runner with the given name is
+                    registered.
+        """
+        return self._runners[name]
+
+    def get_runner_admin(self, name: str) -> str:
+        """Look up who administrates a given runner.
+
+        Args:
+            name: The name of the runner to look up.
+
+        Return:
+            The name of the party administrating it.
+
+        Raises:
+            KeyError: If no runner with the given name is regstered.
+        """
+        return self._runner_admins[name]
+
+    def get_store(self, name: str) -> 'AssetStore':
+        """Look up an AssetStore.
+
+        Args:
+            name: The name of the store to look up.
+
+        Return:
+            The store with that name.
+
+        Raises:
+            KeyError: If no store with the given name is currently
+                    registered.
+        """
+        return self._stores[name]
+
+
+global_registry = Registry()
+
+
+Plan = Dict[WorkflowStep, str]      # maps step to LocalWorkflowRunner name
+
+
+class DDMClient:
+    """Handles connecting to global registry, runners and stores.
+    """
+    def __init__(self) -> None:
+        pass
+
+    def register_runner(
+            self, admin: str, runner: 'LocalWorkflowRunner'
+            ) -> None:
+        """Register a LocalWorkflowRunner with the Registry.
+
+        Args:
+            admin: The party administrating this runner.
+            runner: The runner to register.
+        """
+        global_registry.register_runner(admin, runner)
+
+    def register_store(self, store: 'AssetStore') -> None:
+        """Register a AssetStore with the Registry.
+
+        Args:
+            store: The data store to register.
+        """
+        global_registry.register_store(store)
+
+    def list_runners(self) -> List[str]:
+        """Returns a list of id's of available runners.
+        """
+        return global_registry.list_runners()
+
+    def get_target_store(self, runner_id: str) -> str:
+        """Returns the id of the target store of the given runner.
+        """
+        return global_registry.get_runner(runner_id).target_store()
+
+    def get_runner_administrator(self, runner_id: str) -> str:
+        """Returns the id of the party administrating a runner.
+        """
+        return global_registry.get_runner_admin(runner_id)
+
+    def retrieve_data(self, store_id: str, name: str) -> Any:
+        """Obtains a data item from a store.
+        """
+        store = global_registry.get_store(store_id)
+        return store.retrieve(name)
+
+    def execute_plan(
+            self, runner_id: str,
+            workflow: Workflow, inputs: Dict[str, str], plan: Plan
+            ) -> None:
+        """Submits a plan for execution to a local runner.
+
+        Args:
+            runner_id: The runner to submit to.
+            workflow: The workflow to submit.
+            inputs: The inputs to feed into the workflow.
+            plan: The plan to execute the workflow to.
+        """
+        runner = global_registry.get_runner(runner_id)
+        return runner.execute_plan(workflow, inputs, plan)
 
 
 class Job(Thread):
     def __init__(
-            self, this_site: 'Site', sites: List['Site'],
-            workflow: Workflow, inputs: Dict[str, str], plan: Plan) -> None:
+            self, this_runner: str,
+            workflow: Workflow, inputs: Dict[str, str], plan: Plan,
+            target_store: AssetStore
+            ) -> None:
         """Creates a Job object.
 
         This represents the execution of (parts of) a workflow at a
         site.
 
         Args:
-            this_site: The site we're running at.
-            sites: A list of all sites in the system.
+            this_runner: The runner we're running in.
             workflow: The workflow to execute.
             plan: The plan for the workflow to execute.
+            target_store: The asset store to put results into.
         """
-        super().__init__(name='JobAtSite-{}'.format(this_site.name))
-        self._this_site = this_site
-        self._sites = {site.name: site for site in sites}
+        super().__init__(name='JobAtRunner-{}'.format(this_runner))
+        self._this_runner = this_runner
         self._workflow = workflow
         self._inputs = inputs
         self._plan = {step.name: site for step, site in plan.items()}
+        self._target_store = target_store
+        self._ddm_client = DDMClient()
 
     def run(self) -> None:
         """Runs the job.
@@ -165,14 +371,14 @@ class Job(Thread):
         """
         steps_to_do = {
                 step for step in self._workflow.steps.values()
-                if self._plan[step.name] == self._this_site}
+                if self._plan[step.name] == self._this_runner}
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
                 inputs = self._get_step_inputs(step)
                 if inputs is not None:
                     print('Job at {} executing step {}'.format(
-                        self._this_site, step))
+                        self._this_runner, step))
                     # run step
                     outputs = dict()
                     if step.compute_asset == 'Combine':
@@ -190,13 +396,13 @@ class Job(Thread):
                     for output_name, output_value in outputs.items():
                         data_key = 'steps.{}.outputs.{}'.format(
                                 step.name, output_name)
-                        self._this_site._store_data(data_key, output_value)
+                        self._target_store.store(data_key, output_value)
 
                     steps_to_do.remove(step)
                     break
             else:
                 sleep(0.5)
-        print('Job at {} done'.format(self._this_site))
+        print('Job at {} done'.format(self._this_runner))
 
     def _get_step_inputs(self, step: WorkflowStep) -> Optional[Dict[str, Any]]:
         """Find and obtain inputs for the steps.
@@ -214,83 +420,73 @@ class Job(Thread):
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
-            source_site, data_key = self._source(inp_source)
+            source_store, data_key = self._source(inp_source)
             print('Job at {} getting input {} from site {}'.format(
-                self._this_site, data_key, source_site))
-            data = source_site.get_data(data_key)
-            if data is None:
-                print('Job at {} found input {} not yet available.'.format(
-                    self._this_site, data_key))
-                return None
-            else:
+                self._this_runner, data_key, source_store))
+            try:
+                step_input_data[inp_name] = self._ddm_client.retrieve_data(
+                        source_store, data_key)
                 print('Job at {} found input {} available.'.format(
-                    self._this_site, data_key))
-                step_input_data[inp_name] = data
+                    self._this_runner, data_key))
+            except KeyError:
+                print('Job at {} found input {} not yet available.'.format(
+                    self._this_runner, data_key))
+                return None
 
         return step_input_data
 
-    def _source(self, inp_source: str) -> Tuple['Site', str]:
+    def _source(self, inp_source: str) -> Tuple[str, str]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step/output', this will return the
-        site which is to execute that step according to the current
-        plan, and the output name.
+        target store for the runner which is to execute that step
+        according to the current plan, and the output name.
 
-        If the input is of the form 'site:data', this will return the
-        given site and the name of the input data set.
+        If the input is of the form 'store:data', this will return the
+        given store and the name of the input data set.
         """
         if '/' in inp_source:
             step_name, output_name = inp_source.split('/')
-            source_site = self._plan[step_name]
-            return source_site, 'steps.{}.outputs.{}'.format(
+            src_runner_name = self._plan[step_name]
+            src_store = self._ddm_client.get_target_store(src_runner_name)
+            return src_store, 'steps.{}.outputs.{}'.format(
                     step_name, output_name)
         else:
             inp_source = self._inputs[inp_source]
             if ':' in inp_source:
-                site_name, data_name = inp_source.split(':')
-                source_site = self._sites[site_name]
-                return source_site, data_name
+                return inp_source.split(':')
             else:
                 raise RuntimeError('Invalid input specification "{}"'.format(
                     inp_source))
 
 
-class Site:
-    def __init__(
-            self, name: str, administrator: str, stored_data: Dict[str, int]
-            ) -> None:
-        """Create a Site.
+class LocalWorkflowRunner:
+    """A service for running workflows at a given site.
+    """
+    def __init__(self, name: str, target_store: AssetStore) -> None:
+        """Creates a LocalWorkflowRunner.
 
         Args:
-            name: Name of the site
-            administrator: Party which administrates this site.
-            stored_data: Data sets stored at this site.
+            name: Name identifying this runner.
+            target_store: An AssetStore to store result in.
         """
         self.name = name
-        self.administrator = administrator
-        self._stored_data = stored_data
+        self._target_store = target_store
 
-    def __repr__(self) -> str:
-        return 'Site({})'.format(self.name)
+    def target_store(self) -> str:
+        """Returns the name of the store containing our results.
 
-    def get_data(self, key: str) -> Any:
-        print('{} servicing request for data {}, '.format(self, key), end='')
-        if key in self._stored_data:
-            print('sending...')
-        else:
-            print('not found.')
-        return self._stored_data.get(key)
+        Returns:
+            A string with the name.
+        """
+        return self._target_store.name
 
     def execute_plan(
-            self, sites: List['Site'],
+            self,
             workflow: Workflow, inputs: Dict[str, str], plan: Plan
             ) -> None:
-        job = Job(self, sites, workflow, inputs, plan)
+        job = Job(self.name, workflow, inputs, plan, self._target_store)
         job.start()
-
-    def _store_data(self, key: str, value: int) -> None:
-        # called by class Job
-        self._stored_data[key] = value
 
 
 class PolicyManager:
@@ -388,16 +584,16 @@ class PolicyManager:
 class WorkflowEngine:
     """Executes workflows across sites in DDM.
     """
-    def __init__(self, sites: List[Site], policy_manager: PolicyManager
-                 ) -> None:
+    def __init__(
+            self, policy_manager: PolicyManager, ddm_client: DDMClient
+            ) -> None:
         """Create a WorkflowEngine.
 
         Args:
-            sites: List of sites in the DDM.
             policy_manager: Component that knows about policies.
         """
-        self._sites = sites
         self._policy_manager = policy_manager
+        self._ddm_client = ddm_client
 
     def execute(
             self, submitter: str, workflow: Workflow, inputs: Dict[str, str]
@@ -405,7 +601,7 @@ class WorkflowEngine:
         """Plans and executes the given workflow.
 
         Args:
-            submitter: Name of the site to submit this request.
+            submitter: Name of the party to submit this request.
             workflow: The workflow to execute.
             inputs: A dictionary mapping the workflow's input
                     parameters to references to data sets.
@@ -426,14 +622,15 @@ class WorkflowEngine:
         print()
 
         if not plans:
-            print('This workflow cannot be run due to insufficient'
-                  ' permissions.')
-            return
+            raise RuntimeError(
+                    'This workflow cannot be run due to insufficient'
+                    ' permissions.')
 
         selected_plan = plans[-1]
-        selected_sites = {site for site in selected_plan.values()}
-        for site in selected_sites:
-            site.execute_plan(self._sites, workflow, inputs, selected_plan)
+        selected_runner_names = set(selected_plan.values())
+        for runner_name in selected_runner_names:
+            self._ddm_client.execute_plan(
+                    runner_name, workflow, inputs, selected_plan)
 
         # get workflow outputs
         results = dict()
@@ -441,14 +638,16 @@ class WorkflowEngine:
             for wf_outp_name, wf_outp_source in workflow.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('/')
-                    source_site = selected_plan[workflow.steps[src_step_name]]
+                    src_runner_name = selected_plan[workflow.steps[src_step_name]]
+                    src_store = self._ddm_client.get_target_store(
+                            src_runner_name)
                     outp_key = 'steps.{}.outputs.{}'.format(
                             src_step_name, src_step_output)
-                    data = source_site.get_data(outp_key)
-                    if data is None:
+                    try:
+                        results[wf_outp_name] = self._ddm_client.retrieve_data(
+                                src_store, outp_key)
+                    except KeyError:
                         continue
-                    else:
-                        results[wf_outp_name] = source_site.get_data(outp_key)
             sleep(0.5)
 
         return results
@@ -629,7 +828,7 @@ class WorkflowEngine:
         be executed.
 
         Args:
-            submitter: Name of the site that submitted this, and to
+            submitter: Name of the party which submitted this, and to
                     which results should be returned.
             workflow: The workflow to plan.
             result_collections: List of sets of collections
@@ -645,10 +844,10 @@ class WorkflowEngine:
             asset_coll = result_collections[step_key]
             return self._policy_manager.may_access(asset_coll, party)
 
-        def may_run(step: WorkflowStep, site: Site) -> bool:
-            """Checks whether the given site may run the given step.
+        def may_run(step: WorkflowStep, runner: str) -> bool:
+            """Checks whether the given runner may run the given step.
             """
-            party = site.administrator
+            party = self._ddm_client.get_runner_administrator(runner)
 
             # check each input
             for inp_name in step.inputs:
@@ -661,19 +860,18 @@ class WorkflowEngine:
             return may_access_step(step, party)
 
         sorted_steps = self._sort_workflow(workflow)
-        dummy_site = Site('', '', {})
-        plan = list(repeat(dummy_site, len(sorted_steps)))  # type: List[Site]
+        plan = [''] * len(sorted_steps)
 
-        def plan_from(cur_step_idx: int) -> Generator[List[Site], None, None]:
+        def plan_from(cur_step_idx: int) -> Generator[List[str], None, None]:
             """Make remaining plan, starting at cur_step.
 
             Yields any complete plans found.
             """
             cur_step = sorted_steps[cur_step_idx]
             step_name = cur_step.name
-            for site in self._sites:
-                if may_run(cur_step, site):
-                    plan[cur_step_idx] = site
+            for runner in self._ddm_client.list_runners():
+                if may_run(cur_step, runner):
+                    plan[cur_step_idx] = runner
                     if cur_step_idx == len(plan) - 1:
                         if may_access_step(cur_step, submitter):
                             yield copy(plan)
@@ -683,17 +881,80 @@ class WorkflowEngine:
         return [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
 
 
+class Site:
+    def __init__(
+            self, name: str, administrator: str, stored_data: Dict[str, int],
+            rules: List[Rule]) -> None:
+        """Create a Site.
+
+        Also registers its runner and store in the global registry.
+
+        Args:
+            name: Name of the site
+            administrator: Party which administrates this site.
+            stored_data: Data sets stored at this site.
+            rules: A policy to adhere to.
+        """
+        # Metadata
+        self.name = name
+        self.administrator = administrator
+
+        self._ddm_client = DDMClient()
+
+        # Server side
+        self.store = AssetStore(name + '-store')
+        for key, val in stored_data.items():
+            self.store.store(key, val)
+        self._ddm_client.register_store(self.store)
+
+        self.runner = LocalWorkflowRunner(name + '-runner', self.store)
+        self._ddm_client.register_runner(administrator, self.runner)
+
+        # Client side
+        self._policy_manager = PolicyManager(rules)
+        self._workflow_engine = WorkflowEngine(
+                self._policy_manager, self._ddm_client)
+
+    def __repr__(self) -> str:
+        return 'Site({})'.format(self.name)
+
+    def run_workflow(
+            self, workflow: Workflow, inputs: Dict[str, str]
+            ) -> Dict[str, Any]:
+        """Run a workflow on behalf of the party running this site.
+        """
+        return self._workflow_engine.execute(
+                self.administrator, workflow, inputs)
+
+
+def run_scenario(scenario: Dict[str, Any]) -> None:
+    # run
+    print('Rules:')
+    for rule in scenario['rules']:
+        print('    {}'.format(rule))
+    print()
+    print('On behalf of: {}'.format(scenario['user_site'].administrator))
+    print()
+    print('Workflow:')
+    print(indent(str(scenario['workflow']), ' '*4))
+    print()
+    print('Inputs: {}'.format(scenario['inputs']))
+    print()
+
+    result = scenario['user_site'].run_workflow(
+            scenario['workflow'], scenario['inputs'])
+    print()
+    print('Result:')
+    print(result)
+
+
 def scenario_saas_with_data() -> Dict[str, Any]:
     result = dict()     # type: Dict[str, Any]
 
-    result['sites'] = [
-            Site('site1', 'party1', {'data1': 42}),
-            Site('site2', 'party2', {'data2': 3})]
-
     result['rules'] = [
-            MayAccess('party1', 'site1:data1'),
-            MayAccess('party2', 'site1:data1'),
-            MayAccess('party2', 'site2:data2'),
+            MayAccess('party1', 'site1-store:data1'),
+            MayAccess('party2', 'site1-store:data1'),
+            MayAccess('party2', 'site2-store:data2'),
             ResultOfIn('site1:data1', 'Addition', 'result1'),
             ResultOfIn('site2:data2', 'Addition', 'result2'),
             MayAccess('party2', 'result1'),
@@ -702,14 +963,19 @@ def scenario_saas_with_data() -> Dict[str, Any]:
             MayAccess('party2', 'result2'),
             ]
 
+    result['sites'] = [
+            Site('site1', 'party1', {'data1': 42}, result['rules']),
+            Site('site2', 'party2', {'data2': 3}), result['rules']]
+
     result['workflow'] = Workflow(
             ['x1', 'x2'], {'y': 'addstep/y'}, [
                 WorkflowStep(
                     'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
                 ])
 
-    result['inputs'] = {'x1': 'site1:data1', 'x2': 'site2:data2'}
-    result['user'] = 'party1'
+    result['inputs'] = {'x1': 'site1-store:data1', 'x2': 'site2-store:data2'}
+
+    result['user_site'] = result['sites'][0]
 
     return result
 
@@ -717,13 +983,8 @@ def scenario_saas_with_data() -> Dict[str, Any]:
 def scenario_pii() -> Dict[str, Any]:
     scenario = dict()     # type: Dict[str, Any]
 
-    scenario['sites'] = [
-            Site('site1', 'party1', {'pii1': 42}),
-            Site('site2', 'party2', {'pii2': 3}),
-            Site('site3', 'party3', {})]
-
     scenario['rules'] = [
-            InAssetCollection('site1:pii1', 'PII1'),
+            InAssetCollection('site1-store:pii1', 'PII1'),
             MayAccess('party1', 'PII1'),
             ResultOfIn('PII1', '*', 'PII1'),
             ResultOfIn('PII1', 'Anonymise', 'ScienceOnly1'),
@@ -732,7 +993,7 @@ def scenario_pii() -> Dict[str, Any]:
             InAssetCollection('ScienceOnly1', 'ScienceOnly'),
             ResultOfIn('Public', '*', 'Public'),
 
-            InAssetCollection('site2:pii2', 'PII2'),
+            InAssetCollection('site2-store:pii2', 'PII2'),
             MayAccess('party2', 'PII2'),
             MayAccess('party1', 'PII2'),
             ResultOfIn('PII2', '*', 'PII2'),
@@ -746,6 +1007,11 @@ def scenario_pii() -> Dict[str, Any]:
             MayAccess('party3', 'Public'),
             ]
 
+    scenario['sites'] = [
+            Site('site1', 'party1', {'pii1': 42}, scenario['rules']),
+            Site('site2', 'party2', {'pii2': 3}, scenario['rules']),
+            Site('site3', 'party3', {}, scenario['rules'])]
+
     scenario['workflow'] = Workflow(
             ['x1', 'x2'], {'result': 'aggregate/y'}, [
                 WorkflowStep(
@@ -755,34 +1021,10 @@ def scenario_pii() -> Dict[str, Any]:
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise/y'}, ['y'], 'Aggregate')])
 
-    scenario['inputs'] = {'x1': 'site1:pii1', 'x2': 'site2:pii2'}
-    scenario['user'] = 'party3'
+    scenario['inputs'] = {'x1': 'site1-store:pii1', 'x2': 'site2-store:pii2'}
+    scenario['user_site'] = scenario['sites'][2]
 
     return scenario
-
-
-def run_scenario(scenario: Dict[str, Any]) -> None:
-    policy_manager = PolicyManager(scenario['rules'])
-    workflow_engine = WorkflowEngine(scenario['sites'], policy_manager)
-
-    # run
-    print('Rules:')
-    for rule in scenario['rules']:
-        print('    {}'.format(rule))
-    print()
-    print('On behalf of: {}'.format(scenario['user']))
-    print()
-    print('Workflow:')
-    print(indent(str(scenario['workflow']), ' '*4))
-    print()
-    print('Inputs: {}'.format(scenario['inputs']))
-    print()
-
-    result = workflow_engine.execute(
-            scenario['user'], scenario['workflow'], scenario['inputs'])
-    print()
-    print('Result:')
-    print(result)
 
 
 run_scenario(scenario_pii())

@@ -139,7 +139,7 @@ class AssetStore:
         """Create a new empty AssetStore.
         """
         self.name = name
-        self._assets = dict()
+        self._assets = dict()   # type: Dict[str, Any]
 
     def __repr__(self) -> str:
         return 'AssetStore({})'.format(self.name)
@@ -380,7 +380,7 @@ class Job(Thread):
                     print('Job at {} executing step {}'.format(
                         self._this_runner, step))
                     # run step
-                    outputs = dict()
+                    outputs = dict()    # type: Dict[str, Any]
                     if step.compute_asset == 'Combine':
                         outputs['y'] = [inputs['x1'], inputs['x2']]
                     elif step.compute_asset == 'Anonymise':
@@ -454,7 +454,8 @@ class Job(Thread):
         else:
             inp_source = self._inputs[inp_source]
             if ':' in inp_source:
-                return inp_source.split(':')
+                store_name, data_name = inp_source.split(':')
+                return store_name, data_name
             else:
                 raise RuntimeError('Invalid input specification "{}"'.format(
                     inp_source))
@@ -633,7 +634,7 @@ class WorkflowEngine:
                     runner_name, workflow, inputs, selected_plan)
 
         # get workflow outputs
-        results = dict()
+        results = dict()    # type: Dict[str, Any]
         while len(results) < len(workflow.outputs):
             for wf_outp_name, wf_outp_source in workflow.outputs.items():
                 if wf_outp_name not in results:
@@ -955,8 +956,8 @@ def scenario_saas_with_data() -> Dict[str, Any]:
             MayAccess('party1', 'site1-store:data1'),
             MayAccess('party2', 'site1-store:data1'),
             MayAccess('party2', 'site2-store:data2'),
-            ResultOfIn('site1:data1', 'Addition', 'result1'),
-            ResultOfIn('site2:data2', 'Addition', 'result2'),
+            ResultOfIn('site1-store:data1', 'Addition', 'result1'),
+            ResultOfIn('site2-store:data2', 'Addition', 'result2'),
             MayAccess('party2', 'result1'),
             MayAccess('party1', 'result1'),
             MayAccess('party1', 'result2'),
@@ -965,7 +966,7 @@ def scenario_saas_with_data() -> Dict[str, Any]:
 
     result['sites'] = [
             Site('site1', 'party1', {'data1': 42}, result['rules']),
-            Site('site2', 'party2', {'data2': 3}), result['rules']]
+            Site('site2', 'party2', {'data2': 3}, result['rules'])]
 
     result['workflow'] = Workflow(
             ['x1', 'x2'], {'y': 'addstep/y'}, [

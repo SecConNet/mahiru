@@ -35,9 +35,7 @@ class WorkflowPlanner:
             submitter: Name of the party which submitted this, and to
                     which results should be returned.
             workflow: The workflow to plan.
-            result_collections: List of sets of collections
-                    representing access permissions for previously
-                    computed results, indexed by result id.
+            inputs: The workflow inputs to use.
 
         Returns:
             A list of plans, each consisting of a list of sites

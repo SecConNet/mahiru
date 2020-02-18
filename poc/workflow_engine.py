@@ -4,7 +4,7 @@ from typing import Any, Dict, Generator, List, Set
 
 from ddm_client import DDMClient
 from definitions import Plan
-from policy import PolicyManager
+from policy import Permissions, PolicyManager
 from workflow import Workflow, WorkflowStep
 
 
@@ -41,16 +41,8 @@ class WorkflowPlanner:
             A list of plans, each consisting of a list of sites
             corresponding to the given list of steps.
         """
-        def may_access_step(
-                result_collections: Dict[str, List[Set[str]]],
-                step: WorkflowStep, party: str
-                ) -> bool:
-            step_key = 'steps.{}'.format(step.name)
-            asset_coll = result_collections[step_key]
-            return self._policy_manager.may_access(asset_coll, party)
-
         def may_run(
-                result_collections: Dict[str, List[Set[str]]],
+                permissions: Dict[str, Permissions],
                 step: WorkflowStep, runner: str
                 ) -> bool:
             """Checks whether the given runner may run the given step.
@@ -60,14 +52,15 @@ class WorkflowPlanner:
             # check each input
             for inp_name in step.inputs:
                 inp_key = 'steps.{}.inputs.{}'.format(step.name, inp_name)
-                asset_coll = result_collections[inp_key]
-                if not self._policy_manager.may_access(asset_coll, party):
+                inp_perms = permissions[inp_key]
+                if not self._policy_manager.may_access(inp_perms, party):
                     return False
 
             # check step itself (i.e. outputs)
-            return may_access_step(result_collections, step, party)
+            step_perms = permissions['steps.{}'.format(step.name)]
+            return self._policy_manager.may_access(step_perms, party)
 
-        result_collections = self._find_result_collections(workflow, inputs)
+        permissions = self._calc_permissions(workflow, inputs)
         sorted_steps = self._sort_workflow(workflow)
         plan = [''] * len(sorted_steps)
 
@@ -78,12 +71,13 @@ class WorkflowPlanner:
             """
             cur_step = sorted_steps[cur_step_idx]
             step_name = cur_step.name
+            step_perms = permissions['steps.{}'.format(step_name)]
             for runner in self._ddm_client.list_runners():
-                if may_run(result_collections, cur_step, runner):
+                if may_run(permissions, cur_step, runner):
                     plan[cur_step_idx] = runner
                     if cur_step_idx == len(plan) - 1:
-                        if may_access_step(
-                                result_collections, cur_step, submitter):
+                        if self._policy_manager.may_access(
+                                step_perms, submitter):
                             yield copy(plan)
                     else:
                         yield from plan_from(cur_step_idx + 1)
@@ -96,6 +90,7 @@ class WorkflowPlanner:
         In the returned list, each step is preceded by the ones it
         depends on.
         """
+        # find dependencies for each step
         deps = dict()       # type: Dict[WorkflowStep, List[WorkflowStep]]
         for step in workflow.steps.values():
             step_deps = list()   # type: List[WorkflowStep]
@@ -105,6 +100,7 @@ class WorkflowPlanner:
                     step_deps.append(workflow.steps[dep_name])
             deps[step] = step_deps
 
+        # sort based on dependencies
         result = list()     # type: List[WorkflowStep]
         while len(result) < len(workflow.steps):
             for step in workflow.steps.values():
@@ -115,11 +111,11 @@ class WorkflowPlanner:
                     break
         return result
 
-    def _find_result_collections(
+    def _calc_permissions(
             self,
             workflow: Workflow,
             inputs: Dict[str, str]
-            ) -> Dict[str, List[Set[str]]]:
+            ) -> Dict[str, Permissions]:
         """Finds collections each workflow value is in.
 
         This function returns a dictionary with a list of sets of
@@ -137,8 +133,7 @@ class WorkflowPlanner:
             inputs: Map from input names to assets.
 
         Returns:
-            A dictionary with lists of sets of assets per workflow
-                    value.
+            A dictionary with permissions per workflow value.
         """
         def source_key(inp_source: str) -> str:
             """Converts a source description to a key.
@@ -148,112 +143,101 @@ class WorkflowPlanner:
             else:
                 return 'inputs.{}'.format(inp_source)
 
-        def set_workflow_inputs_requirements(
-                requirements: Dict[str, List[Set[str]]],
+        def set_workflow_inputs_permissions(
+                permissions: Dict[str, Permissions],
                 workflow: Workflow
                 ) -> None:
-            """Returns asset collections for the workflow's inputs.
+            """Sets permissions for the workflow's inputs.
+
+            This modifies the permissions argument.
             """
             for inp_name in workflow.inputs:
                 inp_source = inputs[inp_name]
                 inp_key = source_key(inp_name)
-                requirements[inp_key] = [
-                        self._policy_manager.equivalent_assets(inp_source)]
+                permissions[inp_key] = (
+                        self._policy_manager.permissions_for_asset(inp_source))
 
         class InputNotAvailable(RuntimeError):
             pass
 
         def prop_input_sources(
-                requirements: Dict[str, List[Set[str]]],
+                permissions: Dict[str, Permissions],
                 step: WorkflowStep
                 ) -> None:
-            """Propagates requirements of a step input from its source.
+            """Propagates permissions of a step input from its source.
 
-            Raises InputNotAvailable if the input source is not (yet) available.
+            This modifies the permissions argument.
+
+            Raises:
+                InputNotAvailable if the input source is not (yet)
+                available.
             """
             for inp, inp_source in step.inputs.items():
                 inp_key = '{}.inputs.{}'.format(step_key, inp)
-                if inp_key not in requirements:
+                if inp_key not in permissions: 
                     inp_source_key = source_key(inp_source)
-                    if inp_source_key not in requirements:
+                    if inp_source_key not in permissions:
                         raise InputNotAvailable()
-                    requirements[inp_key] = requirements[inp_source_key]
+                    permissions[inp_key] = permissions[inp_source_key]
 
-        def calc_step_input_requirements(
-                requirements: Dict[str, List[Set[str]]],
-                step: WorkflowStep, inp: str
-                ) -> List[Set[str]]:
-            """Calculates requirements for the step from those of its input.
-            """
-            result = list()     # type: List[Set[str]]
-            inp_key = 'steps.{}.inputs.{}'.format(step.name, inp)
-            for asset_set in requirements[inp_key]:
-                rules = self._policy_manager.resultofin_rules(
-                        asset_set, step.compute_asset)
-                step_assets = set()     # type: Set[str]
-                for rule in rules:
-                    step_assets |= self._policy_manager.equivalent_assets(
-                            rule.collection)
-                result.append(step_assets)
-            return result
-
-        def calc_step_requirements(
-                requirements: Dict[str, List[Set[str]]],
+        def calc_step_permissions(
+                permissions: Dict[str, Permissions],
                 step: WorkflowStep
                 ) -> None:
-            """Derives the step's requirements and stores them.
+            """Derives the step's permissions and stores them.
             """
-            step_requirements = list()   # type: List[Set[str]]
-            for inp, inp_source in step.inputs.items():
-                step_requirements.extend(calc_step_input_requirements(
-                    requirements, step, inp))
+            input_perms = list()     # type: List[Permissions]
+            for inp in step.inputs:
+                inp_key = 'steps.{}.inputs.{}'.format(step.name, inp)
+                input_perms.append(permissions[inp_key])
 
             step_key = 'steps.{}'.format(step.name)
-            requirements[step_key] = step_requirements
+            permissions[step_key] = \
+                    self._policy_manager.propagate_permissions(
+                            input_perms, step.compute_asset)
 
         def prop_step_outputs(
-                requirements: Dict[str, List[Set[str]]],
+                permissions: Dict[str, Permissions],
                 step: WorkflowStep
                 ) -> None:
-            """Copies step requirements to its outputs.
+            """Copies step permissions to its outputs.
+
+            This modifies the permissions argument.
             """
             step_key = 'steps.{}'.format(step.name)
             for output in step.outputs:
                 output_key = '{}.outputs.{}'.format(step_key, output)
-                requirements[output_key] = requirements[step_key]
+                permissions[output_key] = permissions[step_key]
 
-        def set_workflow_output_requirements(
-                requirements: Dict[str, List[Set[str]]],
+        def set_workflow_outputs_permissions(
+                permissions: Dict[str, Permissions],
                 workflow: Workflow
                 ) -> None:
-            """Copies workflow output requirements from their sources.
+            """Copies workflow output permissions from their sources.
             """
             for name, source in workflow.outputs.items():
                 output_key = 'outputs.{}'.format(name)
-                requirements[output_key] = requirements[source_key(source)]
+                permissions[output_key] = permissions[source_key(source)]
 
         # Main function
-        requirements = dict()    # type: Dict[str, List[Set[str]]]
-        set_workflow_inputs_requirements(requirements, workflow)
+        permissions = dict()    # type: Dict[str, Permissions]
+        set_workflow_inputs_permissions(permissions, workflow)
 
         steps_done = set()  # type: Set[str]
         while len(steps_done) < len(workflow.steps):
             for step in workflow.steps.values():
                 step_key = 'steps.{}'.format(step.name)
-                if step_key not in requirements:
+                if step_key not in steps_done:
                     try:
-                        prop_input_sources(requirements, step)
+                        prop_input_sources(permissions, step)
+                        calc_step_permissions(permissions, step)
+                        prop_step_outputs(permissions, step)
+                        steps_done.add(step_key)
                     except InputNotAvailable:
                         continue
 
-                    calc_step_requirements(requirements, step)
-                    prop_step_outputs(requirements, step)
-
-                    steps_done.add(step_key)
-
-        set_workflow_output_requirements(requirements, workflow)
-
-        return requirements
+        set_workflow_outputs_permissions(permissions, workflow)
+        return permissions
 
 
 class WorkflowExecutor:

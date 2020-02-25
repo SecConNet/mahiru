@@ -2,16 +2,18 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
-from definitions import ILocalWorkflowRunner
-from workflow import WorkflowStep, Workflow
 from asset_store import AssetStore
-from definitions import Plan
 from ddm_client import DDMClient
+from definitions import ILocalWorkflowRunner, Plan
+from policy import PolicyManager
+from policy_evaluator import PolicyEvaluator
+from workflow import WorkflowStep, Workflow
 
 
 class Job(Thread):
     def __init__(
-            self, this_runner: str,
+            self, policy_manager: PolicyManager,
+            this_runner: str,
             workflow: Workflow, inputs: Dict[str, str], plan: Plan,
             target_store: AssetStore
             ) -> None:
@@ -27,6 +29,8 @@ class Job(Thread):
             target_store: The asset store to put results into.
         """
         super().__init__(name='JobAtRunner-{}'.format(this_runner))
+        self._policy_manager = policy_manager
+        self._policy_evaluator = PolicyEvaluator(policy_manager)
         self._this_runner = this_runner
         self._workflow = workflow
         self._inputs = inputs
@@ -138,7 +142,9 @@ class Job(Thread):
 class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site.
     """
-    def __init__(self, name: str, target_store: AssetStore) -> None:
+    def __init__(
+            self, name: str, policy_manager: PolicyManager,
+            target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
 
         Args:
@@ -146,6 +152,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
             target_store: An AssetStore to store result in.
         """
         self.name = name
+        self._policy_manager = policy_manager
         self._target_store = target_store
 
     def target_store(self) -> str:
@@ -160,5 +167,8 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
             self,
             workflow: Workflow, inputs: Dict[str, str], plan: Plan
             ) -> None:
-        job = Job(self.name, workflow, inputs, plan, self._target_store)
+        job = Job(
+                self._policy_manager, self.name,
+                workflow, inputs, plan,
+                self._target_store)
         job.start()

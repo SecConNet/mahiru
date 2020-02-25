@@ -27,6 +27,7 @@ class Site:
         self.administrator = administrator
 
         self._ddm_client = DDMClient()
+        self._policy_manager = PolicyManager(rules)
 
         # Server side
         self.store = AssetStore(name + '-store')
@@ -34,11 +35,11 @@ class Site:
             self.store.store(key, val)
         self._ddm_client.register_store(self.store)
 
-        self.runner = LocalWorkflowRunner(name + '-runner', self.store)
+        self.runner = LocalWorkflowRunner(
+                name + '-runner', self._policy_manager, self.store)
         self._ddm_client.register_runner(administrator, self.runner)
 
         # Client side
-        self._policy_manager = PolicyManager(rules)
         self._workflow_engine = GlobalWorkflowRunner(
                 self._policy_manager, self._ddm_client)
 

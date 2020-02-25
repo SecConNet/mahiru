@@ -126,3 +126,25 @@ class Workflow:
             inputs_selected |= new_inputs
 
         return Workflow(list(inputs_selected), {}, list(steps_done))
+
+
+class Job:
+    """Represents a job to the system from a user.
+
+    This class can also be used for provenance, to describe how an
+    asset was made.
+    """
+    def __init__(self, workflow: Workflow, inputs: Dict[str, str]) -> None:
+        """Create a job.
+
+        Args:
+            workflow: The workflow to run.
+            inputs: A dictionary mapping the workflow's input
+                    parameters to data set ids.
+        """
+        self.workflow = workflow
+        self.inputs = inputs
+
+    def __repr__(self) -> str:
+        return 'Job({}, {})'.format(
+                self.inputs, self.workflow)

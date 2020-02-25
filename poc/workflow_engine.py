@@ -6,7 +6,7 @@ from ddm_client import DDMClient
 from definitions import Plan
 from policy import Permissions, PolicyManager
 from policy_evaluator import PolicyEvaluator
-from workflow import Workflow, WorkflowStep
+from workflow import Job, Workflow, WorkflowStep
 
 
 class WorkflowPlanner:
@@ -18,6 +18,7 @@ class WorkflowPlanner:
         """Create a GlobalWorkflowRunner.
 
         Args:
+            ddm_client: Component that communicates with the DDM.
             policy_manager: Component that knows about policies.
         """
         self._ddm_client = ddm_client
@@ -25,9 +26,7 @@ class WorkflowPlanner:
         self._policy_evaluator = PolicyEvaluator(policy_manager)
 
     def make_plans(
-            self, submitter: str,
-            workflow: Workflow, inputs: Dict[str, str]
-            ) -> List[Plan]:
+            self, submitter: str, job: Job) -> List[Plan]:
         """Assigns a site to each workflow step.
 
         Uses the given result collections to determine where steps can
@@ -36,8 +35,7 @@ class WorkflowPlanner:
         Args:
             submitter: Name of the party which submitted this, and to
                     which results should be returned.
-            workflow: The workflow to plan.
-            inputs: The workflow inputs to use.
+            job: The job to plan.
 
         Returns:
             A list of plans, each consisting of a list of sites
@@ -62,9 +60,8 @@ class WorkflowPlanner:
             step_perms = permissions['steps.{}'.format(step.name)]
             return self._policy_manager.may_access(step_perms, party)
 
-        permissions = self._policy_evaluator.calculate_permissions(
-                workflow, inputs)
-        sorted_steps = self._sort_workflow(workflow)
+        permissions = self._policy_evaluator.calculate_permissions(job)
+        sorted_steps = self._sort_workflow(job.workflow)
         plan = [''] * len(sorted_steps)
 
         def plan_from(cur_step_idx: int) -> Generator[List[str], None, None]:
@@ -127,14 +124,12 @@ class WorkflowExecutor:
         self._ddm_client = ddm_client
 
     def execute_workflow(
-            self, workflow: Workflow, inputs: Dict[str, str], plan: Plan
+            self, job: Job, plan: Plan
             ) -> Dict[str, Any]:
         """Executes the given workflow execution plan.
 
         Args:
-            workflow: The workflow to execute.
-            inputs: A dictionary mapping the workflow's input
-                    parameters to references to data sets.
+            job: The job to execute.
             plan: The plan according to which to execute the workflow.
 
         Returns:
@@ -143,16 +138,16 @@ class WorkflowExecutor:
         # launch all the local runners
         selected_runner_names = set(plan.values())
         for runner_name in selected_runner_names:
-            self._ddm_client.execute_plan(
-                    runner_name, workflow, inputs, plan)
+            self._ddm_client.submit_job(runner_name, job, plan)
 
         # get workflow outputs whenever they're available
+        wf = job.workflow
         results = dict()    # type: Dict[str, Any]
-        while len(results) < len(workflow.outputs):
-            for wf_outp_name, wf_outp_source in workflow.outputs.items():
+        while len(results) < len(wf.outputs):
+            for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('/')
-                    src_runner_name = plan[workflow.steps[src_step_name]]
+                    src_runner_name = plan[wf.steps[src_step_name]]
                     src_store = self._ddm_client.get_target_store(
                             src_runner_name)
                     outp_key = 'steps.{}.outputs.{}'.format(
@@ -184,17 +179,14 @@ class GlobalWorkflowRunner:
         self._ddm_client = ddm_client
 
     def execute(
-            self, submitter: str, workflow: Workflow, inputs: Dict[str, str]
-            ) -> Dict[str, Any]:
+            self, submitter: str, job: Job) -> Dict[str, Any]:
         """Plans and executes the given workflow.
 
         Args:
-            submitter: Name of the party to submit this request.
-            workflow: The workflow to execute.
-            inputs: A dictionary mapping the workflow's input
-                    parameters to references to data sets.
+            submitter: Name of the party to submit this job.
+            job: The job to execute.
         """
-        plans = self._planner.make_plans(submitter, workflow, inputs)
+        plans = self._planner.make_plans(submitter, job)
         print('Plans:')
         for plan in plans:
             for step, site in plan.items():
@@ -208,6 +200,5 @@ class GlobalWorkflowRunner:
                     ' permissions.')
 
         selected_plan = plans[-1]
-        results = self._executor.execute_workflow(
-                workflow, inputs, selected_plan)
+        results = self._executor.execute_workflow(job, selected_plan)
         return results

@@ -7,14 +7,15 @@ from ddm_client import DDMClient
 from definitions import ILocalWorkflowRunner, Plan
 from policy import PolicyManager
 from policy_evaluator import PolicyEvaluator
-from workflow import WorkflowStep, Workflow
+from workflow import Job, WorkflowStep, Workflow
 
 
-class Job(Thread):
+class JobRun(Thread):
     def __init__(
             self, policy_manager: PolicyManager,
             this_runner: str,
-            workflow: Workflow, inputs: Dict[str, str], plan: Plan,
+            job: Job,
+            plan: Plan,
             target_store: AssetStore
             ) -> None:
         """Creates a Job object.
@@ -24,16 +25,16 @@ class Job(Thread):
 
         Args:
             this_runner: The runner we're running in.
-            workflow: The workflow to execute.
-            plan: The plan for the workflow to execute.
+            job: The job to execute.
+            plan: The plan for how to execute the job.
             target_store: The asset store to put results into.
         """
         super().__init__(name='JobAtRunner-{}'.format(this_runner))
         self._policy_manager = policy_manager
         self._policy_evaluator = PolicyEvaluator(policy_manager)
         self._this_runner = this_runner
-        self._workflow = workflow
-        self._inputs = inputs
+        self._workflow = job.workflow
+        self._inputs = job.inputs
         self._plan = {step.name: site for step, site in plan.items()}
         self._target_store = target_store
         self._ddm_client = DDMClient()
@@ -163,12 +164,10 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         """
         return self._target_store.name
 
-    def execute_plan(
-            self,
-            workflow: Workflow, inputs: Dict[str, str], plan: Plan
-            ) -> None:
-        job = Job(
+    def execute_job(
+            self, job: Job, plan: Plan) -> None:
+        run = JobRun(
                 self._policy_manager, self.name,
-                workflow, inputs, plan,
+                job, plan,
                 self._target_store)
-        job.start()
+        run.start()

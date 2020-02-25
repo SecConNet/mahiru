@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 from definitions import IAssetStore, ILocalWorkflowRunner, Plan
-from workflow import Workflow
+from workflow import Job, Workflow
 from registry import global_registry
 
 
@@ -46,23 +46,22 @@ class DDMClient:
         return global_registry.get_runner_admin(runner_id)
 
     def retrieve_data(
-            self, store_id: str, name: str) -> Tuple[Any, Optional[Workflow]]:
+            self, store_id: str, name: str) -> Tuple[Any, Optional[Job]]:
         """Obtains a data item from a store.
         """
         store = global_registry.get_store(store_id)
         return store.retrieve(name)
 
-    def execute_plan(
+    def submit_job(
             self, runner_id: str,
-            workflow: Workflow, inputs: Dict[str, str], plan: Plan
+            job: Job, plan: Plan
             ) -> None:
-        """Submits a plan for execution to a local runner.
+        """Submits a job for execution to a local runner.
 
         Args:
             runner_id: The runner to submit to.
-            workflow: The workflow to submit.
-            inputs: The inputs to feed into the workflow.
+            job: The job to submit.
             plan: The plan to execute the workflow to.
         """
         runner = global_registry.get_runner(runner_id)
-        return runner.execute_plan(workflow, inputs, plan)
+        return runner.execute_job(job, plan)

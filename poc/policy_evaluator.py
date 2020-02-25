@@ -1,7 +1,7 @@
 from typing import Dict
 
 from policy import Permissions, PolicyManager
-from workflow import Workflow, WorkflowStep
+from workflow import Job, Workflow, WorkflowStep
 
 
 class PolicyEvaluator:
@@ -17,10 +17,7 @@ class PolicyEvaluator:
 
 
     def calculate_permissions(
-            self,
-            workflow: Workflow,
-            inputs: Dict[str, str]
-            ) -> Dict[str, Permissions]:
+            self, job: Job) -> Dict[str, Permissions]:
         """Finds collections each workflow value is in.
 
         This function returns a dictionary with a list of sets of
@@ -34,8 +31,7 @@ class PolicyEvaluator:
         - steps.<name>.outputs.<name> for a step output
 
         Args:
-            workflow: The workflow to evaluate
-            inputs: Map from input names to assets.
+            job: The job to evaluate.
 
         Returns:
             A dictionary with permissions per workflow value.
@@ -50,14 +46,14 @@ class PolicyEvaluator:
 
         def set_workflow_inputs_permissions(
                 permissions: Dict[str, Permissions],
-                workflow: Workflow
+                job: Job
                 ) -> None:
             """Sets permissions for the workflow's inputs.
 
             This modifies the permissions argument.
             """
-            for inp_name in workflow.inputs:
-                inp_source = inputs[inp_name]
+            for inp_name in job.workflow.inputs:
+                inp_source = job.inputs[inp_name]
                 inp_key = source_key(inp_name)
                 permissions[inp_key] = (
                         self._policy_manager.permissions_for_asset(inp_source))
@@ -126,11 +122,11 @@ class PolicyEvaluator:
 
         # Main function
         permissions = dict()    # type: Dict[str, Permissions]
-        set_workflow_inputs_permissions(permissions, workflow)
+        set_workflow_inputs_permissions(permissions, job)
 
         steps_done = set()  # type: Set[str]
-        while len(steps_done) < len(workflow.steps):
-            for step in workflow.steps.values():
+        while len(steps_done) < len(job.workflow.steps):
+            for step in job.workflow.steps.values():
                 step_key = 'steps.{}'.format(step.name)
                 if step_key not in steps_done:
                     try:
@@ -141,6 +137,6 @@ class PolicyEvaluator:
                     except InputNotAvailable:
                         continue
 
-        set_workflow_outputs_permissions(permissions, workflow)
+        set_workflow_outputs_permissions(permissions, job.workflow)
         return permissions
 

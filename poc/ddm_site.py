@@ -4,7 +4,7 @@ from asset_store import AssetStore
 from ddm_client import DDMClient
 from local_workflow_runner import LocalWorkflowRunner
 from policy import PolicyManager, Rule
-from workflow import Workflow
+from workflow import Job, Workflow
 from workflow_engine import GlobalWorkflowRunner
 
 
@@ -46,10 +46,7 @@ class Site:
     def __repr__(self) -> str:
         return 'Site({})'.format(self.name)
 
-    def run_workflow(
-            self, workflow: Workflow, inputs: Dict[str, str]
-            ) -> Dict[str, Any]:
+    def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site.
         """
-        return self._workflow_engine.execute(
-                self.administrator, workflow, inputs)
+        return self._workflow_engine.execute(self.administrator, job)

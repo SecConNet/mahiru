@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfIn)
 from ddm_site import Site
-from workflow import WorkflowStep, Workflow
+from workflow import Job, WorkflowStep, Workflow
 
 
 def run_scenario(scenario: Dict[str, Any]) -> None:
@@ -16,14 +16,11 @@ def run_scenario(scenario: Dict[str, Any]) -> None:
     print()
     print('On behalf of: {}'.format(scenario['user_site'].administrator))
     print()
-    print('Workflow:')
-    print(indent(str(scenario['workflow']), ' '*4))
-    print()
-    print('Inputs: {}'.format(scenario['inputs']))
+    print('Job:')
+    print(indent(str(scenario['job']), ' '*4))
     print()
 
-    result = scenario['user_site'].run_workflow(
-            scenario['workflow'], scenario['inputs'])
+    result = scenario['user_site'].run_job(scenario['job'])
     print()
     print('Result:')
     print(result)
@@ -48,14 +45,15 @@ def scenario_saas_with_data() -> Dict[str, Any]:
             Site('site1', 'party1', {'data1': 42}, result['rules']),
             Site('site2', 'party2', {'data2': 3}, result['rules'])]
 
-    result['workflow'] = Workflow(
+    workflow = Workflow(
             ['x1', 'x2'], {'y': 'addstep/y'}, [
                 WorkflowStep(
                     'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
                 ])
 
-    result['inputs'] = {'x1': 'site1-store:data1', 'x2': 'site2-store:data2'}
+    inputs = {'x1': 'site1-store:data1', 'x2': 'site2-store:data2'}
 
+    result['job'] = Job(workflow, inputs)
     result['user_site'] = result['sites'][0]
 
     return result
@@ -93,7 +91,7 @@ def scenario_pii() -> Dict[str, Any]:
             Site('site2', 'party2', {'pii2': 3}, scenario['rules']),
             Site('site3', 'party3', {}, scenario['rules'])]
 
-    scenario['workflow'] = Workflow(
+    workflow = Workflow(
             ['x1', 'x2'], {'result': 'aggregate/y'}, [
                 WorkflowStep(
                     'combine', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Combine'),
@@ -102,7 +100,9 @@ def scenario_pii() -> Dict[str, Any]:
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise/y'}, ['y'], 'Aggregate')])
 
-    scenario['inputs'] = {'x1': 'site1-store:pii1', 'x2': 'site2-store:pii2'}
+    inputs = {'x1': 'site1-store:pii1', 'x2': 'site2-store:pii2'}
+
+    scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = scenario['sites'][2]
 
     return scenario

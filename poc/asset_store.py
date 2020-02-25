@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional, Tuple
 
 from definitions import IAssetStore
-from workflow import Workflow
+from workflow import Job
 
 
 class AssetStore(IAssetStore):
@@ -12,13 +12,13 @@ class AssetStore(IAssetStore):
         """
         self.name = name
         self._assets = dict()   # type: Dict[str, Any]
-        self._provenance = dict()   # type: Dict[str, Optional[Workflow]]
+        self._provenance = dict()   # type: Dict[str, Optional[Job]]
 
     def __repr__(self) -> str:
         return 'AssetStore({})'.format(self.name)
 
     def store(
-            self, name: str, data: Any, provenance: Optional[Workflow] = None
+            self, name: str, data: Any, provenance: Optional[Job] = None
             ) -> None:
         """Stores an asset.
 
@@ -35,7 +35,7 @@ class AssetStore(IAssetStore):
         self._assets[name] = data
         self._provenance[name] = provenance
 
-    def retrieve(self, name: str) -> Tuple[Any, Optional[Workflow]]:
+    def retrieve(self, name: str) -> Tuple[Any, Optional[Job]]:
         """Retrieves an asset.
 
         Args:

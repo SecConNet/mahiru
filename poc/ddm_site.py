@@ -36,7 +36,8 @@ class Site:
         self._ddm_client.register_store(self.store)
 
         self.runner = LocalWorkflowRunner(
-                name + '-runner', self._policy_manager, self.store)
+                name + '-runner', administrator,
+                self._policy_manager, self.store)
         self._ddm_client.register_runner(administrator, self.runner)
 
         # Client side

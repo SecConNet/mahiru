@@ -13,18 +13,18 @@ from workflow import Job, WorkflowStep, Workflow
 class JobRun(Thread):
     def __init__(
             self, policy_manager: PolicyManager,
-            this_runner: str,
-            job: Job,
-            plan: Plan,
+            this_runner: str, administrator: str,
+            job: Job, plan: Plan,
             target_store: AssetStore
             ) -> None:
-        """Creates a Job object.
+        """Creates a JobRun object.
 
         This represents the execution of (parts of) a workflow at a
         site.
 
         Args:
             this_runner: The runner we're running in.
+            administrator: Name of the party administrating this runner.
             job: The job to execute.
             plan: The plan for how to execute the job.
             target_store: The asset store to put results into.
@@ -33,6 +33,7 @@ class JobRun(Thread):
         self._policy_manager = policy_manager
         self._policy_evaluator = PolicyEvaluator(policy_manager)
         self._this_runner = this_runner
+        self._administrator = administrator
         self._job = job
         self._workflow = job.workflow
         self._inputs = job.inputs
@@ -46,6 +47,13 @@ class JobRun(Thread):
         This executes the steps in the job one at a time, in an order
         compatible with their dependencies.
         """
+        if not self._is_legal():
+            # for each output we were supposed to produce
+                # store an error object instead
+            # for now, we raise and crash
+            raise RuntimeError(
+                    'Security violation, asked to perform an illegal job.')
+
         steps_to_do = {
                 step for step in self._workflow.steps.values()
                 if self._plan[step.name] == self._this_runner}
@@ -84,6 +92,43 @@ class JobRun(Thread):
             else:
                 sleep(0.5)
         print('Job at {} done'.format(self._this_runner))
+
+    def _is_legal(self) -> bool:
+        """Checks whether this request is legal.
+
+        If we have permission to execute all of our steps, then this
+        is a legal job as far as we are concerned.
+        """
+        perms = self._policy_evaluator.calculate_permissions(self._job)
+        for step in self._workflow.steps.values():
+            if self._plan[step.name] == self._this_runner:
+                step_id = 'steps.{}'.format(step.name)
+                # check that we can access the step's inputs
+                for inp_name, inp_src in step.inputs.items():
+                    inp_id = '{}.inputs.{}'.format(step_id, inp_name)
+                    inp_perms = perms[inp_id]
+                    if not self._policy_manager.may_access(
+                            inp_perms, self._administrator):
+                        return False
+                    # check that the site we'll download this input from may
+                    # access it
+                    if '/' in inp_src:
+                        src_step, src_outp = inp_src.split('/')
+                        inp_src_id = 'steps.{}.outputs.{}'.format(
+                                src_step, src_outp)
+                        src_perms = perms[inp_src_id]
+                        src_party = self._ddm_client.get_runner_administrator(
+                                self._plan[src_step])
+                        if not self._policy_manager.may_access(
+                                src_perms, src_party):
+                            return False
+
+                # check that we can access the step itself
+                if not self._policy_manager.may_access(
+                        perms[step_id], self._administrator):
+                    return False
+
+        return True
 
     def _get_step_inputs(self, step: WorkflowStep) -> Optional[Dict[str, Any]]:
         """Find and obtain inputs for the steps.
@@ -148,15 +193,18 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site.
     """
     def __init__(
-            self, name: str, policy_manager: PolicyManager,
+            self, name: str, administrator: str, policy_manager: PolicyManager,
             target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
 
         Args:
             name: Name identifying this runner.
+            administrator: Party administrating this runner.
+            policy_manager: A PolicyManager to use.
             target_store: An AssetStore to store result in.
         """
         self.name = name
+        self._administrator = administrator
         self._policy_manager = policy_manager
         self._target_store = target_store
 
@@ -171,7 +219,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
     def execute_job(
             self, job: Job, plan: Plan) -> None:
         run = JobRun(
-                self._policy_manager, self.name,
+                self._policy_manager, self.name, self._administrator,
                 job, plan,
                 self._target_store)
         run.start()

@@ -64,10 +64,11 @@ class Job(Thread):
                         raise RuntimeError('Unknown compute asset')
 
                     # save output to store
+                    prov = self._workflow.subworkflow(step)
                     for output_name, output_value in outputs.items():
                         data_key = 'steps.{}.outputs.{}'.format(
                                 step.name, output_name)
-                        self._target_store.store(data_key, output_value)
+                        self._target_store.store(data_key, output_value, prov)
 
                     steps_to_do.remove(step)
                     break
@@ -95,10 +96,12 @@ class Job(Thread):
             print('Job at {} getting input {} from site {}'.format(
                 self._this_runner, data_key, source_store))
             try:
-                step_input_data[inp_name] = self._ddm_client.retrieve_data(
-                        source_store, data_key)
+                step_input_data[inp_name], prov = (
+                        self._ddm_client.retrieve_data(
+                            source_store, data_key))
                 print('Job at {} found input {} available.'.format(
                     self._this_runner, data_key))
+                print('Provenance: {}'.format(prov))
             except KeyError:
                 print('Job at {} found input {} not yet available.'.format(
                     self._this_runner, data_key))

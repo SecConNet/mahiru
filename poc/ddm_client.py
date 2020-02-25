@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from definitions import IAssetStore, ILocalWorkflowRunner, Plan
 from workflow import Workflow
@@ -45,7 +45,8 @@ class DDMClient:
         """
         return global_registry.get_runner_admin(runner_id)
 
-    def retrieve_data(self, store_id: str, name: str) -> Any:
+    def retrieve_data(
+            self, store_id: str, name: str) -> Tuple[Any, Optional[Workflow]]:
         """Obtains a data item from a store.
         """
         store = global_registry.get_store(store_id)

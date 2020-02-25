@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple
 
 
 class WorkflowStep:
@@ -69,3 +69,60 @@ class Workflow:
     def __repr__(self) -> str:
         return 'Workflow({}, {}, {})'.format(
                 self.inputs, self.steps, self.outputs)
+
+    def subworkflow(self, step: WorkflowStep) -> 'Workflow':
+        """Returns a minimal subworkflow that creates the given step.
+
+        This returns a subworkflow of the current workflow which
+        contains only the steps that are direct or indirect
+        predecessors of the given step, plus that step itself.
+
+        The resulting workflow will not have any outputs.
+
+        Args:
+            step: Final step in the subworkflow.
+        """
+        def predecessors(
+                steps_done: Set[WorkflowStep]
+                ) -> Tuple[Set[WorkflowStep], Set[str]]:
+            """Returns predecessors of steps_done.
+
+            In particular, this returns the direct precedessors of any
+            step in steps_done which are not in steps_done already.
+
+            Args:
+                steps_done: A set of already-processed steps.
+
+            Returns:
+                (predecessors, inputs), where predecessors are
+                        predecessor steps, and inputs are workflow
+                        input names referenced from steps_done.
+            """
+            preds = set()   # type: Set[WorkflowStep]
+            inps = set()    # type: Set[str]
+            for step in steps_done:
+                print('checking step {}'.format(step))
+                for inp in step.inputs.values():
+                    print('checking input {}'.format(inp))
+                    if '/' in inp:
+                        pred_name = inp.split('/')[0]
+                        pred = self.steps[pred_name]
+                        if pred not in steps_done:
+                            preds.add(pred)
+                    else:
+                        inps.add(inp)
+            return preds, inps
+
+        steps_done = {step}
+        inputs_selected = set()     # type: Set[str]
+
+        new_steps, new_inputs = predecessors(steps_done)
+        print('new_steps: {}'.format(new_steps))
+        inputs_selected |= new_inputs
+        while new_steps:
+            steps_done |= new_steps
+            new_steps, new_inputs = predecessors(steps_done)
+            print('new_steps: {}'.format(new_steps))
+            inputs_selected |= new_inputs
+
+        return Workflow(list(inputs_selected), {}, list(steps_done))

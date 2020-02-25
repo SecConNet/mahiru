@@ -158,8 +158,9 @@ class WorkflowExecutor:
                     outp_key = 'steps.{}.outputs.{}'.format(
                             src_step_name, src_step_output)
                     try:
-                        results[wf_outp_name] = self._ddm_client.retrieve_data(
-                                src_store, outp_key)
+                        results[wf_outp_name], _ = (
+                                self._ddm_client.retrieve_data(
+                                    src_store, outp_key))
                     except KeyError:
                         continue
             sleep(0.5)

@@ -46,7 +46,7 @@ class DDMClient:
         return global_registry.get_runner_admin(runner_id)
 
     def retrieve_data(
-            self, store_id: str, name: str) -> Tuple[Any, Optional[Job]]:
+            self, store_id: str, name: str) -> Tuple[Any, Job]:
         """Obtains a data item from a store.
         """
         store = global_registry.get_store(store_id)

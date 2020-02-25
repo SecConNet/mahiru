@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Set
 
 from policy import Permissions, PolicyManager
 from workflow import Job, Workflow, WorkflowStep
@@ -24,6 +24,7 @@ class PolicyEvaluator:
         assets for each workflow input, workflow output, step input,
         step, and step output. The keys are as follows:
 
+        - asset.<name> for a job input asset
         - inputs.<name> for a workflow input
         - outputs.<name> for a workflow output
         - steps.<name> for a workflow step
@@ -44,19 +45,37 @@ class PolicyEvaluator:
             else:
                 return 'inputs.{}'.format(inp_source)
 
-        def set_workflow_inputs_permissions(
+        def asset_key(inp_source: str) -> str:
+            """Converts an input description to a key.
+            """
+            return 'asset.{}'.format(inp_source)
+
+        def set_input_assets_permissions(
+                permissions: Dict[str, Permissions],
+                job: Job) -> None:
+            """Sets permissions for the job's inputs.
+
+            This modifies the permissions argument.
+            """
+            for inp_asset in job.inputs.values():
+                inp_key = asset_key(inp_asset)
+                if inp_key not in permissions:
+                    permissions[inp_key] = (
+                            self._policy_manager.permissions_for_asset(
+                                inp_asset))
+
+        def prop_workflow_inputs(
                 permissions: Dict[str, Permissions],
                 job: Job
                 ) -> None:
-            """Sets permissions for the workflow's inputs.
+            """Propagates permissions for the workflow's inputs.
 
             This modifies the permissions argument.
             """
             for inp_name in job.workflow.inputs:
-                inp_source = job.inputs[inp_name]
+                source_asset_key = asset_key(job.inputs[inp_name])
                 inp_key = source_key(inp_name)
-                permissions[inp_key] = (
-                        self._policy_manager.permissions_for_asset(inp_source))
+                permissions[inp_key] = permissions[source_asset_key]
 
         class InputNotAvailable(RuntimeError):
             pass
@@ -122,7 +141,8 @@ class PolicyEvaluator:
 
         # Main function
         permissions = dict()    # type: Dict[str, Permissions]
-        set_workflow_inputs_permissions(permissions, job)
+        set_input_assets_permissions(permissions, job)
+        prop_workflow_inputs(permissions, job)
 
         steps_done = set()  # type: Set[str]
         while len(steps_done) < len(job.workflow.steps):
@@ -139,4 +159,3 @@ class PolicyEvaluator:
 
         set_workflow_outputs_permissions(permissions, job.workflow)
         return permissions
-

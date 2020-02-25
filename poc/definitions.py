@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from workflow import Workflow, WorkflowStep
+from workflow import Job, Workflow, WorkflowStep
 
 
 Plan = Dict[WorkflowStep, str]      # maps step to LocalWorkflowRunner name
@@ -51,9 +51,9 @@ class ILocalWorkflowRunner:
         """
         raise NotImplementedError()
 
-    def execute_plan(
+    def execute_job(
             self,
-            workflow: Workflow, inputs: Dict[str, str], plan: Plan
+            job: Job, plan: Plan
             ) -> None:
         """Executes the local part of a plan.
 
@@ -61,8 +61,7 @@ class ILocalWorkflowRunner:
         executed by this runner according to the given plan.
 
         Args:
-            workflow: The workflow to execute part of.
-            inputs: Inputs for the workflow.
+            job: The job to execute part of.
             plan: The plan according to which to execute.
         """
         raise NotImplementedError()

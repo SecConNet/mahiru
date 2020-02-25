@@ -101,9 +101,7 @@ class Workflow:
             preds = set()   # type: Set[WorkflowStep]
             inps = set()    # type: Set[str]
             for step in steps_done:
-                print('checking step {}'.format(step))
                 for inp in step.inputs.values():
-                    print('checking input {}'.format(inp))
                     if '/' in inp:
                         pred_name = inp.split('/')[0]
                         pred = self.steps[pred_name]
@@ -117,12 +115,10 @@ class Workflow:
         inputs_selected = set()     # type: Set[str]
 
         new_steps, new_inputs = predecessors(steps_done)
-        print('new_steps: {}'.format(new_steps))
         inputs_selected |= new_inputs
         while new_steps:
             steps_done |= new_steps
             new_steps, new_inputs = predecessors(steps_done)
-            print('new_steps: {}'.format(new_steps))
             inputs_selected |= new_inputs
 
         return Workflow(list(inputs_selected), {}, list(steps_done))
@@ -148,3 +144,21 @@ class Job:
     def __repr__(self) -> str:
         return 'Job({}, {})'.format(
                 self.inputs, self.workflow)
+
+    def provenance(
+            self, step: WorkflowStep) -> 'Job':
+        """Returns the provenance for a given step.
+
+        This returns a new Job object containing a minimal Workflow to
+        calculate the given step's outputs and the required subset of
+        job inputs.
+
+        Args:
+            step: The step to get provenance for.
+        """
+        sub_wf = self.workflow.subworkflow(step)
+        inputs = {
+                wf_inp: asset
+                for wf_inp, asset in self.inputs.items()
+                if wf_inp in sub_wf.inputs}
+        return Job(sub_wf, inputs)

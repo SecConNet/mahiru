@@ -33,6 +33,7 @@ class JobRun(Thread):
         self._policy_manager = policy_manager
         self._policy_evaluator = PolicyEvaluator(policy_manager)
         self._this_runner = this_runner
+        self._job = job
         self._workflow = job.workflow
         self._inputs = job.inputs
         self._plan = {step.name: site for step, site in plan.items()}
@@ -69,7 +70,10 @@ class JobRun(Thread):
                         raise RuntimeError('Unknown compute asset')
 
                     # save output to store
-                    prov = self._workflow.subworkflow(step)
+                    # Would be more correct to actually build the provenance
+                    # here by adding the current step and any new inputs to
+                    # a provenance object. TODO
+                    prov = self._job.provenance(step)
                     for output_name, output_value in outputs.items():
                         data_key = 'steps.{}.outputs.{}'.format(
                                 step.name, output_name)

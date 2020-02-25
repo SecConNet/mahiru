@@ -26,11 +26,11 @@ class Site:
         self.name = name
         self.administrator = administrator
 
-        self._ddm_client = DDMClient()
+        self._ddm_client = DDMClient(administrator)
         self._policy_manager = PolicyManager(rules)
 
         # Server side
-        self.store = AssetStore(name + '-store')
+        self.store = AssetStore(name + '-store', self._policy_manager)
         for key, val in stored_data.items():
             self.store.store(key, val)
         self._ddm_client.register_store(self.store)

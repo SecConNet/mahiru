@@ -66,6 +66,11 @@ class Permissions:
         # friend PolicyManager
         self._sets = list()     # type: List[Set[str]]
 
+    def __str__(self) -> str:
+        return 'Permissions({})'.format(self._sets)
+
+    def __repr__(self) -> str:
+        return 'Permissions({})'.format(repr(self._sets))
 
 class PolicyManager:
     """Holds a set of rules and can interpret them.

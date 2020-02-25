@@ -39,7 +39,7 @@ class JobRun(Thread):
         self._inputs = job.inputs
         self._plan = {step.name: site for step, site in plan.items()}
         self._target_store = target_store
-        self._ddm_client = DDMClient()
+        self._ddm_client = DDMClient(administrator)
 
     def run(self) -> None:
         """Runs the job.
@@ -171,7 +171,7 @@ class JobRun(Thread):
         according to the current plan, and the output name.
 
         If the input is of the form 'store:data', this will return the
-        given store and the name of the input data set.
+        given store and the name of the input data asset.
         """
         if '/' in inp_source:
             step_name, output_name = inp_source.split('/')

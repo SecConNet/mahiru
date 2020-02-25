@@ -23,11 +23,12 @@ class IAssetStore:
         """
         raise NotImplementedError()
 
-    def retrieve(self, name: str) -> Any:
+    def retrieve(self, asset_name: str, requester: str) -> Any:
         """Retrieves an asset.
 
         Args:
-            name: Name of the asset to retrieve.
+            asset_name: Name of the asset to retrieve.
+            requester: Name of the party making the request.
 
         Return:
             The asset data stored under the given name.

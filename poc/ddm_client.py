@@ -8,8 +8,13 @@ from registry import global_registry
 class DDMClient:
     """Handles connecting to global registry, runners and stores.
     """
-    def __init__(self) -> None:
-        pass
+    def __init__(self, party: str) -> None:
+        """Create a DDMClient.
+
+        Args:
+            party: The party on whose behalf this client acts.
+        """
+        self._party = party
 
     def register_runner(
             self, admin: str, runner: ILocalWorkflowRunner
@@ -50,7 +55,7 @@ class DDMClient:
         """Obtains a data item from a store.
         """
         store = global_registry.get_store(store_id)
-        return store.retrieve(name)
+        return store.retrieve(name, self._party)
 
     def submit_job(
             self, runner_id: str,

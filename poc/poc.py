@@ -42,8 +42,9 @@ def scenario_saas_with_data() -> Dict[str, Any]:
             ]
 
     result['sites'] = [
-            Site('site1', 'party1', {'data1': 42}, result['rules']),
-            Site('site2', 'party2', {'data2': 3}, result['rules'])]
+            Site(
+                'site1', 'party1', {'site1-store:data1': 42}, result['rules']),
+            Site('site2', 'party2', {'site2-store:data2': 3}, result['rules'])]
 
     workflow = Workflow(
             ['x1', 'x2'], {'y': 'addstep/y'}, [
@@ -87,8 +88,11 @@ def scenario_pii() -> Dict[str, Any]:
             ]
 
     scenario['sites'] = [
-            Site('site1', 'party1', {'pii1': 42}, scenario['rules']),
-            Site('site2', 'party2', {'pii2': 3}, scenario['rules']),
+            Site(
+                'site1', 'party1', {'site1-store:pii1': 42},
+                scenario['rules']),
+            Site(
+                'site2', 'party2', {'site2-store:pii2': 3}, scenario['rules']),
             Site('site3', 'party3', {}, scenario['rules'])]
 
     workflow = Workflow(

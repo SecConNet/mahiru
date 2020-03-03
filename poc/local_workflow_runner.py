@@ -177,8 +177,8 @@ class JobRun(Thread):
         else:
             inp_source = self._inputs[inp_source]
             if ':' in inp_source:
-                store_name, data_name = inp_source.split(':')
-                return store_name, data_name
+                store_name = inp_source.split(':')[0]
+                return store_name, inp_source
             else:
                 raise RuntimeError('Invalid input specification "{}"'.format(
                     inp_source))

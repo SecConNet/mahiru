@@ -65,10 +65,14 @@ class AssetStore(IAssetStore):
             data = self._assets[asset_name]
             provenance = self._provenance[asset_name]
             perms = self._policy_evaluator.calculate_permissions(provenance)
-            if asset_name.startswith('steps.'):
-                perm = perms[asset_name]
-            else:
-                perm = perms['asset.{}:{}'.format(self.name, asset_name)]
+
+            perms_asset_name = asset_name
+            if '/' not in perms_asset_name:
+                # will clean this up later when we get a better data locating
+                # solution.
+                perms_asset_name = '{}:{}'.format(self.name, asset_name)
+
+            perm = perms[perms_asset_name]
             if not self._policy_manager.may_access(perm, requester):
                 raise RuntimeError('Security error, access denied')
             print('sending...')

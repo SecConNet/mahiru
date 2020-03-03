@@ -83,7 +83,7 @@ class JobRun(Thread):
                     # a provenance object. TODO
                     prov = self._job.provenance(step)
                     for output_name, output_value in outputs.items():
-                        data_key = 'steps.{}.outputs.{}'.format(
+                        data_key = '{}/{}'.format(
                                 step.name, output_name)
                         self._target_store.store(data_key, output_value, prov)
 
@@ -102,10 +102,9 @@ class JobRun(Thread):
         perms = self._policy_evaluator.calculate_permissions(self._job)
         for step in self._workflow.steps.values():
             if self._plan[step.name] == self._this_runner:
-                step_id = 'steps.{}'.format(step.name)
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
-                    inp_id = '{}.inputs.{}'.format(step_id, inp_name)
+                    inp_id = '{}/{}'.format(step.name, inp_name)
                     inp_perms = perms[inp_id]
                     if not self._policy_manager.may_access(
                             inp_perms, self._administrator):
@@ -113,19 +112,16 @@ class JobRun(Thread):
                     # check that the site we'll download this input from may
                     # access it
                     if '/' in inp_src:
-                        src_step, src_outp = inp_src.split('/')
-                        inp_src_id = 'steps.{}.outputs.{}'.format(
-                                src_step, src_outp)
-                        src_perms = perms[inp_src_id]
+                        src_step, _ = inp_src.split('/')
                         src_party = self._ddm_client.get_runner_administrator(
                                 self._plan[src_step])
                         if not self._policy_manager.may_access(
-                                src_perms, src_party):
+                                perms[inp_src], src_party):
                             return False
 
                 # check that we can access the step itself
                 if not self._policy_manager.may_access(
-                        perms[step_id], self._administrator):
+                        perms[step.name], self._administrator):
                     return False
 
         return True
@@ -177,8 +173,7 @@ class JobRun(Thread):
             step_name, output_name = inp_source.split('/')
             src_runner_name = self._plan[step_name]
             src_store = self._ddm_client.get_target_store(src_runner_name)
-            return src_store, 'steps.{}.outputs.{}'.format(
-                    step_name, output_name)
+            return src_store, '{}/{}'.format(step_name, output_name)
         else:
             inp_source = self._inputs[inp_source]
             if ':' in inp_source:

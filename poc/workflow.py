@@ -73,9 +73,7 @@ class Workflow:
         for step in steps:
             self.steps[step.name] = step
 
-        # TODO: check validity
-        # every step input must match a workflow input or a step output
-        # every output must match a workflow input or a step output
+        self._validate()
 
     def __str__(self) -> str:
         steps = ''
@@ -87,6 +85,27 @@ class Workflow:
     def __repr__(self) -> str:
         return 'Workflow({}, {}, {})'.format(
                 self.inputs, self.steps, self.outputs)
+
+    def _validate(self) -> None:
+        """Validates this workflow.
+
+        This checks that workflow inputs and steps have unique names.
+
+        Raises:
+            RuntimeError: If a duplicate name is detected.
+        """
+        # TODO: check internal consistency
+        # every step input must match a workflow input or a step output
+        # every output must match a workflow input or a step output
+
+        all_names = self.inputs + list(self.steps)
+        for i, name1 in enumerate(all_names):
+            for j, name2 in enumerate(all_names):
+                if i != j and name1 == name2:
+                    raise RuntimeError((
+                        'Duplicate name {} for workflow step {}'
+                        ' inputs/outputs').format(name1, self.name))
+
 
     def subworkflow(self, step: WorkflowStep) -> 'Workflow':
         """Returns a minimal subworkflow that creates the given step.

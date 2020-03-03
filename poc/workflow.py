@@ -98,13 +98,13 @@ class Workflow:
         # every step input must match a workflow input or a step output
         # every output must match a workflow input or a step output
 
-        all_names = self.inputs + list(self.steps)
+        all_names = self.inputs + list(self.steps) + list(self.outputs)
         for i, name1 in enumerate(all_names):
             for j, name2 in enumerate(all_names):
                 if i != j and name1 == name2:
                     raise RuntimeError((
-                        'Duplicate name {} for workflow step {}'
-                        ' inputs/outputs').format(name1, self.name))
+                        'Duplicate name {} among workflow steps, inputs'
+                        ' and outputs').format(name1))
 
 
     def subworkflow(self, step: WorkflowStep) -> 'Workflow':

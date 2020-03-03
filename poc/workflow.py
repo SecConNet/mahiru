@@ -24,9 +24,27 @@ class WorkflowStep:
         self.outputs = outputs
         self.compute_asset = compute_asset
 
+        self._validate()
+
     def __repr__(self) -> str:
         return 'Step("{}", {} -> {} -> {})'.format(
                 self.name, self.inputs, self.compute_asset, self.outputs)
+
+    def _validate(self) -> None:
+        """Validates the step.
+
+        This checks that inputs and outputs have unique names.
+
+        Raises:
+            RuntimeError: if the step is invalid.
+        """
+        all_names = list(self.inputs) + self.outputs
+        for i, name1 in enumerate(all_names):
+            for j, name2 in enumerate(all_names):
+                if i != j and name1 == name2:
+                    raise RuntimeError((
+                        'Duplicate name {} for workflow step {}'
+                        ' inputs/outputs').format(name1, self.name))
 
     def execute(self, args: Dict[str, int]) -> Dict[str, int]:
         pass

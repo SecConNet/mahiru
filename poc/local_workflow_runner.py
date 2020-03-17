@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from asset_store import AssetStore
 from ddm_client import DDMClient
-from definitions import ILocalWorkflowRunner, Plan
+from definitions import ILocalWorkflowRunner, Metadata, Plan
 from policy import PolicyManager
 from policy_evaluator import PolicyEvaluator
 from workflow import Job, WorkflowStep, Workflow
@@ -78,14 +78,13 @@ class JobRun(Thread):
                         raise RuntimeError('Unknown compute asset')
 
                     # save output to store
-                    # Would be more correct to actually build the provenance
-                    # here by adding the current step and any new inputs to
-                    # a provenance object. TODO
-                    prov = self._job.provenance(step)
+                    step_subjob = self._job.subjob(step)
                     for output_name, output_value in outputs.items():
                         data_key = '{}/{}'.format(
                                 step.name, output_name)
-                        self._target_store.store(data_key, output_value, prov)
+                        metadata = Metadata(step_subjob, data_key)
+                        self._target_store.store(
+                                data_key, output_value, metadata)
 
                     steps_to_do.remove(step)
                     break

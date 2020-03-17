@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 
 from asset_store import AssetStore
 from ddm_client import DDMClient
+from definitions import Metadata
 from local_workflow_runner import LocalWorkflowRunner
 from policy import PolicyManager, Rule
 from workflow import Job, Workflow
@@ -32,7 +33,7 @@ class Site:
         # Server side
         self.store = AssetStore(name + '-store', self._policy_manager)
         for key, val in stored_data.items():
-            self.store.store(key, val)
+            self.store.store(key, val, Metadata(Job.niljob(key), 'dataset'))
         self._ddm_client.register_store(self.store)
 
         self.runner = LocalWorkflowRunner(

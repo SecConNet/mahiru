@@ -6,17 +6,38 @@ from workflow import Job, Workflow, WorkflowStep
 Plan = Dict[WorkflowStep, str]      # maps step to LocalWorkflowRunner name
 
 
+class Metadata:
+    """Stores metadata for stored assets.
+
+    Attributes:
+        job (Job): A minimal job that will generate this asset.
+        item (str): The item in the job's workflow corresponding to
+                this asset.
+    """
+    def __init__(self, job: Job, item: str) -> None:
+        """Create a Metadata object.
+
+        Args:
+            job: A minimal job that will generate this asset.
+            item: The item in the job's workflow corresponding to this
+                    asset.
+        """
+        self.job = job
+        self.item = item
+
+
 class IAssetStore:
     """An interface for asset stores.
     """
     name = None     # type: str
 
-    def store(self, name: str, data: Any) -> None:
+    def store(self, name: str, data: Any, metadata: Metadata) -> None:
         """Stores an asset.
 
         Args:
             name: Name to store asset under.
             data: Asset data to store.
+            metadata: Metadata to annotate the asset with.
 
         Raises:
             KeyError: If there's already an asset with name ``name``.

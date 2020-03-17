@@ -182,16 +182,27 @@ class Job:
         return 'Job({}, {})'.format(
                 self.inputs, self.workflow)
 
-    def provenance(
+    @staticmethod
+    def niljob(key: str) -> 'Job':
+        """Returns a zero-step job for a dataset.
+
+        Args:
+            key: The key identifying the dataset.
+
+        The job will have no steps, and a single input named `dataset`.
+        """
+        return Job(Workflow(['dataset'], {}, []), {'dataset': key})
+
+    def subjob(
             self, step: WorkflowStep) -> 'Job':
-        """Returns the provenance for a given step.
+        """Returns a minimal job for a given step.
 
         This returns a new Job object containing a minimal Workflow to
         calculate the given step's outputs and the required subset of
         job inputs.
 
         Args:
-            step: The step to get provenance for.
+            step: The step to get a subjob for.
         """
         sub_wf = self.workflow.subworkflow(step)
         inputs = {

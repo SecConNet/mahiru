@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
 
-from definitions import IAssetStore
+from definitions import IAssetStore, Metadata
 from policy import PolicyManager
 from policy_evaluator import PolicyEvaluator
 from workflow import Job, Workflow
@@ -16,20 +16,20 @@ class AssetStore(IAssetStore):
         self._policy_manager = policy_manager
         self._policy_evaluator = PolicyEvaluator(policy_manager)
         self._assets = dict()   # type: Dict[str, Any]
-        self._provenance = dict()   # type: Dict[str, Job]
+        self._metadata = dict()   # type: Dict[str, Metadata]
 
     def __repr__(self) -> str:
         return 'AssetStore({})'.format(self.name)
 
     def store(
-            self, name: str, data: Any, provenance: Optional[Job] = None
+            self, name: str, data: Any, metadata: Metadata
             ) -> None:
         """Stores an asset.
 
         Args:
             name: Name to store asset under.
             data: Asset data to store.
-            provenance: Workflow that generated this asset.
+            metadata: Metadata to store.
 
         Raises:
             KeyError: If there's already an asset with name ``name``.
@@ -37,12 +37,10 @@ class AssetStore(IAssetStore):
         if name in self._assets:
             raise KeyError('There is already an asset with that name')
         self._assets[name] = data
-        if provenance is None:
-            self._provenance[name] = Job(Workflow([], {}, []), {'': name})
-        else:
-            self._provenance[name] = provenance
+        self._metadata[name] = metadata
 
-    def retrieve(self, asset_name: str, requester: str) -> Tuple[Any, Job]:
+    def retrieve(
+            self, asset_name: str, requester: str) -> Tuple[Any, Metadata]:
         """Retrieves an asset.
 
         Args:
@@ -62,13 +60,13 @@ class AssetStore(IAssetStore):
                 end='')
         try:
             data = self._assets[asset_name]
-            provenance = self._provenance[asset_name]
-            perms = self._policy_evaluator.calculate_permissions(provenance)
-            perm = perms[asset_name]
+            metadata = self._metadata[asset_name]
+            perms = self._policy_evaluator.calculate_permissions(metadata.job)
+            perm = perms[metadata.item]
             if not self._policy_manager.may_access(perm, requester):
                 raise RuntimeError('Security error, access denied')
             print('sending...')
-            return data, provenance
+            return data, metadata
         except KeyError:
             print('not found.')
             raise

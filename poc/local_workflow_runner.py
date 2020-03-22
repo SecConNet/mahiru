@@ -54,13 +54,15 @@ class JobRun(Thread):
             raise RuntimeError(
                     'Security violation, asked to perform an illegal job.')
 
+        keys = self._job.keys()
+
         steps_to_do = {
                 step for step in self._workflow.steps.values()
                 if self._plan[step.name] == self._this_runner}
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
-                inputs = self._get_step_inputs(step)
+                inputs = self._get_step_inputs(step, keys)
                 if inputs is not None:
                     print('Job at {} executing step {}'.format(
                         self._this_runner, step))
@@ -80,11 +82,11 @@ class JobRun(Thread):
                     # save output to store
                     step_subjob = self._job.subjob(step)
                     for output_name, output_value in outputs.items():
-                        data_key = '{}/{}'.format(
-                                step.name, output_name)
-                        metadata = Metadata(step_subjob, data_key)
+                        result_item = '{}/{}'.format(step.name, output_name)
+                        result_key = keys[result_item]
+                        metadata = Metadata(step_subjob, result_item)
                         self._target_store.store(
-                                data_key, output_value, metadata)
+                                result_key, output_value, metadata)
 
                     steps_to_do.remove(step)
                     break
@@ -125,7 +127,9 @@ class JobRun(Thread):
 
         return True
 
-    def _get_step_inputs(self, step: WorkflowStep) -> Optional[Dict[str, Any]]:
+    def _get_step_inputs(
+            self, step: WorkflowStep, keys: Dict[str, str]
+            ) -> Optional[Dict[str, Any]]:
         """Find and obtain inputs for the steps.
 
         If all inputs are available, returns a dictionary mapping their
@@ -134,6 +138,7 @@ class JobRun(Thread):
 
         Args:
             step: The step to obtain inputs for.
+            keys: Keys for the workflow's items.
 
         Return:
             A dictionary keyed by output name with corresponding
@@ -141,7 +146,7 @@ class JobRun(Thread):
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
-            source_store, data_key = self._source(inp_source)
+            source_store, data_key = self._source(inp_source, keys)
             print('Job at {} getting input {} from site {}'.format(
                 self._this_runner, data_key, source_store))
             try:
@@ -158,7 +163,8 @@ class JobRun(Thread):
 
         return step_input_data
 
-    def _source(self, inp_source: str) -> Tuple[str, str]:
+    def _source(
+            self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step/output', this will return the
@@ -167,17 +173,21 @@ class JobRun(Thread):
 
         If the input is of the form 'store:data', this will return the
         given store and the name of the input data asset.
+
+        Args:
+            inp_source: Source description as above.
+            keys: Keys for the workflow's items.
         """
         if '/' in inp_source:
             step_name, output_name = inp_source.split('/')
             src_runner_name = self._plan[step_name]
             src_store = self._ddm_client.get_target_store(src_runner_name)
-            return src_store, '{}/{}'.format(step_name, output_name)
+            return src_store, keys[inp_source]
         else:
-            inp_source = self._inputs[inp_source]
-            if ':' in inp_source:
-                store_name = inp_source.split(':')[0]
-                return store_name, inp_source
+            dataset = self._inputs[inp_source]
+            if ':' in dataset:
+                store_name = dataset.split(':')[0]
+                return store_name, dataset
             else:
                 raise RuntimeError('Invalid input specification "{}"'.format(
                     inp_source))

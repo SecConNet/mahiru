@@ -141,6 +141,7 @@ class WorkflowExecutor:
 
         # get workflow outputs whenever they're available
         wf = job.workflow
+        keys = job.keys()
         results = dict()    # type: Dict[str, Any]
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
@@ -149,7 +150,7 @@ class WorkflowExecutor:
                     src_runner_name = plan[wf.steps[src_step_name]]
                     src_store = self._ddm_client.get_target_store(
                             src_runner_name)
-                    outp_key = '{}/{}'.format(src_step_name, src_step_output)
+                    outp_key = keys[wf_outp_name]
                     try:
                         results[wf_outp_name], _ = (
                                 self._ddm_client.retrieve_data(

@@ -1,3 +1,4 @@
+from hashlib import sha256
 from typing import Dict, List, Set, Tuple
 
 
@@ -210,3 +211,62 @@ class Job:
                 for wf_inp, asset in self.inputs.items()
                 if wf_inp in sub_wf.inputs}
         return Job(sub_wf, inputs)
+
+    def keys(self) -> Dict[str, str]:
+        """Calculates keys (hashes) of all items in the job's workflow.
+
+        Returns:
+            A dict mapping workflow items to their key.
+        """
+        class DependencyMissing(RuntimeError):
+            pass
+
+        def prop_input_keys(item_keys: Dict[str, str]) -> None:
+            for inp_name, inp_src in self.inputs.items():
+                inp_hash = sha256()
+                inp_hash.update(inp_src.encode('utf-8'))
+                item_keys[inp_name] = inp_hash.hexdigest()
+
+        def prop_input_sources(
+                item_keys: Dict[str, str], step: WorkflowStep) -> None:
+            for inp_name, inp_src in step.inputs.items():
+                inp_item = '{}/{}'.format(step.name, inp_name)
+                if inp_item not in item_keys:
+                    if inp_src not in item_keys:
+                        raise DependencyMissing()
+                    item_keys[inp_item] = item_keys[inp_src]
+
+        def calc_step_outputs(
+                item_keys: Dict[str, str], step: WorkflowStep) -> None:
+            step_hash = sha256()
+            for inp_name in sorted(step.inputs):
+                inp_item = '{}/{}'.format(step.name, inp_name)
+                step_hash.update(item_keys[inp_item].encode('utf-8'))
+            step_hash.update(step.compute_asset.encode('utf-8'))
+            for outp_name in step.outputs:
+                outp_item = '{}/{}'.format(step.name, outp_name)
+                outp_hash = step_hash.copy()
+                outp_hash.update(outp_name.encode('utf-8'))
+                item_keys[outp_item] = 'hash:{}'.format(outp_hash.hexdigest())
+
+        def set_workflow_outputs_keys(
+                item_keys: Dict[str, str], outputs: Dict[str, str]) -> None:
+            for outp_name, outp_src in outputs.items():
+                item_keys[outp_name] = item_keys[outp_src]
+
+        item_keys = dict()      # type: Dict[str, str]
+        prop_input_keys(item_keys)
+
+        steps_done = set()      # type: Set[str]
+        while len(steps_done) < len(self.workflow.steps):
+            for step in self.workflow.steps.values():
+                if step.name not in steps_done:
+                    try:
+                        prop_input_sources(item_keys, step)
+                        calc_step_outputs(item_keys, step)
+                        steps_done.add(step.name)
+                    except DependencyMissing:
+                        continue
+
+        set_workflow_outputs_keys(item_keys, self.workflow.outputs)
+        return item_keys

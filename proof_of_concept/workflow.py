@@ -1,10 +1,10 @@
+"""Classes for describing workflows."""
 from hashlib import sha256
 from typing import Dict, List, Set, Tuple
 
 
 class WorkflowStep:
-    """Defines a workflow step.
-    """
+    """Defines a workflow step."""
     def __init__(
             self, name: str,
             inputs: Dict[str, str], outputs: List[str],
@@ -28,6 +28,7 @@ class WorkflowStep:
         self._validate()
 
     def __repr__(self) -> str:
+        """Returns a string representation of the object."""
         return 'Step("{}", {} -> {} -> {})'.format(
                 self.name, self.inputs, self.compute_asset, self.outputs)
 
@@ -47,13 +48,9 @@ class WorkflowStep:
                         'Duplicate name {} for workflow step {}'
                         ' inputs.outputs').format(name1, self.name))
 
-    def execute(self, args: Dict[str, int]) -> Dict[str, int]:
-        pass
-
 
 class Workflow:
-    """Defines a workflow.
-    """
+    """Defines a workflow."""
     def __init__(
             self, inputs: List[str], outputs: Dict[str, str],
             steps: List[WorkflowStep]
@@ -77,6 +74,7 @@ class Workflow:
         self._validate()
 
     def __str__(self) -> str:
+        """Returns a string representation of the object."""
         steps = ''
         for step in self.steps.values():
             steps += '    {}\n'.format(step)
@@ -84,6 +82,7 @@ class Workflow:
                 self.inputs, self.outputs, steps)
 
     def __repr__(self) -> str:
+        """Returns a string representation of the object."""
         return 'Workflow({}, {}, {})'.format(
                 self.inputs, self.steps, self.outputs)
 
@@ -106,7 +105,6 @@ class Workflow:
                     raise RuntimeError((
                         'Duplicate name {} among workflow steps, inputs'
                         ' and outputs').format(name1))
-
 
     def subworkflow(self, step: WorkflowStep) -> 'Workflow':
         """Returns a minimal subworkflow that creates the given step.
@@ -163,8 +161,7 @@ class Workflow:
 
 
 class Job:
-    """Represents a job to the system from a user.
-    """
+    """Represents a job to the system from a user."""
     def __init__(self, workflow: Workflow, inputs: Dict[str, str]) -> None:
         """Create a job.
 
@@ -177,6 +174,7 @@ class Job:
         self.inputs = inputs
 
     def __repr__(self) -> str:
+        """Returns a string representation of the object."""
         return 'Job({}, {})'.format(
                 self.inputs, self.workflow)
 
@@ -210,7 +208,7 @@ class Job:
         return Job(sub_wf, inputs)
 
     def keys(self) -> Dict[str, str]:
-        """Calculates keys (hashes) of all items in the job's workflow.
+        """Calculates hash-keys of all items in the job's workflow.
 
         Returns:
             A dict mapping workflow items to their key.

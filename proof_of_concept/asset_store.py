@@ -1,17 +1,16 @@
+"""Asset stores store data and compute assets."""
 from typing import Any, Dict, Optional, Tuple
 
-from definitions import IAssetStore, Metadata
-from policy import PolicyManager
-from policy_evaluator import PolicyEvaluator
-from workflow import Job, Workflow
+from proof_of_concept.definitions import IAssetStore, Metadata
+from proof_of_concept.policy import PolicyManager
+from proof_of_concept.policy_evaluator import PolicyEvaluator
+from proof_of_concept.workflow import Job, Workflow
 
 
 class AssetStore(IAssetStore):
-    """A simple store for assets.
-    """
+    """A simple store for assets."""
     def __init__(self, name: str, policy_manager: PolicyManager) -> None:
-        """Create a new empty AssetStore.
-        """
+        """Create a new empty AssetStore."""
         self.name = name
         self._policy_manager = policy_manager
         self._policy_evaluator = PolicyEvaluator(policy_manager)
@@ -19,6 +18,7 @@ class AssetStore(IAssetStore):
         self._metadata = dict()   # type: Dict[str, Metadata]
 
     def __repr__(self) -> str:
+        """Return a string representation of this object."""
         return 'AssetStore({})'.format(self.name)
 
     def store(

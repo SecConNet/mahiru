@@ -1,12 +1,12 @@
+"""Components for evaluating policies."""
 from typing import Dict, List, Set
 
-from policy import Permissions, PolicyManager
-from workflow import Job, Workflow, WorkflowStep
+from proof_of_concept.policy import Permissions, PolicyManager
+from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
 class PolicyEvaluator:
-    """Evaluates policies pertaining to a given workflow.
-    """
+    """Evaluates policies pertaining to a given workflow."""
     def __init__(self, policy_manager: PolicyManager) -> None:
         """Create a Policy Evaluator.
 
@@ -14,7 +14,6 @@ class PolicyEvaluator:
             policy_manager: The policy manager to use.
         """
         self._policy_manager = policy_manager
-
 
     def calculate_permissions(
             self, job: Job) -> Dict[str, Permissions]:
@@ -82,16 +81,15 @@ class PolicyEvaluator:
                 permissions: Dict[str, Permissions],
                 step: WorkflowStep
                 ) -> None:
-            """Derives the step's permissions and stores them.
-            """
+            """Derives the step's permissions and stores them."""
             input_perms = list()     # type: List[Permissions]
             for inp in step.inputs:
                 inp_key = '{}.{}'.format(step.name, inp)
                 input_perms.append(permissions[inp_key])
 
             permissions[step.name] = \
-                    self._policy_manager.propagate_permissions(
-                            input_perms, step.compute_asset)
+                self._policy_manager.propagate_permissions(
+                        input_perms, step.compute_asset)
 
         def prop_step_outputs(
                 permissions: Dict[str, Permissions],
@@ -109,8 +107,7 @@ class PolicyEvaluator:
                 permissions: Dict[str, Permissions],
                 workflow: Workflow
                 ) -> None:
-            """Copies workflow output permissions from their sources.
-            """
+            """Copies workflow output permissions from their sources."""
             for name, source in workflow.outputs.items():
                 permissions[name] = permissions[source]
 

@@ -1,6 +1,7 @@
+"""Central registry of asset stores and workflow runners."""
 from typing import Dict, List
 
-from definitions import IAssetStore, ILocalWorkflowRunner
+from proof_of_concept.definitions import IAssetStore, ILocalWorkflowRunner
 
 
 class Registry:
@@ -10,8 +11,7 @@ class Registry:
     use the DNS to resolve. Here, we use this registry instead.
     """
     def __init__(self) -> None:
-        """Create a new registry.
-        """
+        """Create a new registry."""
         self._runners = dict()          # type: Dict[str, ILocalWorkflowRunner]
         self._runner_admins = dict()    # type: Dict[str, str]
         self._stores = dict()           # type: Dict[str, IAssetStore]

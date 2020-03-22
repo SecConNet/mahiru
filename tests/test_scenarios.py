@@ -2,13 +2,13 @@ from textwrap import indent
 from typing import Any, Dict, List
 
 
-from policy import (
+from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfIn)
-from ddm_site import Site
-from workflow import Job, WorkflowStep, Workflow
+from proof_of_concept.ddm_site import Site
+from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 
 
-def run_scenario(scenario: Dict[str, Any]) -> None:
+def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     # run
     print('Rules:')
     for rule in scenario['rules']:
@@ -24,43 +24,10 @@ def run_scenario(scenario: Dict[str, Any]) -> None:
     print()
     print('Result:')
     print(result)
-
-
-def scenario_saas_with_data() -> Dict[str, Any]:
-    result = dict()     # type: Dict[str, Any]
-
-    result['rules'] = [
-            MayAccess('party1', 'id:site1-store:data1'),
-            MayAccess('party2', 'id:site1-store:data1'),
-            MayAccess('party2', 'id:site2-store:data2'),
-            ResultOfIn('id:site1-store/data1', 'Addition', 'result1'),
-            ResultOfIn('id:site2-store/data2', 'Addition', 'result2'),
-            MayAccess('party2', 'result1'),
-            MayAccess('party1', 'result1'),
-            MayAccess('party1', 'result2'),
-            MayAccess('party2', 'result2'),
-            ]
-
-    result['sites'] = [
-            Site(
-                'site1', 'party1', {'id:site1-store/data1': 42}, result['rules']),
-            Site('site2', 'party2', {'id:site2-store/data2': 3}, result['rules'])]
-
-    workflow = Workflow(
-            ['x1', 'x2'], {'y': 'addstep.y'}, [
-                WorkflowStep(
-                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
-                ])
-
-    inputs = {'x1': 'id:site1-store/data1', 'x2': 'id:site2-store/data2'}
-
-    result['job'] = Job(workflow, inputs)
-    result['user_site'] = result['sites'][0]
-
     return result
 
 
-def scenario_pii() -> Dict[str, Any]:
+def test_pii(clean_global_registry):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules'] = [
@@ -92,7 +59,8 @@ def scenario_pii() -> Dict[str, Any]:
                 'site1', 'party1', {'id:site1-store/pii1': 42},
                 scenario['rules']),
             Site(
-                'site2', 'party2', {'id:site2-store/pii2': 3}, scenario['rules']),
+                'site2', 'party2', {'id:site2-store/pii2': 3},
+                scenario['rules']),
             Site('site3', 'party3', {}, scenario['rules'])]
 
     workflow = Workflow(
@@ -109,7 +77,43 @@ def scenario_pii() -> Dict[str, Any]:
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = scenario['sites'][2]
 
-    return scenario
+    output = run_scenario(scenario)
+    assert output['result'] == 12.5
 
 
-run_scenario(scenario_pii())
+def test_saas_with_data(clean_global_registry):
+    scenario = dict()     # type: Dict[str, Any]
+
+    scenario['rules'] = [
+            MayAccess('party1', 'id:site1-store/data1'),
+            MayAccess('party2', 'id:site1-store/data1'),
+            MayAccess('party2', 'id:site2-store/data2'),
+            ResultOfIn('id:site1-store/data1', 'Addition', 'result1'),
+            ResultOfIn('id:site2-store/data2', 'Addition', 'result2'),
+            MayAccess('party2', 'result1'),
+            MayAccess('party1', 'result1'),
+            MayAccess('party1', 'result2'),
+            MayAccess('party2', 'result2'),
+            ]
+
+    scenario['sites'] = [
+            Site(
+                'site1', 'party1', {'id:site1-store/data1': 42},
+                scenario['rules']),
+            Site(
+                'site2', 'party2', {'id:site2-store/data2': 3},
+                scenario['rules'])]
+
+    workflow = Workflow(
+            ['x1', 'x2'], {'y': 'addstep.y'}, [
+                WorkflowStep(
+                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
+                ])
+
+    inputs = {'x1': 'id:site1-store/data1', 'x2': 'id:site2-store/data2'}
+
+    scenario['job'] = Job(workflow, inputs)
+    scenario['user_site'] = scenario['sites'][0]
+
+    output = run_scenario(scenario)
+    assert output['y'] == 45

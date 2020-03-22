@@ -51,13 +51,13 @@ class WorkflowPlanner:
 
             # check each input
             for inp_name in step.inputs:
-                inp_key = 'steps.{}.inputs.{}'.format(step.name, inp_name)
+                inp_key = '{}/{}'.format(step.name, inp_name)
                 inp_perms = permissions[inp_key]
                 if not self._policy_manager.may_access(inp_perms, party):
                     return False
 
             # check step itself (i.e. outputs)
-            step_perms = permissions['steps.{}'.format(step.name)]
+            step_perms = permissions[step.name]
             return self._policy_manager.may_access(step_perms, party)
 
         permissions = self._policy_evaluator.calculate_permissions(job)
@@ -70,8 +70,7 @@ class WorkflowPlanner:
             Yields any complete plans found.
             """
             cur_step = sorted_steps[cur_step_idx]
-            step_name = cur_step.name
-            step_perms = permissions['steps.{}'.format(step_name)]
+            step_perms = permissions[cur_step.name]
             for runner in self._ddm_client.list_runners():
                 if may_run(permissions, cur_step, runner):
                     plan[cur_step_idx] = runner
@@ -142,6 +141,7 @@ class WorkflowExecutor:
 
         # get workflow outputs whenever they're available
         wf = job.workflow
+        keys = job.keys()
         results = dict()    # type: Dict[str, Any]
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
@@ -150,8 +150,7 @@ class WorkflowExecutor:
                     src_runner_name = plan[wf.steps[src_step_name]]
                     src_store = self._ddm_client.get_target_store(
                             src_runner_name)
-                    outp_key = 'steps.{}.outputs.{}'.format(
-                            src_step_name, src_step_output)
+                    outp_key = keys[wf_outp_name]
                     try:
                         results[wf_outp_name], _ = (
                                 self._ddm_client.retrieve_data(

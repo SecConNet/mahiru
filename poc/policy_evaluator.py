@@ -22,14 +22,8 @@ class PolicyEvaluator:
 
         This function returns a dictionary with a list of sets of
         assets for each workflow input, workflow output, step input,
-        step, and step output. The keys are as follows:
-
-        - asset.<name> for a job input asset
-        - inputs.<name> for a workflow input
-        - outputs.<name> for a workflow output
-        - steps.<name> for a workflow step
-        - steps.<name>.inputs.<name> for a step input
-        - steps.<name>.outputs.<name> for a step output
+        step, and step output. Workflow inputs are keyed by their
+        name, step inputs and outputs by <step>/<name>.
 
         Args:
             job: The job to evaluate.
@@ -37,19 +31,6 @@ class PolicyEvaluator:
         Returns:
             A dictionary with permissions per workflow value.
         """
-        def source_key(inp_source: str) -> str:
-            """Converts a source description to a key.
-            """
-            if '/' in inp_source:
-                return 'steps.{}.outputs.{}'.format(*inp_source.split('/'))
-            else:
-                return 'inputs.{}'.format(inp_source)
-
-        def asset_key(inp_source: str) -> str:
-            """Converts an input description to a key.
-            """
-            return 'asset.{}'.format(inp_source)
-
         def set_input_assets_permissions(
                 permissions: Dict[str, Permissions],
                 job: Job) -> None:
@@ -58,9 +39,8 @@ class PolicyEvaluator:
             This modifies the permissions argument.
             """
             for inp_asset in job.inputs.values():
-                inp_key = asset_key(inp_asset)
-                if inp_key not in permissions:
-                    permissions[inp_key] = (
+                if inp_asset not in permissions:
+                    permissions[inp_asset] = (
                             self._policy_manager.permissions_for_asset(
                                 inp_asset))
 
@@ -73,9 +53,8 @@ class PolicyEvaluator:
             This modifies the permissions argument.
             """
             for inp_name in job.workflow.inputs:
-                source_asset_key = asset_key(job.inputs[inp_name])
-                inp_key = source_key(inp_name)
-                permissions[inp_key] = permissions[source_asset_key]
+                source_asset = job.inputs[inp_name]
+                permissions[inp_name] = permissions[source_asset]
 
         class InputNotAvailable(RuntimeError):
             pass
@@ -93,12 +72,11 @@ class PolicyEvaluator:
                 available.
             """
             for inp, inp_source in step.inputs.items():
-                inp_key = '{}.inputs.{}'.format(step_key, inp)
+                inp_key = '{}/{}'.format(step.name, inp)
                 if inp_key not in permissions:
-                    inp_source_key = source_key(inp_source)
-                    if inp_source_key not in permissions:
+                    if inp_source not in permissions:
                         raise InputNotAvailable()
-                    permissions[inp_key] = permissions[inp_source_key]
+                    permissions[inp_key] = permissions[inp_source]
 
         def calc_step_permissions(
                 permissions: Dict[str, Permissions],
@@ -108,11 +86,10 @@ class PolicyEvaluator:
             """
             input_perms = list()     # type: List[Permissions]
             for inp in step.inputs:
-                inp_key = 'steps.{}.inputs.{}'.format(step.name, inp)
+                inp_key = '{}/{}'.format(step.name, inp)
                 input_perms.append(permissions[inp_key])
 
-            step_key = 'steps.{}'.format(step.name)
-            permissions[step_key] = \
+            permissions[step.name] = \
                     self._policy_manager.propagate_permissions(
                             input_perms, step.compute_asset)
 
@@ -124,10 +101,9 @@ class PolicyEvaluator:
 
             This modifies the permissions argument.
             """
-            step_key = 'steps.{}'.format(step.name)
             for output in step.outputs:
-                output_key = '{}.outputs.{}'.format(step_key, output)
-                permissions[output_key] = permissions[step_key]
+                output_key = '{}/{}'.format(step.name, output)
+                permissions[output_key] = permissions[step.name]
 
         def set_workflow_outputs_permissions(
                 permissions: Dict[str, Permissions],
@@ -136,8 +112,7 @@ class PolicyEvaluator:
             """Copies workflow output permissions from their sources.
             """
             for name, source in workflow.outputs.items():
-                output_key = 'outputs.{}'.format(name)
-                permissions[output_key] = permissions[source_key(source)]
+                permissions[name] = permissions[source]
 
         # Main function
         permissions = dict()    # type: Dict[str, Permissions]
@@ -147,13 +122,12 @@ class PolicyEvaluator:
         steps_done = set()  # type: Set[str]
         while len(steps_done) < len(job.workflow.steps):
             for step in job.workflow.steps.values():
-                step_key = 'steps.{}'.format(step.name)
-                if step_key not in steps_done:
+                if step.name not in steps_done:
                     try:
                         prop_input_sources(permissions, step)
                         calc_step_permissions(permissions, step)
                         prop_step_outputs(permissions, step)
-                        steps_done.add(step_key)
+                        steps_done.add(step.name)
                     except InputNotAvailable:
                         continue
 

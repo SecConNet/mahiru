@@ -3,7 +3,39 @@ from typing import Any, Dict
 from workflow import Job, Workflow, WorkflowStep
 
 
-Plan = Dict[WorkflowStep, str]      # maps step to LocalWorkflowRunner name
+class Plan:
+    """A plan for executing a workflow.
+
+    A plan says which step is to be executed by which runner (i.e. at
+    which site), and where the inputs should be obtained from.
+
+    Attributes:
+        input_stores (Dict[str, str]): Maps inputs to the store to
+                obtain them from.
+        step_runners (Dict[WorkflowStep, str]): Maps steps to their
+                runner's id.
+    """
+    def __init__(
+            self, input_stores: Dict[str, str],
+            step_runners: Dict[WorkflowStep, str]
+            ) -> None:
+        """Create a plan.
+
+        Args:
+            input_stores: A map from input names to a store id to get
+                    them from.
+            step_runners: A map from steps to their runner's id.
+        """
+        self.input_stores = input_stores
+        self.step_runners = step_runners
+
+    def __str__(self) -> str:
+        result = ''
+        for inp_name, store_id in self.input_stores.items():
+            result += '{} <- {}\n'.format(inp_name, store_id)
+        for step, runner_id in self.step_runners.items():
+            result += '{} -> {}\n'.format(step.name, runner_id)
+        return result
 
 
 class Metadata:

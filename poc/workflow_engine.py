@@ -38,8 +38,7 @@ class WorkflowPlanner:
             job: The job to plan.
 
         Returns:
-            A list of plans, each consisting of a list of sites
-            corresponding to the given list of steps.
+            A list of plans that will execute the workflow.
         """
         def may_run(
                 permissions: Dict[str, Permissions],
@@ -81,7 +80,10 @@ class WorkflowPlanner:
                     else:
                         yield from plan_from(cur_step_idx + 1)
 
-        return [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
+        step_runners = [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
+        input_stores = {inp: inp.split(':')[0] for inp in job.inputs.values()}
+
+        return [Plan(input_stores, runners) for runners in step_runners]
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
         """Sorts the workflow's steps topologically.
@@ -135,7 +137,7 @@ class WorkflowExecutor:
             A dictionary of results, indexed by workflow output name.
         """
         # launch all the local runners
-        selected_runner_names = set(plan.values())
+        selected_runner_names = set(plan.step_runners.values())
         for runner_name in selected_runner_names:
             self._ddm_client.submit_job(runner_name, job, plan)
 
@@ -147,7 +149,8 @@ class WorkflowExecutor:
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('/')
-                    src_runner_name = plan[wf.steps[src_step_name]]
+                    src_runner_name = plan.step_runners[
+                            wf.steps[src_step_name]]
                     src_store = self._ddm_client.get_target_store(
                             src_runner_name)
                     outp_key = keys[wf_outp_name]
@@ -188,9 +191,7 @@ class GlobalWorkflowRunner:
         plans = self._planner.make_plans(submitter, job)
         print('Plans:')
         for plan in plans:
-            for step, site in plan.items():
-                print('    {} -> {}'.format(step.name, site))
-            print()
+            print(plan)
         print()
 
         if not plans:

@@ -37,7 +37,10 @@ class JobRun(Thread):
         self._job = job
         self._workflow = job.workflow
         self._inputs = job.inputs
-        self._plan = {step.name: site for step, site in plan.items()}
+        self._plan = plan
+        self._runners = {
+                step.name: runner
+                for step, runner in plan.step_runners.items()}
         self._target_store = target_store
         self._ddm_client = DDMClient(administrator)
 
@@ -58,7 +61,7 @@ class JobRun(Thread):
 
         steps_to_do = {
                 step for step in self._workflow.steps.values()
-                if self._plan[step.name] == self._this_runner}
+                if self._runners[step.name] == self._this_runner}
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
@@ -102,7 +105,7 @@ class JobRun(Thread):
         """
         perms = self._policy_evaluator.calculate_permissions(self._job)
         for step in self._workflow.steps.values():
-            if self._plan[step.name] == self._this_runner:
+            if self._runners[step.name] == self._this_runner:
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
                     inp_id = '{}/{}'.format(step.name, inp_name)
@@ -115,7 +118,7 @@ class JobRun(Thread):
                     if '/' in inp_src:
                         src_step, _ = inp_src.split('/')
                         src_party = self._ddm_client.get_runner_administrator(
-                                self._plan[src_step])
+                                self._runners[src_step])
                         if not self._policy_manager.may_access(
                                 perms[inp_src], src_party):
                             return False
@@ -180,7 +183,7 @@ class JobRun(Thread):
         """
         if '/' in inp_source:
             step_name, output_name = inp_source.split('/')
-            src_runner_name = self._plan[step_name]
+            src_runner_name = self._runners[step_name]
             src_store = self._ddm_client.get_target_store(src_runner_name)
             return src_store, keys[inp_source]
         else:

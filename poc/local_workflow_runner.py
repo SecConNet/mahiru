@@ -85,7 +85,7 @@ class JobRun(Thread):
                     # save output to store
                     step_subjob = self._job.subjob(step)
                     for output_name, output_value in outputs.items():
-                        result_item = '{}/{}'.format(step.name, output_name)
+                        result_item = '{}.{}'.format(step.name, output_name)
                         result_key = keys[result_item]
                         metadata = Metadata(step_subjob, result_item)
                         self._target_store.store(
@@ -108,15 +108,15 @@ class JobRun(Thread):
             if self._runners[step.name] == self._this_runner:
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
-                    inp_id = '{}/{}'.format(step.name, inp_name)
+                    inp_id = '{}.{}'.format(step.name, inp_name)
                     inp_perms = perms[inp_id]
                     if not self._policy_manager.may_access(
                             inp_perms, self._administrator):
                         return False
                     # check that the site we'll download this input from may
                     # access it
-                    if '/' in inp_src:
-                        src_step, _ = inp_src.split('/')
+                    if '.' in inp_src:
+                        src_step, _ = inp_src.split('.')
                         src_party = self._ddm_client.get_runner_administrator(
                                 self._runners[src_step])
                         if not self._policy_manager.may_access(
@@ -170,7 +170,7 @@ class JobRun(Thread):
             self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:
         """Extracts the source from a source description.
 
-        If the input is of the form 'step/output', this will return the
+        If the input is of the form 'step.output', this will return the
         target store for the runner which is to execute that step
         according to the current plan, and the output name.
 
@@ -182,8 +182,8 @@ class JobRun(Thread):
             inp_source: Source description as above.
             keys: Keys for the workflow's items.
         """
-        if '/' in inp_source:
-            step_name, output_name = inp_source.split('/')
+        if '.' in inp_source:
+            step_name, output_name = inp_source.split('.')
             src_runner_name = self._runners[step_name]
             src_store = self._ddm_client.get_target_store(src_runner_name)
             return src_store, keys[inp_source]

@@ -50,7 +50,7 @@ class WorkflowPlanner:
 
             # check each input
             for inp_name in step.inputs:
-                inp_key = '{}/{}'.format(step.name, inp_name)
+                inp_key = '{}.{}'.format(step.name, inp_name)
                 inp_perms = permissions[inp_key]
                 if not self._policy_manager.may_access(inp_perms, party):
                     return False
@@ -81,7 +81,10 @@ class WorkflowPlanner:
                         yield from plan_from(cur_step_idx + 1)
 
         step_runners = [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
-        input_stores = {inp: inp.split(':')[0] for inp in job.inputs.values()}
+        # We'll have some other kind of resolver here later
+        input_stores = {
+                inp: inp.split(':')[1].split('/')[0]
+                for inp in job.inputs.values()}
 
         return [Plan(input_stores, runners) for runners in step_runners]
 
@@ -96,8 +99,8 @@ class WorkflowPlanner:
         for step in workflow.steps.values():
             step_deps = list()   # type: List[WorkflowStep]
             for name, ref in step.inputs.items():
-                if '/' in ref:
-                    dep_name = ref.split('/')[0]
+                if '.' in ref:
+                    dep_name = ref.split('.')[0]
                     step_deps.append(workflow.steps[dep_name])
             deps[step] = step_deps
 
@@ -148,7 +151,7 @@ class WorkflowExecutor:
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
-                    src_step_name, src_step_output = wf_outp_source.split('/')
+                    src_step_name, src_step_output = wf_outp_source.split('.')
                     src_runner_name = plan.step_runners[
                             wf.steps[src_step_name]]
                     src_store = self._ddm_client.get_target_store(

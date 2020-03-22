@@ -23,7 +23,7 @@ class PolicyEvaluator:
         This function returns a dictionary with a list of sets of
         assets for each workflow input, workflow output, step input,
         step, and step output. Workflow inputs are keyed by their
-        name, step inputs and outputs by <step>/<name>.
+        name, step inputs and outputs by <step>.<name>.
 
         Args:
             job: The job to evaluate.
@@ -72,7 +72,7 @@ class PolicyEvaluator:
                 available.
             """
             for inp, inp_source in step.inputs.items():
-                inp_key = '{}/{}'.format(step.name, inp)
+                inp_key = '{}.{}'.format(step.name, inp)
                 if inp_key not in permissions:
                     if inp_source not in permissions:
                         raise InputNotAvailable()
@@ -86,7 +86,7 @@ class PolicyEvaluator:
             """
             input_perms = list()     # type: List[Permissions]
             for inp in step.inputs:
-                inp_key = '{}/{}'.format(step.name, inp)
+                inp_key = '{}.{}'.format(step.name, inp)
                 input_perms.append(permissions[inp_key])
 
             permissions[step.name] = \
@@ -102,7 +102,7 @@ class PolicyEvaluator:
             This modifies the permissions argument.
             """
             for output in step.outputs:
-                output_key = '{}/{}'.format(step.name, output)
+                output_key = '{}.{}'.format(step.name, output)
                 permissions[output_key] = permissions[step.name]
 
         def set_workflow_outputs_permissions(

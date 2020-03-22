@@ -30,11 +30,11 @@ def scenario_saas_with_data() -> Dict[str, Any]:
     result = dict()     # type: Dict[str, Any]
 
     result['rules'] = [
-            MayAccess('party1', 'site1-store:data1'),
-            MayAccess('party2', 'site1-store:data1'),
-            MayAccess('party2', 'site2-store:data2'),
-            ResultOfIn('site1-store:data1', 'Addition', 'result1'),
-            ResultOfIn('site2-store:data2', 'Addition', 'result2'),
+            MayAccess('party1', 'id:site1-store:data1'),
+            MayAccess('party2', 'id:site1-store:data1'),
+            MayAccess('party2', 'id:site2-store:data2'),
+            ResultOfIn('id:site1-store/data1', 'Addition', 'result1'),
+            ResultOfIn('id:site2-store/data2', 'Addition', 'result2'),
             MayAccess('party2', 'result1'),
             MayAccess('party1', 'result1'),
             MayAccess('party1', 'result2'),
@@ -43,16 +43,16 @@ def scenario_saas_with_data() -> Dict[str, Any]:
 
     result['sites'] = [
             Site(
-                'site1', 'party1', {'site1-store:data1': 42}, result['rules']),
-            Site('site2', 'party2', {'site2-store:data2': 3}, result['rules'])]
+                'site1', 'party1', {'id:site1-store/data1': 42}, result['rules']),
+            Site('site2', 'party2', {'id:site2-store/data2': 3}, result['rules'])]
 
     workflow = Workflow(
-            ['x1', 'x2'], {'y': 'addstep/y'}, [
+            ['x1', 'x2'], {'y': 'addstep.y'}, [
                 WorkflowStep(
                     'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
                 ])
 
-    inputs = {'x1': 'site1-store:data1', 'x2': 'site2-store:data2'}
+    inputs = {'x1': 'id:site1-store/data1', 'x2': 'id:site2-store/data2'}
 
     result['job'] = Job(workflow, inputs)
     result['user_site'] = result['sites'][0]
@@ -64,7 +64,7 @@ def scenario_pii() -> Dict[str, Any]:
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules'] = [
-            InAssetCollection('site1-store:pii1', 'PII1'),
+            InAssetCollection('id:site1-store/pii1', 'PII1'),
             MayAccess('party1', 'PII1'),
             ResultOfIn('PII1', '*', 'PII1'),
             ResultOfIn('PII1', 'Anonymise', 'ScienceOnly1'),
@@ -73,7 +73,7 @@ def scenario_pii() -> Dict[str, Any]:
             InAssetCollection('ScienceOnly1', 'ScienceOnly'),
             ResultOfIn('Public', '*', 'Public'),
 
-            InAssetCollection('site2-store:pii2', 'PII2'),
+            InAssetCollection('id:site2-store/pii2', 'PII2'),
             MayAccess('party2', 'PII2'),
             MayAccess('party1', 'PII2'),
             ResultOfIn('PII2', '*', 'PII2'),
@@ -89,22 +89,22 @@ def scenario_pii() -> Dict[str, Any]:
 
     scenario['sites'] = [
             Site(
-                'site1', 'party1', {'site1-store:pii1': 42},
+                'site1', 'party1', {'id:site1-store/pii1': 42},
                 scenario['rules']),
             Site(
-                'site2', 'party2', {'site2-store:pii2': 3}, scenario['rules']),
+                'site2', 'party2', {'id:site2-store/pii2': 3}, scenario['rules']),
             Site('site3', 'party3', {}, scenario['rules'])]
 
     workflow = Workflow(
-            ['x1', 'x2'], {'result': 'aggregate/y'}, [
+            ['x1', 'x2'], {'result': 'aggregate.y'}, [
                 WorkflowStep(
                     'combine', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Combine'),
                 WorkflowStep(
-                    'anonymise', {'x1': 'combine/y'}, ['y'], 'Anonymise'),
+                    'anonymise', {'x1': 'combine.y'}, ['y'], 'Anonymise'),
                 WorkflowStep(
-                    'aggregate', {'x1': 'anonymise/y'}, ['y'], 'Aggregate')])
+                    'aggregate', {'x1': 'anonymise.y'}, ['y'], 'Aggregate')])
 
-    inputs = {'x1': 'site1-store:pii1', 'x2': 'site2-store:pii2'}
+    inputs = {'x1': 'id:site1-store/pii1', 'x2': 'id:site2-store/pii2'}
 
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = scenario['sites'][2]

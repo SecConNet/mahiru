@@ -16,7 +16,7 @@ class WorkflowStep:
             name: Name of this step.
             inputs: Dict mapping input parameter names to references to
                     their sources, either the name of a workflow input,
-                    or of the form other_step/output_name.
+                    or of the form other_step.output_name.
             outputs: List of names of outputs produced.
             compute_asset: Name of the compute asset to use.
         """
@@ -45,7 +45,7 @@ class WorkflowStep:
                 if i != j and name1 == name2:
                     raise RuntimeError((
                         'Duplicate name {} for workflow step {}'
-                        ' inputs/outputs').format(name1, self.name))
+                        ' inputs.outputs').format(name1, self.name))
 
     def execute(self, args: Dict[str, int]) -> Dict[str, int]:
         pass
@@ -63,7 +63,7 @@ class Workflow:
         Args:
             inputs: List of input parameter names.
             outputs: Dict mapping output parameter names to
-                    corresponding step outputs of the form step/output.
+                    corresponding step outputs of the form step.output.
             steps: Dict of steps comprising this workflow, indexed by
                     step name.
         """
@@ -140,8 +140,8 @@ class Workflow:
             inps = set()    # type: Set[str]
             for step in steps_done:
                 for inp in step.inputs.values():
-                    if '/' in inp:
-                        pred_name = inp.split('/')[0]
+                    if '.' in inp:
+                        pred_name = inp.split('.')[0]
                         pred = self.steps[pred_name]
                         if pred not in steps_done:
                             preds.add(pred)
@@ -227,7 +227,7 @@ class Job:
         def prop_input_sources(
                 item_keys: Dict[str, str], step: WorkflowStep) -> None:
             for inp_name, inp_src in step.inputs.items():
-                inp_item = '{}/{}'.format(step.name, inp_name)
+                inp_item = '{}.{}'.format(step.name, inp_name)
                 if inp_item not in item_keys:
                     if inp_src not in item_keys:
                         raise DependencyMissing()
@@ -237,11 +237,11 @@ class Job:
                 item_keys: Dict[str, str], step: WorkflowStep) -> None:
             step_hash = sha256()
             for inp_name in sorted(step.inputs):
-                inp_item = '{}/{}'.format(step.name, inp_name)
+                inp_item = '{}.{}'.format(step.name, inp_name)
                 step_hash.update(item_keys[inp_item].encode('utf-8'))
             step_hash.update(step.compute_asset.encode('utf-8'))
             for outp_name in step.outputs:
-                outp_item = '{}/{}'.format(step.name, outp_name)
+                outp_item = '{}.{}'.format(step.name, outp_name)
                 outp_hash = step_hash.copy()
                 outp_hash.update(outp_name.encode('utf-8'))
                 item_keys[outp_item] = 'hash:{}'.format(outp_hash.hexdigest())

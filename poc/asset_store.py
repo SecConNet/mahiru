@@ -49,7 +49,7 @@ class AssetStore(IAssetStore):
 
         Returns:
             The asset data stored under the given name, and its
-            provenance.
+            metadata.
 
         Raises:
             KeyError: If no asset with the given name is stored here.

@@ -164,9 +164,6 @@ class Workflow:
 
 class Job:
     """Represents a job to the system from a user.
-
-    This class can also be used for provenance, to describe how an
-    asset was made.
     """
     def __init__(self, workflow: Workflow, inputs: Dict[str, str]) -> None:
         """Create a job.

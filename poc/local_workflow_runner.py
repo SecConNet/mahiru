@@ -150,12 +150,12 @@ class JobRun(Thread):
             print('Job at {} getting input {} from site {}'.format(
                 self._this_runner, data_key, source_store))
             try:
-                step_input_data[inp_name], prov = (
+                step_input_data[inp_name], metadata = (
                         self._ddm_client.retrieve_data(
                             source_store, data_key))
                 print('Job at {} found input {} available.'.format(
                     self._this_runner, data_key))
-                print('Provenance: {}'.format(prov))
+                print('Metadata: {}'.format(metadata))
             except KeyError:
                 print('Job at {} found input {} not yet available.'.format(
                     self._this_runner, data_key))

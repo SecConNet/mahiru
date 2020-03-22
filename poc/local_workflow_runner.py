@@ -175,7 +175,8 @@ class JobRun(Thread):
         according to the current plan, and the output name.
 
         If the input is of the form 'store:data', this will return the
-        given store and the name of the input data asset.
+        corresponding store from the plan and the name of the input
+        data asset to get from there.
 
         Args:
             inp_source: Source description as above.
@@ -188,12 +189,7 @@ class JobRun(Thread):
             return src_store, keys[inp_source]
         else:
             dataset = self._inputs[inp_source]
-            if ':' in dataset:
-                store_name = dataset.split(':')[0]
-                return store_name, dataset
-            else:
-                raise RuntimeError('Invalid input specification "{}"'.format(
-                    inp_source))
+            return self._plan.input_stores[dataset], dataset
 
 
 class LocalWorkflowRunner(ILocalWorkflowRunner):

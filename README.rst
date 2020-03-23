@@ -2,7 +2,7 @@
    :target: https://github.com/SecConNet/proof_of_concept
    :alt: GitHub Badge
 
-.. image:: https://github.com/SecConNet/proof_of_concept/workflows/.github/workflows/run_tests.yaml/badge.svg
+.. image:: https://github.com/SecConNet/proof_of_concept/workflows/Continuous%20Integration/badge.svg
    :target: https://github.com/SecConNet/proof_of_concept/actions?query=workflow%3A%22Continuous+Integration%22
    :alt: Continuous Integration Badge
 
@@ -11,10 +11,11 @@
    :alt: License Badge
 
 ################################################################################
-SecConNet Proof of Concept
+Distributed Digital Data Marketplace Proof of Concept
 ################################################################################
 
-A proof of concept for a federated, policy-driven Digital Data Marketplace
+A proof of concept for a federated, policy-driven Digital Data Marketplace for
+the SecConNet project.
 
 
 Contributing

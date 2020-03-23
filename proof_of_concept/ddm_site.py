@@ -1,15 +1,17 @@
+"""This module combines components into a site installation."""
 from typing import Any, Dict, List
 
-from asset_store import AssetStore
-from ddm_client import DDMClient
-from definitions import Metadata
-from local_workflow_runner import LocalWorkflowRunner
-from policy import PolicyManager, Rule
-from workflow import Job, Workflow
-from workflow_engine import GlobalWorkflowRunner
+from proof_of_concept.asset_store import AssetStore
+from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.definitions import Metadata
+from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
+from proof_of_concept.policy import PolicyManager, Rule
+from proof_of_concept.workflow import Job, Workflow
+from proof_of_concept.workflow_engine import GlobalWorkflowRunner
 
 
 class Site:
+    """Represents a single DDM peer installation."""
     def __init__(
             self, name: str, administrator: str, stored_data: Dict[str, int],
             rules: List[Rule]) -> None:
@@ -46,9 +48,9 @@ class Site:
                 self._policy_manager, self._ddm_client)
 
     def __repr__(self) -> str:
+        """Return a string representation of this object."""
         return 'Site({})'.format(self.name)
 
     def run_job(self, job: Job) -> Dict[str, Any]:
-        """Run a workflow on behalf of the party running this site.
-        """
+        """Run a workflow on behalf of the party running this site."""
         return self._workflow_engine.execute(self.administrator, job)

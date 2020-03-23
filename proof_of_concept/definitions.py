@@ -1,6 +1,7 @@
-from typing import Any, Dict
+"""Some global definitions."""
+from typing import Any, Dict, Tuple
 
-from workflow import Job, Workflow, WorkflowStep
+from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
 class Plan:
@@ -30,6 +31,7 @@ class Plan:
         self.step_runners = step_runners
 
     def __str__(self) -> str:
+        """Return a string representation of the object."""
         result = ''
         for inp_name, store_id in self.input_stores.items():
             result += '{} <- {}\n'.format(inp_name, store_id)
@@ -59,8 +61,7 @@ class Metadata:
 
 
 class IAssetStore:
-    """An interface for asset stores.
-    """
+    """An interface for asset stores."""
     name = None     # type: str
 
     def store(self, name: str, data: Any, metadata: Metadata) -> None:
@@ -76,7 +77,8 @@ class IAssetStore:
         """
         raise NotImplementedError()
 
-    def retrieve(self, asset_name: str, requester: str) -> Any:
+    def retrieve(
+            self, asset_name: str, requester: str) -> Tuple[Any, Metadata]:
         """Retrieves an asset.
 
         Args:
@@ -93,8 +95,7 @@ class IAssetStore:
 
 
 class ILocalWorkflowRunner:
-    """A interface for services for running workflows at a given site.
-    """
+    """Interface for services for running workflows at a given site."""
     name = None     # type: str
 
     def target_store(self) -> str:

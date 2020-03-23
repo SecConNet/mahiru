@@ -1,13 +1,14 @@
+"""Functionality for connecting to other DDM sites."""
 from typing import Any, Dict, List, Optional, Tuple
 
-from definitions import IAssetStore, ILocalWorkflowRunner, Plan
-from workflow import Job, Workflow
-from registry import global_registry
+from proof_of_concept.definitions import (
+        IAssetStore, ILocalWorkflowRunner, Metadata, Plan)
+from proof_of_concept.workflow import Job, Workflow
+from proof_of_concept.registry import global_registry
 
 
 class DDMClient:
-    """Handles connecting to global registry, runners and stores.
-    """
+    """Handles connecting to global registry, runners and stores."""
     def __init__(self, party: str) -> None:
         """Create a DDMClient.
 
@@ -36,24 +37,20 @@ class DDMClient:
         global_registry.register_store(store)
 
     def list_runners(self) -> List[str]:
-        """Returns a list of id's of available runners.
-        """
+        """Returns a list of id's of available runners."""
         return global_registry.list_runners()
 
     def get_target_store(self, runner_id: str) -> str:
-        """Returns the id of the target store of the given runner.
-        """
+        """Returns the id of the target store of the given runner."""
         return global_registry.get_runner(runner_id).target_store()
 
     def get_runner_administrator(self, runner_id: str) -> str:
-        """Returns the id of the party administrating a runner.
-        """
+        """Returns the id of the party administrating a runner."""
         return global_registry.get_runner_admin(runner_id)
 
     def retrieve_data(
-            self, store_id: str, name: str) -> Tuple[Any, Job]:
-        """Obtains a data item from a store.
-        """
+            self, store_id: str, name: str) -> Tuple[Any, Metadata]:
+        """Obtains a data item from a store."""
         store = global_registry.get_store(store_id)
         return store.retrieve(name, self._party)
 

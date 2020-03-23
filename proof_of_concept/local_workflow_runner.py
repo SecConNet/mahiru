@@ -1,16 +1,21 @@
+"""Components for on-site workflow execution."""
 from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
-from asset_store import AssetStore
-from ddm_client import DDMClient
-from definitions import ILocalWorkflowRunner, Metadata, Plan
-from policy import PolicyManager
-from policy_evaluator import PolicyEvaluator
-from workflow import Job, WorkflowStep, Workflow
+from proof_of_concept.asset_store import AssetStore
+from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.definitions import ILocalWorkflowRunner, Metadata, Plan
+from proof_of_concept.policy import PolicyManager
+from proof_of_concept.policy_evaluator import PolicyEvaluator
+from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 
 
 class JobRun(Thread):
+    """A run of a job.
+
+    This is a reification of the process of executing a job locally.
+    """
     def __init__(
             self, policy_manager: PolicyManager,
             this_runner: str, administrator: str,
@@ -23,6 +28,7 @@ class JobRun(Thread):
         site.
 
         Args:
+            policy_manager: A policy manager to use to check policy.
             this_runner: The runner we're running in.
             administrator: Name of the party administrating this runner.
             job: The job to execute.
@@ -52,7 +58,7 @@ class JobRun(Thread):
         """
         if not self._is_legal():
             # for each output we were supposed to produce
-                # store an error object instead
+            #     store an error object instead
             # for now, we raise and crash
             raise RuntimeError(
                     'Security violation, asked to perform an illegal job.')
@@ -113,8 +119,8 @@ class JobRun(Thread):
                     if not self._policy_manager.may_access(
                             inp_perms, self._administrator):
                         return False
-                    # check that the site we'll download this input from may
-                    # access it
+                    # check that the site we'll download this input
+                    # from may access it
                     if '.' in inp_src:
                         src_step, _ = inp_src.split('.')
                         src_party = self._ddm_client.get_runner_administrator(
@@ -193,8 +199,7 @@ class JobRun(Thread):
 
 
 class LocalWorkflowRunner(ILocalWorkflowRunner):
-    """A service for running workflows at a given site.
-    """
+    """A service for running workflows at a given site."""
     def __init__(
             self, name: str, administrator: str, policy_manager: PolicyManager,
             target_store: AssetStore) -> None:
@@ -221,6 +226,12 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
 
     def execute_job(
             self, job: Job, plan: Plan) -> None:
+        """Start a job in a separate thread.
+
+        Args:
+            job: The job to execute.
+            plan: The plan to execute to.
+        """
         run = JobRun(
                 self._policy_manager, self.name, self._administrator,
                 job, plan,

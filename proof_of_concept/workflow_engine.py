@@ -1,17 +1,17 @@
+"""Classes for running DDM-wide workflows."""
 from copy import copy
 from time import sleep
 from typing import Any, Dict, Generator, List, Set
 
-from ddm_client import DDMClient
-from definitions import Plan
-from policy import Permissions, PolicyManager
-from policy_evaluator import PolicyEvaluator
-from workflow import Job, Workflow, WorkflowStep
+from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.definitions import Plan
+from proof_of_concept.policy import Permissions, PolicyManager
+from proof_of_concept.policy_evaluator import PolicyEvaluator
+from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
 class WorkflowPlanner:
-    """Plans workflow execution across sites in a DDM.
-    """
+    """Plans workflow execution across sites in a DDM."""
     def __init__(
             self, ddm_client: DDMClient, policy_manager: PolicyManager
             ) -> None:
@@ -44,8 +44,7 @@ class WorkflowPlanner:
                 permissions: Dict[str, Permissions],
                 step: WorkflowStep, runner: str
                 ) -> bool:
-            """Checks whether the given runner may run the given step.
-            """
+            """Check whether the given runner may run the given step."""
             party = self._ddm_client.get_runner_administrator(runner)
 
             # check each input
@@ -117,8 +116,7 @@ class WorkflowPlanner:
 
 
 class WorkflowExecutor:
-    """Executes workflows across sites in a DDM.
-    """
+    """Executes workflows across sites in a DDM."""
     def __init__(self, ddm_client: DDMClient) -> None:
         """Create a WorkflowExecutor.
 
@@ -169,8 +167,7 @@ class WorkflowExecutor:
 
 
 class GlobalWorkflowRunner:
-    """Plans and runs workflows across sites in DDM.
-    """
+    """Plans and runs workflows across sites in DDM."""
     def __init__(
             self, policy_manager: PolicyManager, ddm_client: DDMClient
             ) -> None:
@@ -178,6 +175,7 @@ class GlobalWorkflowRunner:
 
         Args:
             policy_manager: Component that knows about policies.
+            ddm_client: Client for accessing other sites.
         """
         self._planner = WorkflowPlanner(ddm_client, policy_manager)
         self._executor = WorkflowExecutor(ddm_client)

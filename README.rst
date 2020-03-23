@@ -2,6 +2,10 @@
    :target: https://github.com/SecConNet/proof_of_concept
    :alt: GitHub Badge
 
+.. |CI Badge| image:: https://github.com/SecConNet/proof_of_concept/workflows/.github/workflows/run_tests.yaml/badge.svg
+   :target: https://github.com/SecConNet/proof_of_concept
+   :alt: Continuous Integration Badge
+
 .. |License Badge| image:: https://img.shields.io/github/license/SecConNet/proof_of_concept
    :target: https://github.com/SecConNet/proof_of_concept
    :alt: License Badge

@@ -59,6 +59,12 @@ class WorkflowPlanner:
             return self._policy_manager.may_access(step_perms, party)
 
         permissions = self._policy_evaluator.calculate_permissions(job)
+
+        for output in job.workflow.outputs:
+            output_perms = permissions[output]
+            if not self._policy_manager.may_access(output_perms, submitter):
+                return []
+
         sorted_steps = self._sort_workflow(job.workflow)
         plan = [''] * len(sorted_steps)
 
@@ -73,9 +79,7 @@ class WorkflowPlanner:
                 if may_run(permissions, cur_step, runner):
                     plan[cur_step_idx] = runner
                     if cur_step_idx == len(plan) - 1:
-                        if self._policy_manager.may_access(
-                                step_perms, submitter):
-                            yield copy(plan)
+                        yield copy(plan)
                     else:
                         yield from plan_from(cur_step_idx + 1)
 

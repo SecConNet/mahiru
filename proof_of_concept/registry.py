@@ -15,6 +15,7 @@ class Registry:
         self._runners = dict()          # type: Dict[str, ILocalWorkflowRunner]
         self._runner_admins = dict()    # type: Dict[str, str]
         self._stores = dict()           # type: Dict[str, IAssetStore]
+        self._store_admins = dict()     # type: Dict[str, str]
 
     def register_runner(
             self, admin: str, runner: ILocalWorkflowRunner
@@ -30,15 +31,17 @@ class Registry:
         self._runners[runner.name] = runner
         self._runner_admins[runner.name] = admin
 
-    def register_store(self, store: IAssetStore) -> None:
+    def register_store(self, admin: str, store: IAssetStore) -> None:
         """Register an AssetStore with the Registry.
 
         Args:
+            admin: The party administrating this runner.
             store: The data store to register.
         """
         if store.name in self._stores:
             raise RuntimeError('There is already a store with this name')
         self._stores[store.name] = store
+        self._store_admins[store.name] = admin
 
     def list_runners(self) -> List[str]:
         """List names of all registered runners.
@@ -91,6 +94,20 @@ class Registry:
                     registered.
         """
         return self._stores[name]
+
+    def get_store_admin(self, name: str) -> str:
+        """Look up who administrates a given store.
+
+        Args:
+            name: The name of the store to look up.
+
+        Return:
+            The name of the party administrating it.
+
+        Raises:
+            KeyError: If no runner with the given name is registered.
+        """
+        return self._store_admins[name]
 
 
 global_registry = Registry()

@@ -36,7 +36,7 @@ class Site:
         self.store = AssetStore(name + '-store', self._policy_manager)
         for key, val in stored_data.items():
             self.store.store(key, val, Metadata(Job.niljob(key), 'dataset'))
-        self._ddm_client.register_store(self.store)
+        self._ddm_client.register_store(administrator, self.store)
 
         self.runner = LocalWorkflowRunner(
                 name + '-runner', administrator,

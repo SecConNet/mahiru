@@ -125,9 +125,14 @@ class JobRun(Thread):
                         src_step, _ = inp_src.split('.')
                         src_party = self._ddm_client.get_runner_administrator(
                                 self._runners[src_step])
-                        if not self._policy_manager.may_access(
-                                perms[inp_src], src_party):
-                            return False
+                    else:
+                        inp_asset_id = self._job.inputs[inp_src]
+                        src_party = self._ddm_client.get_store_administrator(
+                                self._plan.input_stores[inp_asset_id])
+
+                    if not self._policy_manager.may_access(
+                            perms[inp_src], src_party):
+                        return False
 
                 # check that we can access the step itself
                 if not self._policy_manager.may_access(

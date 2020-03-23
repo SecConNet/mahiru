@@ -1,12 +1,12 @@
-.. |GitHub Badge| image:: https://img.shields.io/badge/github-repo-000.svg?logo=github&labelColor=gray&color=blue
+.. image:: https://img.shields.io/badge/github-repo-000.svg?logo=github&labelColor=gray&color=blue
    :target: https://github.com/SecConNet/proof_of_concept
    :alt: GitHub Badge
 
-.. |CI Badge| image:: https://github.com/SecConNet/proof_of_concept/workflows/.github/workflows/run_tests.yaml/badge.svg
+.. image:: https://github.com/SecConNet/proof_of_concept/workflows/.github/workflows/run_tests.yaml/badge.svg
    :target: https://github.com/SecConNet/proof_of_concept/actions?query=workflow%3A%22Continuous+Integration%22
    :alt: Continuous Integration Badge
 
-.. |License Badge| image:: https://img.shields.io/github/license/SecConNet/proof_of_concept
+.. image:: https://img.shields.io/github/license/SecConNet/proof_of_concept
    :target: https://github.com/SecConNet/proof_of_concept
    :alt: License Badge
 

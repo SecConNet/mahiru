@@ -1,8 +1,10 @@
 """Classes for describing and managing policies."""
 from typing import List, Set
 
+from proof_of_concept.signable import Signable
 
-class Rule:
+
+class Rule(Signable):
     """Abstract base class for policy rules."""
     pass
 
@@ -27,6 +29,13 @@ class InAssetCollection(Rule):
         """Return a string representation of this rule."""
         return '("{}" is in "{}")'.format(self.asset, self.collection)
 
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.asset, self.collection).encode('utf-8')
+
 
 class InPartyCollection(Rule):
     """Says that Party party is in PartyCollection collection."""
@@ -44,6 +53,13 @@ class InPartyCollection(Rule):
         """Return a string representation of this rule."""
         return '("{}" is in "{}")'.format(self.party, self.collection)
 
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.party, self.collection).encode('utf-8')
+
 
 class MayAccess(Rule):
     """Says that Party party may access Asset asset."""
@@ -60,6 +76,13 @@ class MayAccess(Rule):
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
         return '("{}" may access "{}")'.format(self.party, self.asset)
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.party, self.asset).encode('utf-8')
 
 
 class ResultOfIn(Rule):
@@ -85,6 +108,15 @@ class ResultOfIn(Rule):
         """Return a string representation of this rule."""
         return '(result of "{}" on "{}" is in collection "{}")'.format(
                 self.compute_asset, self.data_asset, self.collection)
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}|{}'.format(
+                self.data_asset, self.compute_asset, self.collection
+                ).encode('utf-8')
 
 
 class Permissions:

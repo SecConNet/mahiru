@@ -1,6 +1,8 @@
 """Central registry of remote-accessible things."""
 from typing import Dict, List
 
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+
 from proof_of_concept.definitions import IAssetStore, ILocalWorkflowRunner
 
 
@@ -13,11 +15,29 @@ class Registry:
     """
     def __init__(self) -> None:
         """Create a new registry."""
+        self._party_namespaces = dict()     # type: Dict[str, str]
+        self._party_keys = dict()       # type: Dict[str, RSAPublicKey]
+        self._ns_owners = dict()        # type: Dict[str, str]
         self._runners = dict()          # type: Dict[str, ILocalWorkflowRunner]
         self._runner_admins = dict()    # type: Dict[str, str]
         self._stores = dict()           # type: Dict[str, IAssetStore]
         self._store_admins = dict()     # type: Dict[str, str]
         self._assets = dict()           # type: Dict[str, str]
+
+    def register_party(
+            self, name: str, namespace: str, public_key: RSAPublicKey) -> None:
+        """Register a party with the DDM.
+
+        Args:
+            name: Name of the party.
+            namespace: ID namespace owned by this party.
+            public_key: Public key of this party.
+        """
+        if name in self._party_namespaces:
+            raise RuntimeError('There is already a party with this name')
+        self._party_namespaces[name] = namespace
+        self._party_keys[name] = public_key
+        self._ns_owners[namespace] = name
 
     def register_runner(
             self, admin: str, runner: ILocalWorkflowRunner
@@ -55,6 +75,35 @@ class Registry:
         if asset_id in self._assets:
             raise RuntimeError('There is already an asset with this name')
         self._assets[asset_id] = store_name
+
+    def get_ns_owner(self, namespace: str) -> str:
+        """Returns the name of the party owning a namespace.
+
+        Args:
+            namespace: Namespace to look up
+
+        Return:
+            Name of the owner of the namespace.
+
+        Raises:
+            KeyError: If no namespace with the given name is
+                    registered.
+        """
+        return self._ns_owners[namespace]
+
+    def get_public_key(self, party: str) -> RSAPublicKey:
+        """Returns the public key of the given party.
+
+        Args:
+            party: Name of the party to look up.
+
+        Return:
+            The public key of the given party.
+
+        Raises:
+            KeyError: If no party with the given name is registered.
+        """
+        return self._party_keys[party]
 
     def list_runners(self) -> List[str]:
         """List names of all registered runners.

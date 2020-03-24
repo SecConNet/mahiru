@@ -1,6 +1,9 @@
 """This module combines components into a site installation."""
 from typing import Any, Dict, List
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import Metadata
@@ -31,6 +34,15 @@ class Site:
 
         self._ddm_client = DDMClient(administrator)
         self._policy_manager = PolicyManager(rules)
+
+        # Register party with DDM
+        self._private_key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=2048,
+                backend=default_backend())
+
+        self._ddm_client.register_party(
+                self.name, self.name, self._private_key.public_key())
 
         # Server side
         self.store = AssetStore(name + '-store', self._policy_manager)

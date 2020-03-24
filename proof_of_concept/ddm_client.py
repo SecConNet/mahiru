@@ -1,6 +1,8 @@
 """Functionality for connecting to other DDM sites."""
 from typing import Any, Dict, List, Optional, Tuple
 
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, Metadata, Plan)
 from proof_of_concept.workflow import Job, Workflow
@@ -16,6 +18,17 @@ class DDMClient:
             party: The party on whose behalf this client acts.
         """
         self._party = party
+
+    def register_party(
+            self, name: str, namespace: str, public_key: RSAPublicKey) -> None:
+        """Register a party with the Registry.
+
+        Args:
+            name: Name of the party.
+            namespace: ID namespace owned by this party.
+            public_key: Public key of this party.
+        """
+        global_registry.register_party(name, namespace, public_key)
 
     def register_runner(
             self, admin: str, runner: ILocalWorkflowRunner
@@ -45,6 +58,11 @@ class DDMClient:
             store_name: Name of the store where it can be found.
         """
         global_registry.register_asset(asset_id, store_name)
+
+    def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
+        """Get the public key of the owner of a namespace."""
+        owner = global_registry.get_ns_owner(namespace)
+        return global_registry.get_public_key(owner)
 
     def list_runners(self) -> List[str]:
         """Returns a list of id's of available runners."""

@@ -86,7 +86,7 @@ class WorkflowPlanner:
         step_runners = [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
         # We'll have some other kind of resolver here later
         input_stores = {
-                inp: inp.split(':')[1].split('/')[0]
+                inp: self._ddm_client.get_asset_location(inp)
                 for inp in job.inputs.values()}
 
         return [Plan(input_stores, runners) for runners in step_runners]

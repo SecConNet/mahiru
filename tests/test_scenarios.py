@@ -31,7 +31,7 @@ def test_pii(clean_global_registry):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules'] = [
-            InAssetCollection('id:site1-store/pii1', 'PII1'),
+            InAssetCollection('id:party1/dataset/pii1', 'PII1'),
             MayAccess('party1', 'PII1'),
             ResultOfIn('PII1', '*', 'PII1'),
             ResultOfIn('PII1', 'Anonymise', 'ScienceOnly1'),
@@ -40,7 +40,7 @@ def test_pii(clean_global_registry):
             InAssetCollection('ScienceOnly1', 'ScienceOnly'),
             ResultOfIn('Public', '*', 'Public'),
 
-            InAssetCollection('id:site2-store/pii2', 'PII2'),
+            InAssetCollection('id:party2/dataset/pii2', 'PII2'),
             MayAccess('party2', 'PII2'),
             MayAccess('party1', 'PII2'),
             ResultOfIn('PII2', '*', 'PII2'),
@@ -56,10 +56,10 @@ def test_pii(clean_global_registry):
 
     scenario['sites'] = [
             Site(
-                'site1', 'party1', {'id:site1-store/pii1': 42},
+                'site1', 'party1', {'id:party1/dataset/pii1': 42},
                 scenario['rules']),
             Site(
-                'site2', 'party2', {'id:site2-store/pii2': 3},
+                'site2', 'party2', {'id:party2/dataset/pii2': 3},
                 scenario['rules']),
             Site('site3', 'party3', {}, scenario['rules'])]
 
@@ -72,7 +72,7 @@ def test_pii(clean_global_registry):
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise.y'}, ['y'], 'Aggregate')])
 
-    inputs = {'x1': 'id:site1-store/pii1', 'x2': 'id:site2-store/pii2'}
+    inputs = {'x1': 'id:party1/dataset/pii1', 'x2': 'id:party2/dataset/pii2'}
 
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = scenario['sites'][2]
@@ -85,11 +85,11 @@ def test_saas_with_data(clean_global_registry):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules'] = [
-            MayAccess('party1', 'id:site1-store/data1'),
-            MayAccess('party2', 'id:site1-store/data1'),
-            MayAccess('party2', 'id:site2-store/data2'),
-            ResultOfIn('id:site1-store/data1', 'Addition', 'result1'),
-            ResultOfIn('id:site2-store/data2', 'Addition', 'result2'),
+            MayAccess('party1', 'id:party1/dataset/data1'),
+            MayAccess('party2', 'id:party1/dataset/data1'),
+            MayAccess('party2', 'id:party2/dataset/data2'),
+            ResultOfIn('id:party1/dataset/data1', 'Addition', 'result1'),
+            ResultOfIn('id:party2/dataset/data2', 'Addition', 'result2'),
             MayAccess('party2', 'result1'),
             MayAccess('party1', 'result1'),
             MayAccess('party1', 'result2'),
@@ -98,10 +98,10 @@ def test_saas_with_data(clean_global_registry):
 
     scenario['sites'] = [
             Site(
-                'site1', 'party1', {'id:site1-store/data1': 42},
+                'site1', 'party1', {'id:party1/dataset/data1': 42},
                 scenario['rules']),
             Site(
-                'site2', 'party2', {'id:site2-store/data2': 3},
+                'site2', 'party2', {'id:party2/dataset/data2': 3},
                 scenario['rules'])]
 
     workflow = Workflow(
@@ -110,7 +110,7 @@ def test_saas_with_data(clean_global_registry):
                     'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
                 ])
 
-    inputs = {'x1': 'id:site1-store/data1', 'x2': 'id:site2-store/data2'}
+    inputs = {'x1': 'id:party1/dataset/data1', 'x2': 'id:party2/dataset/data2'}
 
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = scenario['sites'][0]

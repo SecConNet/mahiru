@@ -1,14 +1,15 @@
-"""Central registry of asset stores and workflow runners."""
+"""Central registry of remote-accessible things."""
 from typing import Dict, List
 
 from proof_of_concept.definitions import IAssetStore, ILocalWorkflowRunner
 
 
 class Registry:
-    """Global registry of data stores and local workflow runners.
+    """Global registry of remote-accessible things.
 
-    In a real system, these would just be identified by the URL, and
-    use the DNS to resolve. Here, we use this registry instead.
+    Registers runners, stores, and assets. In a real system, runners
+    and stores would be identified by a URL, and use the DNS to
+    resolve. For now the registry helps with this.
     """
     def __init__(self) -> None:
         """Create a new registry."""
@@ -16,6 +17,7 @@ class Registry:
         self._runner_admins = dict()    # type: Dict[str, str]
         self._stores = dict()           # type: Dict[str, IAssetStore]
         self._store_admins = dict()     # type: Dict[str, str]
+        self._assets = dict()           # type: Dict[str, str]
 
     def register_runner(
             self, admin: str, runner: ILocalWorkflowRunner
@@ -42,6 +44,17 @@ class Registry:
             raise RuntimeError('There is already a store with this name')
         self._stores[store.name] = store
         self._store_admins[store.name] = admin
+
+    def register_asset(self, asset_id: str, store_name: str) -> None:
+        """Register an Asset with the Registry.
+
+        Args:
+            asset_id: The id of the asset to register.
+            store_name: Name of the store where it can be found.
+        """
+        if asset_id in self._assets:
+            raise RuntimeError('There is already an asset with this name')
+        self._assets[asset_id] = store_name
 
     def list_runners(self) -> List[str]:
         """List names of all registered runners.
@@ -108,6 +121,20 @@ class Registry:
             KeyError: If no runner with the given name is registered.
         """
         return self._store_admins[name]
+
+    def get_asset_location(self, asset_id: str) -> str:
+        """Returns the name of the store this asset is in.
+
+        Args:
+            asset_id: ID of the asset to find.
+
+        Return:
+            The store it can be found in.
+
+        Raises:
+            KeyError: If no asset with the given id is registered.
+        """
+        return self._assets[asset_id]
 
 
 global_registry = Registry()

@@ -37,6 +37,15 @@ class DDMClient:
         """
         global_registry.register_store(admin, store)
 
+    def register_asset(self, asset_id: str, store_name: str) -> None:
+        """Register an Asset with the Registry.
+
+        Args:
+            asset_id: The id of the asset to register.
+            store_name: Name of the store where it can be found.
+        """
+        global_registry.register_asset(asset_id, store_name)
+
     def list_runners(self) -> List[str]:
         """Returns a list of id's of available runners."""
         return global_registry.list_runners()
@@ -52,6 +61,10 @@ class DDMClient:
     def get_store_administrator(self, store_id: str) -> str:
         """Returns the id of the party administrating a store."""
         return global_registry.get_store_admin(store_id)
+
+    def get_asset_location(self, asset_id: str) -> str:
+        """Returns the name of the store which stores this asset."""
+        return global_registry.get_asset_location(asset_id)
 
     def retrieve_data(
             self, store_id: str, name: str) -> Tuple[Any, Metadata]:

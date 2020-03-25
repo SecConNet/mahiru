@@ -12,7 +12,7 @@ serialisation is probably the way to go. That's what we do here, using
 the Python GIL.
 """
 import time
-from typing import Optional, Set, Tuple
+from typing import Iterable, Optional, Set, Tuple
 
 
 class Replicable:
@@ -51,12 +51,22 @@ class Replicable:
         self.__time_deleted = time.time()
 
 
-class ReplicationServer:
-    """Serves Replicables from a set of them."""
+class ReplicatedStore:
+    """Stores Replicables."""
 
     def __init__(self) -> None:
-        """Create a ReplicationServer for the given objects."""
+        """Create a ReplicatedStore for the given objects."""
         self._objects = set()      # type: Set[Replicable]
+
+    def all_objects(self) -> Iterable[Replicable]:
+        """Return all the stored objects, including deleted ones."""
+        return self._objects
+
+    def objects(self) -> Iterable[Replicable]:
+        """Iterate through currently extant objects."""
+        return [
+                obj for obj in self._objects
+                if obj.time_deleted() is None]
 
     def insert(self, obj: Replicable) -> None:
         """Insert an object into the collection of objects.
@@ -78,6 +88,18 @@ class ReplicationServer:
         if obj not in self._objects:
             raise ValueError('Object not found')
         obj._delete()
+
+
+class ReplicationServer:
+    """Serves Replicables from a set of them."""
+
+    def __init__(self, store: ReplicatedStore) -> None:
+        """Create a ReplicationServer for the given store.
+
+        Args:
+            store: A store to serve updates from.
+        """
+        self._store = store
 
     def get_updates_since(
             self, timestamp: Optional[float]
@@ -106,26 +128,22 @@ class ReplicationServer:
             return time_deleted <= timestamp
 
         new_timestamp = time.time()
-        print('new ts: {}'.format(new_timestamp))
-        print('objs: {}'.format(self._objects))
         if timestamp is None:
             new_objects = {
-                    obj for obj in self._objects
+                    obj for obj in self._store.all_objects()
                     if obj.time_created() <= new_timestamp}
             deleted_objects = set()    # type: Set[Replicable]
         else:
             new_objects = {
-                    obj for obj in self._objects
+                    obj for obj in self._store.all_objects()
                     if (timestamp < obj.time_created()
                         and obj.time_created() <= new_timestamp)}
 
             deleted_objects = {
-                    obj for obj in self._objects
+                    obj for obj in self._store.all_objects()
                     if (deleted_after(timestamp, obj.time_deleted())
                         and deleted_before(obj.time_deleted(), new_timestamp))}
 
-        print('ts: {}, new: {}, del: {}'.format(
-            new_timestamp, new_objects, deleted_objects))
         return new_timestamp, new_objects, deleted_objects
 
 

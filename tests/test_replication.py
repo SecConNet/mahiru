@@ -1,5 +1,5 @@
 from proof_of_concept.replication import (
-        Replicable, ReplicationServer, ReplicationClient)
+        Replicable, ReplicatedStore, ReplicationServer, ReplicationClient)
 
 
 class A(Replicable):
@@ -11,15 +11,16 @@ class A(Replicable):
 
 
 def test_replication():
-    a1 = A()
-    a2 = A()
-
-    server = ReplicationServer()
-    server.insert(a1)
-    server.insert(a2)
-
+    store = ReplicatedStore()
+    server = ReplicationServer(store)
     client = ReplicationClient(server)
 
+    a1 = A()
+    store.insert(a1)
+    a2 = A()
+    store.insert(a2)
+
+    assert store.all_objects() == {a1, a2}
     assert client.objects == set()
     assert client.lag() == float('inf')
     client.update()
@@ -28,14 +29,14 @@ def test_replication():
     assert client.lag() < 1.0
 
     a3 = A()
-    server.insert(a3)
+    store.insert(a3)
     assert client.objects == {a1, a2}
     client.update()
     assert client.objects == {a1, a2, a3}
 
-    server.delete(a2)
+    store.delete(a2)
     assert client.objects == {a1, a2, a3}
     client.update()
     assert set(client.objects) == {a1, a3}
 
-# This could do with some unit testing of server and client
+# This could do with some unit testing of store, server and client

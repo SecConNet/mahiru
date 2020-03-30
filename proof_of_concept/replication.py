@@ -54,21 +54,29 @@ class Replicable:
 T = TypeVar('T', bound=Replicable)
 
 
-class ReplicatedStore(Generic[T]):
-    """Stores Replicables."""
+class ReplicableArchive(Generic[T]):
+    """Stores an archive of replicable objects.
 
+    This contains both existing and deleted objects. It models the raw
+    database.
+    """
     def __init__(self) -> None:
-        """Create a ReplicatedStore for the given objects."""
-        self._objects = set()      # type: Set[T]
+        """Create an empty archive."""
+        self.objects = set()        # type: Set[T]
+        self.timestamp = None       # type: Optional[float]
 
-    def archive(self) -> Iterable[T]:
-        """Return all the stored objects, including deleted ones."""
-        return self._objects
+
+class CanonicalStore(Generic[T]):
+    """Stores Replicables and can be replicated."""
+
+    def __init__(self, archive: ReplicableArchive) -> None:
+        """Create a ReplicatedStore."""
+        self._archive = archive
 
     def objects(self) -> Iterable[T]:
         """Iterate through currently extant objects."""
         return [
-                obj for obj in self._objects
+                obj for obj in self._archive.objects
                 if obj.time_deleted() is None]
 
     def insert(self, obj: T) -> None:
@@ -77,7 +85,7 @@ class ReplicatedStore(Generic[T]):
         Args:
             obj: A new object to add.
         """
-        self._objects.add(obj)
+        self._archive.objects.add(obj)
 
     def delete(self, obj: T) -> None:
         """Delete an object from the collection of objects.
@@ -88,7 +96,7 @@ class ReplicatedStore(Generic[T]):
         Raises:
             ValueError: If the object is not present.
         """
-        if obj not in self._objects:
+        if obj not in self._archive.objects:
             raise ValueError('Object not found')
         obj._delete()
 
@@ -115,13 +123,13 @@ class IReplicationServer(Generic[T]):
 class ReplicationServer(IReplicationServer[T]):
     """Serves Replicables from a set of them."""
 
-    def __init__(self, store: ReplicatedStore) -> None:
-        """Create a ReplicationServer for the given store.
+    def __init__(self, archive: ReplicableArchive) -> None:
+        """Create a ReplicationServer for the given archive.
 
         Args:
-            store: A store to serve updates from.
+            archive: An archive to serve updates from.
         """
-        self._store = store
+        self._archive = archive
 
     def get_updates_since(
             self, timestamp: Optional[float]
@@ -152,42 +160,31 @@ class ReplicationServer(IReplicationServer[T]):
         new_timestamp = time.time()
         if timestamp is None:
             new_objects = {
-                    obj for obj in self._store.archive()
+                    obj for obj in self._archive.objects
                     if obj.time_created() <= new_timestamp}
             deleted_objects = set()    # type: Set[T]
         else:
             new_objects = {
-                    obj for obj in self._store.archive()
+                    obj for obj in self._archive.objects
                     if (timestamp < obj.time_created()
                         and obj.time_created() <= new_timestamp)}
 
             deleted_objects = {
-                    obj for obj in self._store.archive()
+                    obj for obj in self._archive.objects
                     if (deleted_after(timestamp, obj.time_deleted())
                         and deleted_before(obj.time_deleted(), new_timestamp))}
 
         return new_timestamp, new_objects, deleted_objects
 
 
-class ReplicationClient:
-    """Maintains a replica of a set of Replicables.
-
-    For all objects in `objects`, `time_deleted` will return None.
-
-    Attributes:
-        objects: A set of replicable objects.
-    """
-
+class Replica:
+    """Stores a replica of a CanonicalStore."""
     def __init__(self, server: ReplicationServer) -> None:
-        """Create a ReplicationClient for the given server.
+        """Create an empty Replica."""
+        self.objects = set()        # type: Set[Replicable]
 
-        Args:
-            server: The server to replicate from.
-        """
-        self.objects = set()       # type: Set[Replicable]
-
+        self._timestamp = None       # type: Optional[float]
         self._server = server
-        self._timestamp = None     # type: Optional[float]
 
     def lag(self) -> float:
         """Returns the number of seconds since the last update.

@@ -9,15 +9,10 @@ from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import Metadata
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyManager, Rule
-from proof_of_concept.replication import ReplicatedStore, ReplicationServer
+from proof_of_concept.replication import (
+        CanonicalStore, ReplicableArchive, ReplicationServer)
 from proof_of_concept.workflow import Job, Workflow
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
-
-
-PolicyStore = ReplicatedStore[Rule]
-
-
-PolicyServer = ReplicationServer[Rule]
 
 
 class Site:
@@ -52,8 +47,9 @@ class Site:
                 self.name, self.name, self._private_key.public_key())
 
         # Policy support
-        self._policy_store = PolicyStore()
-        self.policy_server = PolicyServer(self._policy_store)
+        self._policy_archive = ReplicableArchive[Rule]()
+        self._policy_store = CanonicalStore[Rule](self._policy_archive)
+        self.policy_server = ReplicationServer[Rule](self._policy_archive)
         self._ddm_client.register_policy_server(self.name, self.policy_server)
 
         # Server side

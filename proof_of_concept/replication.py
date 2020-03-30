@@ -12,7 +12,7 @@ serialisation is probably the way to go. That's what we do here, using
 the Python GIL.
 """
 import time
-from typing import Iterable, Optional, Set, Tuple
+from typing import Generic, Iterable, Optional, Set, Tuple, TypeVar
 
 
 class Replicable:
@@ -51,24 +51,27 @@ class Replicable:
         self.__time_deleted = time.time()
 
 
-class ReplicatedStore:
+T = TypeVar('T', bound=Replicable)
+
+
+class ReplicatedStore(Generic[T]):
     """Stores Replicables."""
 
     def __init__(self) -> None:
         """Create a ReplicatedStore for the given objects."""
-        self._objects = set()      # type: Set[Replicable]
+        self._objects = set()      # type: Set[T]
 
-    def all_objects(self) -> Iterable[Replicable]:
+    def all_objects(self) -> Iterable[T]:
         """Return all the stored objects, including deleted ones."""
         return self._objects
 
-    def objects(self) -> Iterable[Replicable]:
+    def objects(self) -> Iterable[T]:
         """Iterate through currently extant objects."""
         return [
                 obj for obj in self._objects
                 if obj.time_deleted() is None]
 
-    def insert(self, obj: Replicable) -> None:
+    def insert(self, obj: T) -> None:
         """Insert an object into the collection of objects.
 
         Args:
@@ -76,7 +79,7 @@ class ReplicatedStore:
         """
         self._objects.add(obj)
 
-    def delete(self, obj: Replicable) -> None:
+    def delete(self, obj: T) -> None:
         """Delete an object from the collection of objects.
 
         Args:
@@ -90,7 +93,26 @@ class ReplicatedStore:
         obj._delete()
 
 
-class ReplicationServer:
+class IReplicationServer(Generic[T]):
+    """Generic interface for replication servers."""
+    def get_updates_since(
+            self, timestamp: Optional[float]
+            ) -> Tuple[float, Set[T], Set[T]]:
+        """Return a set of objects modified since the given time.
+
+        Args:
+            timestamp: A timestamp received from a previous call to
+                    this function, or None to get all objects.
+
+        Return:
+            A new timestamp up to which this update updates the
+                    receiver, and a set of newly created objects,
+                    and a set of newly deleted objects.
+        """
+        raise NotImplementedError()
+
+
+class ReplicationServer(IReplicationServer[T]):
     """Serves Replicables from a set of them."""
 
     def __init__(self, store: ReplicatedStore) -> None:
@@ -103,7 +125,7 @@ class ReplicationServer:
 
     def get_updates_since(
             self, timestamp: Optional[float]
-            ) -> Tuple[float, Set[Replicable], Set[Replicable]]:
+            ) -> Tuple[float, Set[T], Set[T]]:
         """Return a set of objects modified since the given time.
 
         Args:
@@ -132,7 +154,7 @@ class ReplicationServer:
             new_objects = {
                     obj for obj in self._store.all_objects()
                     if obj.time_created() <= new_timestamp}
-            deleted_objects = set()    # type: Set[Replicable]
+            deleted_objects = set()    # type: Set[T]
         else:
             new_objects = {
                     obj for obj in self._store.all_objects()

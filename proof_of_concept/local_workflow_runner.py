@@ -6,8 +6,8 @@ from typing import Any, Dict, Optional, Tuple
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import ILocalWorkflowRunner, Metadata, Plan
-from proof_of_concept.policy import PolicyManager
-from proof_of_concept.policy_evaluator import PolicyEvaluator
+from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 
 
@@ -17,7 +17,7 @@ class JobRun(Thread):
     This is a reification of the process of executing a job locally.
     """
     def __init__(
-            self, policy_manager: PolicyManager,
+            self, policy_evaluator: PolicyEvaluator,
             this_runner: str, administrator: str,
             job: Job, plan: Plan,
             target_store: AssetStore
@@ -28,7 +28,7 @@ class JobRun(Thread):
         site.
 
         Args:
-            policy_manager: A policy manager to use to check policy.
+            policy_evaluator: A policy evaluator to use to check policy.
             this_runner: The runner we're running in.
             administrator: Name of the party administrating this runner.
             job: The job to execute.
@@ -36,8 +36,8 @@ class JobRun(Thread):
             target_store: The asset store to put results into.
         """
         super().__init__(name='JobAtRunner-{}'.format(this_runner))
-        self._policy_manager = policy_manager
-        self._policy_evaluator = PolicyEvaluator(policy_manager)
+        self._policy_evaluator = policy_evaluator
+        self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._this_runner = this_runner
         self._administrator = administrator
         self._job = job
@@ -109,14 +109,14 @@ class JobRun(Thread):
         If we have permission to execute all of our steps, then this
         is a legal job as far as we are concerned.
         """
-        perms = self._policy_evaluator.calculate_permissions(self._job)
+        perms = self._permission_calculator.calculate_permissions(self._job)
         for step in self._workflow.steps.values():
             if self._runners[step.name] == self._this_runner:
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
                     inp_id = '{}.{}'.format(step.name, inp_name)
                     inp_perms = perms[inp_id]
-                    if not self._policy_manager.may_access(
+                    if not self._policy_evaluator.may_access(
                             inp_perms, self._administrator):
                         return False
                     # check that the site we'll download this input
@@ -130,12 +130,12 @@ class JobRun(Thread):
                         src_party = self._ddm_client.get_store_administrator(
                                 self._plan.input_stores[inp_asset_id])
 
-                    if not self._policy_manager.may_access(
+                    if not self._policy_evaluator.may_access(
                             perms[inp_src], src_party):
                         return False
 
                 # check that we can access the step itself
-                if not self._policy_manager.may_access(
+                if not self._policy_evaluator.may_access(
                         perms[step.name], self._administrator):
                     return False
 
@@ -206,19 +206,20 @@ class JobRun(Thread):
 class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site."""
     def __init__(
-            self, name: str, administrator: str, policy_manager: PolicyManager,
+            self, name: str, administrator: str,
+            policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
 
         Args:
             name: Name identifying this runner.
             administrator: Party administrating this runner.
-            policy_manager: A PolicyManager to use.
+            policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
         """
         self.name = name
         self._administrator = administrator
-        self._policy_manager = policy_manager
+        self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
     def target_store(self) -> str:
@@ -238,7 +239,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
             plan: The plan to execute to.
         """
         run = JobRun(
-                self._policy_manager, self.name, self._administrator,
+                self._policy_evaluator, self.name, self._administrator,
                 job, plan,
                 self._target_store)
         run.start()

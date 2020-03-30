@@ -2,18 +2,18 @@
 from typing import Any, Dict, Optional, Tuple
 
 from proof_of_concept.definitions import IAssetStore, Metadata
-from proof_of_concept.policy import PolicyManager
-from proof_of_concept.policy_evaluator import PolicyEvaluator
+from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.workflow import Job, Workflow
 
 
 class AssetStore(IAssetStore):
     """A simple store for assets."""
-    def __init__(self, name: str, policy_manager: PolicyManager) -> None:
+    def __init__(self, name: str, policy_evaluator: PolicyEvaluator) -> None:
         """Create a new empty AssetStore."""
         self.name = name
-        self._policy_manager = policy_manager
-        self._policy_evaluator = PolicyEvaluator(policy_manager)
+        self._policy_evaluator = policy_evaluator
+        self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._assets = dict()   # type: Dict[str, Any]
         self._metadata = dict()   # type: Dict[str, Metadata]
 
@@ -61,9 +61,10 @@ class AssetStore(IAssetStore):
         try:
             data = self._assets[asset_name]
             metadata = self._metadata[asset_name]
-            perms = self._policy_evaluator.calculate_permissions(metadata.job)
+            perms = self._permission_calculator.calculate_permissions(
+                    metadata.job)
             perm = perms[metadata.item]
-            if not self._policy_manager.may_access(perm, requester):
+            if not self._policy_evaluator.may_access(perm, requester):
                 raise RuntimeError('Security error, access denied')
             print('sending...')
             return data, metadata

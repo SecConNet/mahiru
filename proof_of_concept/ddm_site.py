@@ -8,7 +8,7 @@ from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import Metadata
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
-from proof_of_concept.policy import PolicyManager, Rule
+from proof_of_concept.policy import PolicyEvaluator, Rule
 from proof_of_concept.replication import (
         CanonicalStore, ReplicableArchive, ReplicationServer)
 from proof_of_concept.workflow import Job, Workflow
@@ -35,7 +35,6 @@ class Site:
         self.administrator = administrator
 
         self._ddm_client = DDMClient(administrator)
-        self._policy_manager = PolicyManager(rules)
 
         # Register party with DDM
         self._private_key = rsa.generate_private_key(
@@ -51,9 +50,10 @@ class Site:
         self._policy_store = CanonicalStore[Rule](self._policy_archive)
         self.policy_server = ReplicationServer[Rule](self._policy_archive)
         self._ddm_client.register_policy_server(self.name, self.policy_server)
+        self._policy_evaluator = PolicyEvaluator(rules)
 
         # Server side
-        self.store = AssetStore(name + '-store', self._policy_manager)
+        self.store = AssetStore(name + '-store', self._policy_evaluator)
         self._ddm_client.register_store(administrator, self.store)
         for key, val in stored_data.items():
             self.store.store(key, val, Metadata(Job.niljob(key), 'dataset'))
@@ -61,12 +61,12 @@ class Site:
 
         self.runner = LocalWorkflowRunner(
                 name + '-runner', administrator,
-                self._policy_manager, self.store)
+                self._policy_evaluator, self.store)
         self._ddm_client.register_runner(administrator, self.runner)
 
         # Client side
         self._workflow_engine = GlobalWorkflowRunner(
-                self._policy_manager, self._ddm_client)
+                self._policy_evaluator, self._ddm_client)
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""

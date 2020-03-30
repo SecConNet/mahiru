@@ -124,7 +124,7 @@ class Permissions:
     """Represents permissions for an asset."""
     def __init__(self) -> None:
         """Creates Permissions that do not allow access."""
-        # friend PolicyManager
+        # friend PolicyEvaluator
         self._sets = list()     # type: List[Set[str]]
 
     def __str__(self) -> str:
@@ -136,10 +136,10 @@ class Permissions:
         return 'Permissions({})'.format(repr(self._sets))
 
 
-class PolicyManager:
+class PolicyEvaluator:
     """Holds a set of rules and can interpret them."""
     def __init__(self, policies: List[Rule]) -> None:
-        """Create a PolicyManager.
+        """Create a PolicyEvaluator.
 
         Args:
             policies: A set of policies to manage.

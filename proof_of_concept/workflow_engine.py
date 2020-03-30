@@ -5,25 +5,25 @@ from typing import Any, Dict, Generator, List, Set
 
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import Plan
-from proof_of_concept.policy import Permissions, PolicyManager
-from proof_of_concept.policy_evaluator import PolicyEvaluator
+from proof_of_concept.policy import Permissions, PolicyEvaluator
+from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
 class WorkflowPlanner:
     """Plans workflow execution across sites in a DDM."""
     def __init__(
-            self, ddm_client: DDMClient, policy_manager: PolicyManager
+            self, ddm_client: DDMClient, policy_evaluator: PolicyEvaluator
             ) -> None:
         """Create a GlobalWorkflowRunner.
 
         Args:
             ddm_client: Component that communicates with the DDM.
-            policy_manager: Component that knows about policies.
+            policy_evaluator: Component that knows about policies.
         """
         self._ddm_client = ddm_client
-        self._policy_manager = policy_manager
-        self._policy_evaluator = PolicyEvaluator(policy_manager)
+        self._policy_evaluator = policy_evaluator
+        self._permission_calculator = PermissionCalculator(policy_evaluator)
 
     def make_plans(
             self, submitter: str, job: Job) -> List[Plan]:
@@ -51,18 +51,18 @@ class WorkflowPlanner:
             for inp_name in step.inputs:
                 inp_key = '{}.{}'.format(step.name, inp_name)
                 inp_perms = permissions[inp_key]
-                if not self._policy_manager.may_access(inp_perms, party):
+                if not self._policy_evaluator.may_access(inp_perms, party):
                     return False
 
             # check step itself (i.e. outputs)
             step_perms = permissions[step.name]
-            return self._policy_manager.may_access(step_perms, party)
+            return self._policy_evaluator.may_access(step_perms, party)
 
-        permissions = self._policy_evaluator.calculate_permissions(job)
+        permissions = self._permission_calculator.calculate_permissions(job)
 
         for output in job.workflow.outputs:
             output_perms = permissions[output]
-            if not self._policy_manager.may_access(output_perms, submitter):
+            if not self._policy_evaluator.may_access(output_perms, submitter):
                 return []
 
         sorted_steps = self._sort_workflow(job.workflow)
@@ -173,15 +173,15 @@ class WorkflowExecutor:
 class GlobalWorkflowRunner:
     """Plans and runs workflows across sites in DDM."""
     def __init__(
-            self, policy_manager: PolicyManager, ddm_client: DDMClient
+            self, policy_evaluator: PolicyEvaluator, ddm_client: DDMClient
             ) -> None:
         """Create a GlobalWorkflowRunner.
 
         Args:
-            policy_manager: Component that knows about policies.
+            policy_evaluator: Component that knows about policies.
             ddm_client: Client for accessing other sites.
         """
-        self._planner = WorkflowPlanner(ddm_client, policy_manager)
+        self._planner = WorkflowPlanner(ddm_client, policy_evaluator)
         self._executor = WorkflowExecutor(ddm_client)
         self._ddm_client = ddm_client
 

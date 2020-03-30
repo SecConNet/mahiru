@@ -1,19 +1,19 @@
-"""Components for evaluating policies."""
+"""Components for calculating workflow permissions."""
 from typing import Dict, List, Set
 
-from proof_of_concept.policy import Permissions, PolicyManager
+from proof_of_concept.policy import Permissions, PolicyEvaluator
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
-class PolicyEvaluator:
+class PermissionCalculator:
     """Evaluates policies pertaining to a given workflow."""
-    def __init__(self, policy_manager: PolicyManager) -> None:
+    def __init__(self, policy_evaluator: PolicyEvaluator) -> None:
         """Create a Policy Evaluator.
 
         Args:
-            policy_manager: The policy manager to use.
+            policy_evaluator: The policy evaluator to use.
         """
-        self._policy_manager = policy_manager
+        self._policy_evaluator = policy_evaluator
 
     def calculate_permissions(
             self, job: Job) -> Dict[str, Permissions]:
@@ -40,7 +40,7 @@ class PolicyEvaluator:
             for inp_asset in job.inputs.values():
                 if inp_asset not in permissions:
                     permissions[inp_asset] = (
-                            self._policy_manager.permissions_for_asset(
+                            self._policy_evaluator.permissions_for_asset(
                                 inp_asset))
 
         def prop_workflow_inputs(
@@ -88,7 +88,7 @@ class PolicyEvaluator:
                 input_perms.append(permissions[inp_key])
 
             permissions[step.name] = \
-                self._policy_manager.propagate_permissions(
+                self._policy_evaluator.propagate_permissions(
                         input_perms, step.compute_asset)
 
         def prop_step_outputs(

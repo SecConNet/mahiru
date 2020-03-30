@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from proof_of_concept.policy import MayAccess, PolicyManager, ResultOfIn
+from proof_of_concept.policy import MayAccess, PolicyEvaluator, ResultOfIn
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 from proof_of_concept.workflow_engine import WorkflowPlanner
 
@@ -22,7 +22,7 @@ def test_wf_output_checks():
             MayAccess('p1', 'Aggregated'),
             MayAccess('p2', 'Aggregated'),
             ]
-    policy_manager = PolicyManager(rules)
+    policy_evaluator = PolicyEvaluator(rules)
 
     workflow = Workflow(
             ['x'], {'y': 'aggregate.y'},
@@ -31,7 +31,7 @@ def test_wf_output_checks():
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise.y'}, ['y'], 'Aggregate')])
     job = Job(workflow, {'x': 'id:p1/dataset/d1'})
-    planner = WorkflowPlanner(mock_client, policy_manager)
+    planner = WorkflowPlanner(mock_client, policy_evaluator)
     plans = planner.make_plans('p2', job)
     assert len(plans) == 1
     assert plans[0].input_stores['id:p1/dataset/d1'] == 's1-store'

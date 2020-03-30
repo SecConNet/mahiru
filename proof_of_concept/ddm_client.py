@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, Metadata, Plan)
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer, Metadata, Plan)
 from proof_of_concept.workflow import Job, Workflow
 from proof_of_concept.registry import global_registry
 
@@ -50,6 +50,16 @@ class DDMClient:
         """
         global_registry.register_store(admin, store)
 
+    def register_policy_server(
+            self, admin: str, server: IPolicyServer) -> None:
+        """Register a policy server with the registry.
+
+        Args:
+            admin: The party administrating this runner.
+            server: The data store to register.
+        """
+        global_registry.register_policy_server(admin, server)
+
     def register_asset(self, asset_id: str, store_name: str) -> None:
         """Register an Asset with the Registry.
 
@@ -79,6 +89,14 @@ class DDMClient:
     def get_store_administrator(self, store_id: str) -> str:
         """Returns the id of the party administrating a store."""
         return global_registry.get_store_admin(store_id)
+
+    def list_policy_servers(self) -> List[IPolicyServer]:
+        """List all known policy servers.
+
+        Return:
+            A list of all registered policy servers.
+        """
+        return global_registry.list_policy_servers()
 
     def get_asset_location(self, asset_id: str) -> str:
         """Returns the name of the store which stores this asset."""

@@ -1,9 +1,10 @@
 """Central registry of remote-accessible things."""
-from typing import Dict, List
+from typing import Dict, List, Set
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from proof_of_concept.definitions import IAssetStore, ILocalWorkflowRunner
+from proof_of_concept.definitions import (
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer)
 
 
 class Registry:
@@ -22,6 +23,7 @@ class Registry:
         self._runner_admins = dict()    # type: Dict[str, str]
         self._stores = dict()           # type: Dict[str, IAssetStore]
         self._store_admins = dict()     # type: Dict[str, str]
+        self._policy_servers = set()    # type: Set[IPolicyServer]
         self._assets = dict()           # type: Dict[str, str]
 
     def register_party(
@@ -64,6 +66,18 @@ class Registry:
             raise RuntimeError('There is already a store with this name')
         self._stores[store.name] = store
         self._store_admins[store.name] = admin
+
+    def register_policy_server(
+            self, admin: str, server: IPolicyServer) -> None:
+        """Register a PolicyServer with the registry.
+
+        Args:
+            admin: The party administrating this runner.
+            server: The data store to register.
+        """
+        if server in self._policy_servers:
+            raise RuntimeError('This server is already registered')
+        self._policy_servers.add(server)
 
     def register_asset(self, asset_id: str, store_name: str) -> None:
         """Register an Asset with the Registry.
@@ -170,6 +184,14 @@ class Registry:
             KeyError: If no runner with the given name is registered.
         """
         return self._store_admins[name]
+
+    def list_policy_servers(self) -> List[IPolicyServer]:
+        """List all known policy servers.
+
+        Return:
+            A list of all registered policy servers.
+        """
+        return list(self._policy_servers)
 
     def get_asset_location(self, asset_id: str) -> str:
         """Returns the name of the store this asset is in.

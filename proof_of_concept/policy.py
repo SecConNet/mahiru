@@ -1,10 +1,11 @@
 """Classes for describing and managing policies."""
 from typing import List, Set
 
+from proof_of_concept.replication import Replicable
 from proof_of_concept.signable import Signable
 
 
-class Rule(Signable):
+class Rule(Signable, Replicable):
     """Abstract base class for policy rules."""
     pass
 

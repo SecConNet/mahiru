@@ -1,6 +1,8 @@
 """Some global definitions."""
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
+from proof_of_concept.policy import Rule
+from proof_of_concept.replication import IReplicationServer
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
@@ -120,3 +122,6 @@ class ILocalWorkflowRunner:
             plan: The plan according to which to execute.
         """
         raise NotImplementedError()
+
+
+IPolicyServer = IReplicationServer[Rule]

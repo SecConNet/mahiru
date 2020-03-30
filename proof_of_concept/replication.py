@@ -61,7 +61,7 @@ class ReplicatedStore(Generic[T]):
         """Create a ReplicatedStore for the given objects."""
         self._objects = set()      # type: Set[T]
 
-    def all_objects(self) -> Iterable[T]:
+    def archive(self) -> Iterable[T]:
         """Return all the stored objects, including deleted ones."""
         return self._objects
 
@@ -152,17 +152,17 @@ class ReplicationServer(IReplicationServer[T]):
         new_timestamp = time.time()
         if timestamp is None:
             new_objects = {
-                    obj for obj in self._store.all_objects()
+                    obj for obj in self._store.archive()
                     if obj.time_created() <= new_timestamp}
             deleted_objects = set()    # type: Set[T]
         else:
             new_objects = {
-                    obj for obj in self._store.all_objects()
+                    obj for obj in self._store.archive()
                     if (timestamp < obj.time_created()
                         and obj.time_created() <= new_timestamp)}
 
             deleted_objects = {
-                    obj for obj in self._store.all_objects()
+                    obj for obj in self._store.archive()
                     if (deleted_after(timestamp, obj.time_deleted())
                         and deleted_before(obj.time_deleted(), new_timestamp))}
 

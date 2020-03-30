@@ -20,7 +20,7 @@ def test_replication():
     a2 = A()
     store.insert(a2)
 
-    assert store.all_objects() == {a1, a2}
+    assert store.archive() == {a1, a2}
     assert client.objects == set()
     assert client.lag() == float('inf')
     client.update()

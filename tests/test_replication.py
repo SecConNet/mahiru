@@ -1,3 +1,5 @@
+import time
+
 from proof_of_concept.replication import (
         CanonicalStore, Replica, Replicable, ReplicableArchive,
         ReplicationServer)
@@ -8,9 +10,11 @@ class A:
 
 
 def test_replication():
+    REPLICA_LAG = 0.01
+
     archive = ReplicableArchive()
     store = CanonicalStore(archive)
-    server = ReplicationServer(archive)
+    server = ReplicationServer(archive, REPLICA_LAG)
     replica = Replica(server)
 
     a1 = A()
@@ -27,15 +31,15 @@ def test_replication():
     assert a2_record.deleted is None
 
     assert replica.objects == set()
-    assert replica.lag() == float('inf')
     replica.update()
     assert replica.objects == {a1, a2}
-    assert replica.lag() > 0.0
-    assert replica.lag() < 1.0
 
     a3 = A()
     store.insert(a3)
     assert replica.objects == {a1, a2}
+    replica.update()
+    assert replica.objects == {a1, a2}
+    time.sleep(REPLICA_LAG)
     replica.update()
     assert replica.objects == {a1, a2, a3}
 
@@ -44,6 +48,7 @@ def test_replication():
     assert a2_record.deleted == 4
 
     assert replica.objects == {a1, a2, a3}
+    time.sleep(REPLICA_LAG)
     replica.update()
     assert set(replica.objects) == {a1, a3}
 

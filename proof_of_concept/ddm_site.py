@@ -19,34 +19,31 @@ from proof_of_concept.workflow_engine import GlobalWorkflowRunner
 class PolicySource(IPolicySource):
     """Ties together various sources of policies."""
     def __init__(
-            self, ddm_client: DDMClient, our_store: CanonicalStore[Rule],
-            max_lag: float) -> None:
+            self, ddm_client: DDMClient, our_store: CanonicalStore[Rule]
+            ) -> None:
         """Create a PolicySource.
 
-        This will automatically keep the replicas up-to-date as needed
-        to keep the age of the policies in them below `max_lag`.
+        This will automatically keep the replicas up-to-date as needed.
 
         Args:
             ddm_client: A DDMClient to use for getting servers.
             our_store: A store containing our policies.
-            max_lag: How out-of-data the replicas are allowed to be (in
-                    seconds).
         """
         self._ddm_client = ddm_client
         self._our_store = our_store
         OtherStores = Dict[IReplicationServer[Rule], Replica[Rule]]
         self._other_stores = dict()     # type: OtherStores
-        self._max_lag = max_lag
 
     def policies(self) -> Iterable[Rule]:
         """Returns the collected rules."""
+        self._update()
         our_rules = list(self._our_store.objects())
         their_rules = [
                 rule for store in self._other_stores.values()
                 for rule in store.objects]
         return our_rules + their_rules
 
-    def update(self) -> None:
+    def _update(self) -> None:
         """Update sources to match the given set."""
         new_servers = self._ddm_client.list_policy_servers()
         # add new servers
@@ -64,8 +61,7 @@ class PolicySource(IPolicySource):
 
         # update everyone
         for store in self._other_stores.values():
-            if store.lag() > self._max_lag:
-                store.update()
+            store.update()
 
 
 class Site:
@@ -103,11 +99,12 @@ class Site:
         self._policy_store = CanonicalStore[Rule](self._policy_archive)
         for rule in rules:
             self._policy_store.insert(rule)
-        self.policy_server = ReplicationServer[Rule](self._policy_archive)
+        self.policy_server = ReplicationServer[Rule](
+                self._policy_archive, 10.0)
         self._ddm_client.register_policy_server(self.name, self.policy_server)
 
         self._policy_source = PolicySource(
-                self._ddm_client, self._policy_store, 10.0)
+                self._ddm_client, self._policy_store)
         self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side
@@ -132,5 +129,4 @@ class Site:
 
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""
-        self._policy_source.update()
         return self._workflow_engine.execute(self.administrator, job)

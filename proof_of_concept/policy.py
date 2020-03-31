@@ -141,10 +141,6 @@ class IPolicySource:
         """Returns an iterable collection of rules."""
         raise NotImplementedError()
 
-    def update(self) -> None:
-        """Updates remote sources so that we have the current state."""
-        raise NotImplementedError()
-
 
 class PolicyEvaluator:
     """Interprets policies to support planning and execution."""
@@ -165,7 +161,6 @@ class PolicyEvaluator:
         Args:
             asset: The asset to get permissions for.
         """
-        self._policy_source.update()
         result = Permissions()
         result._sets = [self._equivalent_assets(asset)]
         return result
@@ -189,7 +184,6 @@ class PolicyEvaluator:
         Returns:
             The access permissions of the results.
         """
-        self._policy_source.update()
         result = Permissions()
         for input_perms in input_permissions:
             for asset_set in input_perms._sets:
@@ -218,7 +212,6 @@ class PolicyEvaluator:
                             return True
             return False
 
-        self._policy_source.update()
         return all([matches_one(asset_set, party)
                     for asset_set in permissions._sets])
 

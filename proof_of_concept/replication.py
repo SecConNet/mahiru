@@ -109,22 +109,26 @@ class ReplicaUpdate(Generic[T]):
     Attributes:
         from_version: Version to apply this update to.
         to_version: Version this update updates to.
+        valid_until: Time until which the new version is valid.
         created: Set of objects that were created.
         deleted: Set of objects that were deleted.
     """
     def __init__(
-            self, from_version: int, to_version: int, created: Set[T],
-            deleted: Set[T]) -> None:
+            self, from_version: int, to_version: int, valid_until: float,
+            created: Set[T], deleted: Set[T]) -> None:
         """Create a replica update.
 
         Args:
             from_version: Version to apply this update to.
             to_version: Version this update updates to.
+            valid_until: Time (in seconds since the UNIX epoch) until
+                    which the new version is valid.
             created: Set of objects that were created.
             deleted: Set of objects that were deleted.
         """
         self.from_version = from_version
         self.to_version = to_version
+        self.valid_until = valid_until
         self.created = created
         self.deleted = deleted
 
@@ -150,13 +154,15 @@ class IReplicationServer(Generic[T]):
 class ReplicationServer(IReplicationServer[T]):
     """Serves Replicables from a set of them."""
 
-    def __init__(self, archive: ReplicableArchive) -> None:
+    def __init__(self, archive: ReplicableArchive, max_lag: float) -> None:
         """Create a ReplicationServer for the given archive.
 
         Args:
             archive: An archive to serve updates from.
+            max_lag: Maximum time replicas may be out of date.
         """
         self._archive = archive
+        self._max_lag = max_lag
 
     def get_updates_since(
             self, from_version: Optional[int]
@@ -181,6 +187,7 @@ class ReplicationServer(IReplicationServer[T]):
                 return False
             return deleted <= version
 
+        cur_time = time.time()
         to_version = self._archive.version
         if from_version is None:
             from_version = -1
@@ -197,8 +204,10 @@ class ReplicationServer(IReplicationServer[T]):
                     deleted_after(from_version, rec.deleted) and
                     deleted_before(rec.deleted, to_version))}
 
+        valid_until = cur_time + self._max_lag
         return ReplicaUpdate(
-                from_version, to_version, new_objects, deleted_objects)
+                from_version, to_version, valid_until,
+                new_objects, deleted_objects)
 
 
 class Replica(Generic[T]):
@@ -209,22 +218,14 @@ class Replica(Generic[T]):
 
         self._server = server
         self._version = None        # type: Optional[int]
-        self._timestamp = None      # type: Optional[float]
-
-    def lag(self) -> float:
-        """Returns the number of seconds since the last update.
-
-        Returns +infinity if no update was ever done.
-        """
-        if self._timestamp is None:
-            return float('inf')
-        return time.time() - self._timestamp
+        self._valid_until = 0.0     # type: float
 
     def update(self) -> None:
-        """Brings the replica up-to-date with the server."""
-        update = self._server.get_updates_since(self._version)
-        # In a database, do this in a single transaction
-        self.objects.difference_update(update.deleted)
-        self.objects.update(update.created)
-        self._version = update.to_version
-        self._timestamp = time.time()
+        """Updates the replica, if necessary."""
+        if self._valid_until <= time.time():
+            update = self._server.get_updates_since(self._version)
+            # In a database, do this in a single transaction
+            self.objects.difference_update(update.deleted)
+            self.objects.update(update.created)
+            self._version = update.to_version
+            self._valid_until = update.valid_until

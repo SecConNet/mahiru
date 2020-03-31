@@ -23,6 +23,7 @@ class InAssetCollection(Rule):
             asset: The asset to put into the collection.
             collection: The collection to put it into.
         """
+        Replicable.__init__(self)
         self.asset = asset
         self.collection = collection
 
@@ -47,6 +48,7 @@ class InPartyCollection(Rule):
             party: A party.
             collection: The collection it is in.
         """
+        Replicable.__init__(self)
         self.party = party
         self.collection = collection
 
@@ -71,6 +73,7 @@ class MayAccess(Rule):
             party: The party that may access.
             asset: The asset that may be accessed.
         """
+        Replicable.__init__(self)
         self.party = party
         self.asset = asset
 
@@ -101,6 +104,7 @@ class ResultOfIn(Rule):
             compute_asset: The compute asset used to process the data.
             collection: The output collection.
         """
+        Replicable.__init__(self)
         self.data_asset = data_asset
         self.compute_asset = compute_asset
         self.collection = collection

@@ -103,11 +103,37 @@ class CanonicalStore(Generic[T]):
         self._archive.version = new_version
 
 
+class ReplicaUpdate(Generic[T]):
+    """Contains an update for a Replica.
+
+    Attributes:
+        from_version: Version to apply this update to.
+        to_version: Version this update updates to.
+        created: Set of objects that were created.
+        deleted: Set of objects that were deleted.
+    """
+    def __init__(
+            self, from_version: int, to_version: int, created: Set[T],
+            deleted: Set[T]) -> None:
+        """Create a replica update.
+
+        Args:
+            from_version: Version to apply this update to.
+            to_version: Version this update updates to.
+            created: Set of objects that were created.
+            deleted: Set of objects that were deleted.
+        """
+        self.from_version = from_version
+        self.to_version = to_version
+        self.created = created
+        self.deleted = deleted
+
+
 class IReplicationServer(Generic[T]):
     """Generic interface for replication servers."""
     def get_updates_since(
             self, from_version: Optional[int]
-            ) -> Tuple[int, Set[T], Set[T]]:
+            ) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
 
         Args:
@@ -116,9 +142,7 @@ class IReplicationServer(Generic[T]):
                     fresh replica.
 
         Return:
-            A new version up to which this update updates the
-                    receiver, a set of newly created objects,
-                    and a set of newly deleted objects.
+            An update from the given version to a newer version.
         """
         raise NotImplementedError()
 
@@ -136,7 +160,7 @@ class ReplicationServer(IReplicationServer[T]):
 
     def get_updates_since(
             self, from_version: Optional[int]
-            ) -> Tuple[int, Set[T], Set[T]]:
+            ) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
 
         Args:
@@ -145,9 +169,7 @@ class ReplicationServer(IReplicationServer[T]):
                     fresh replica.
 
         Return:
-            A new version up to which this update updates the
-                    receiver, a set of newly created objects,
-                    and a set of newly deleted objects.
+            An update from the given version to a newer version.
         """
         def deleted_after(version: int, deleted: Optional[int]) -> bool:
             if deleted is None:
@@ -175,7 +197,8 @@ class ReplicationServer(IReplicationServer[T]):
                     deleted_after(from_version, rec.deleted) and
                     deleted_before(rec.deleted, to_version))}
 
-        return to_version, new_objects, deleted_objects
+        return ReplicaUpdate(
+                from_version, to_version, new_objects, deleted_objects)
 
 
 class Replica(Generic[T]):
@@ -199,10 +222,9 @@ class Replica(Generic[T]):
 
     def update(self) -> None:
         """Brings the replica up-to-date with the server."""
-        new_version, new_objs, del_objs = self._server.get_updates_since(
-                self._version)
+        update = self._server.get_updates_since(self._version)
         # In a database, do this in a single transaction
-        self.objects.difference_update(del_objs)
-        self.objects.update(new_objs)
-        self._version = new_version
+        self.objects.difference_update(update.deleted)
+        self.objects.update(update.created)
+        self._version = update.to_version
         self._timestamp = time.time()

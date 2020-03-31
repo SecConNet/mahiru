@@ -5,6 +5,17 @@ from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 from proof_of_concept.workflow_engine import WorkflowPlanner
 
 
+class MockPolicySource:
+    def __init__(self, rules):
+        self._rules = rules
+
+    def policies(self):
+        return self._rules
+
+    def update(self):
+        pass
+
+
 def test_wf_output_checks():
     """Check whether workflow output permissions are checked."""
     mock_client = MagicMock()
@@ -22,7 +33,7 @@ def test_wf_output_checks():
             MayAccess('p1', 'Aggregated'),
             MayAccess('p2', 'Aggregated'),
             ]
-    policy_evaluator = PolicyEvaluator(rules)
+    policy_evaluator = PolicyEvaluator(MockPolicySource(rules))
 
     workflow = Workflow(
             ['x'], {'y': 'aggregate.y'},

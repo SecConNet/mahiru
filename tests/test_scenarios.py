@@ -11,8 +11,8 @@ from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     # run
     print('Rules:')
-    for rule in scenario['rules']:
-        print('    {}'.format(rule))
+    # for rule in scenario['rules']:
+    #     print('    {}'.format(rule))
     print()
     print('On behalf of: {}'.format(scenario['user_site'].administrator))
     print()
@@ -30,38 +30,65 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
 def test_pii(clean_global_registry):
     scenario = dict()     # type: Dict[str, Any]
 
-    scenario['rules'] = [
-            InAssetCollection('id:party1/dataset/pii1', 'PII1'),
-            MayAccess('party1', 'PII1'),
-            ResultOfIn('PII1', '*', 'PII1'),
-            ResultOfIn('PII1', 'Anonymise', 'ScienceOnly1'),
-            ResultOfIn('PII1', 'Aggregate', 'Public'),
-            ResultOfIn('ScienceOnly1', '*', 'ScienceOnly1'),
-            InAssetCollection('ScienceOnly1', 'ScienceOnly'),
-            ResultOfIn('Public', '*', 'Public'),
+    scenario['rules-party1'] = [
+            InAssetCollection(
+                'id:party1/dataset/pii1', 'id:party1/collection/PII1'),
+            MayAccess('party1', 'id:party1/collection/PII1'),
+            ResultOfIn(
+                'id:party1/collection/PII1', '*', 'id:party1/collection/PII1'),
+            ResultOfIn(
+                'id:party1/collection/PII1', 'Anonymise',
+                'id:party1/collection/ScienceOnly1'),
+            ResultOfIn(
+                'id:party1/collection/PII1', 'Aggregate',
+                'id:ddm/collection/Public'),
+            ResultOfIn(
+                'id:party1/collection/ScienceOnly1', '*',
+                'id:party1/collection/ScienceOnly1'),
+            InAssetCollection(
+                'id:party1/collection/ScienceOnly1',
+                'id:ddm/collection/ScienceOnly'),
+            ]
 
-            InAssetCollection('id:party2/dataset/pii2', 'PII2'),
-            MayAccess('party2', 'PII2'),
-            MayAccess('party1', 'PII2'),
-            ResultOfIn('PII2', '*', 'PII2'),
-            ResultOfIn('PII2', 'Anonymise', 'ScienceOnly2'),
-            ResultOfIn('ScienceOnly2', '*', 'ScienceOnly2'),
-            InAssetCollection('ScienceOnly2', 'ScienceOnly'),
+    scenario['rules-party2'] = [
+            ResultOfIn(
+                'id:ddm/collection/Public', '*', 'id:ddm/collection/Public'),
 
-            MayAccess('party3', 'ScienceOnly'),
-            MayAccess('party1', 'Public'),
-            MayAccess('party2', 'Public'),
-            MayAccess('party3', 'Public'),
+            InAssetCollection(
+                'id:party2/dataset/pii2', 'id:party2/collection/PII2'),
+            MayAccess('party2', 'id:party2/collection/PII2'),
+            MayAccess('party1', 'id:party2/collection/PII2'),
+            ResultOfIn(
+                'id:party2/collection/PII2', '*', 'id:party2/collection/PII2'),
+            ResultOfIn(
+                'id:party2/collection/PII2', 'Anonymise',
+                'id:party2/collection/ScienceOnly2'),
+            ResultOfIn(
+                'id:party2/collection/ScienceOnly2', '*',
+                'id:party2/collection/ScienceOnly2'),
+            InAssetCollection(
+                'id:party2/collection/ScienceOnly2',
+                'id:ddm/collection/ScienceOnly'),
+            ]
+
+    scenario['rules-party3'] = [
+            ResultOfIn(
+                'id:ddm/collection/Public', '*', 'id:ddm/collection/Public'),
+
+            MayAccess('party3', 'id:ddm/collection/ScienceOnly'),
+            MayAccess('party1', 'id:ddm/collection/Public'),
+            MayAccess('party2', 'id:ddm/collection/Public'),
+            MayAccess('party3', 'id:ddm/collection/Public'),
             ]
 
     scenario['sites'] = [
             Site(
                 'site1', 'party1', {'id:party1/dataset/pii1': 42},
-                scenario['rules']),
+                scenario['rules-party1']),
             Site(
                 'site2', 'party2', {'id:party2/dataset/pii2': 3},
-                scenario['rules']),
-            Site('site3', 'party3', {}, scenario['rules'])]
+                scenario['rules-party2']),
+            Site('site3', 'party3', {}, scenario['rules-party3'])]
 
     workflow = Workflow(
             ['x1', 'x2'], {'result': 'aggregate.y'}, [
@@ -84,25 +111,32 @@ def test_pii(clean_global_registry):
 def test_saas_with_data(clean_global_registry):
     scenario = dict()     # type: Dict[str, Any]
 
-    scenario['rules'] = [
+    scenario['rules-party1'] = [
             MayAccess('party1', 'id:party1/dataset/data1'),
             MayAccess('party2', 'id:party1/dataset/data1'),
+            ResultOfIn(
+                'id:party1/dataset/data1', 'Addition',
+                'id:party1/collection/result1'),
+            MayAccess('party1', 'id:party1/collection/result1'),
+            MayAccess('party2', 'id:party1/collection/result1'),
+            ]
+
+    scenario['rules-party2'] = [
             MayAccess('party2', 'id:party2/dataset/data2'),
-            ResultOfIn('id:party1/dataset/data1', 'Addition', 'result1'),
-            ResultOfIn('id:party2/dataset/data2', 'Addition', 'result2'),
-            MayAccess('party2', 'result1'),
-            MayAccess('party1', 'result1'),
-            MayAccess('party1', 'result2'),
-            MayAccess('party2', 'result2'),
+            ResultOfIn(
+                'id:party2/dataset/data2', 'Addition',
+                'id:party2/collection/result2'),
+            MayAccess('party1', 'id:party2/collection/result2'),
+            MayAccess('party2', 'id:party2/collection/result2'),
             ]
 
     scenario['sites'] = [
             Site(
                 'site1', 'party1', {'id:party1/dataset/data1': 42},
-                scenario['rules']),
+                scenario['rules-party1']),
             Site(
                 'site2', 'party2', {'id:party2/dataset/data2': 3},
-                scenario['rules'])]
+                scenario['rules-party2'])]
 
     workflow = Workflow(
             ['x1', 'x2'], {'y': 'addstep.y'}, [

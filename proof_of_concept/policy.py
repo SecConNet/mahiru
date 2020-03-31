@@ -1,5 +1,5 @@
 """Classes for describing and managing policies."""
-from typing import List, Set
+from typing import Iterable, List, Set
 
 from proof_of_concept.replication import Replicable
 from proof_of_concept.signable import Signable
@@ -140,15 +140,26 @@ class Permissions:
         return 'Permissions({})'.format(repr(self._sets))
 
 
+class IPolicySource:
+    """Provides policies to a PolicyEvaluator."""
+    def policies(self) -> Iterable[Rule]:
+        """Returns an iterable collection of rules."""
+        raise NotImplementedError()
+
+    def update(self) -> None:
+        """Updates remote sources so that we have the current state."""
+        raise NotImplementedError()
+
+
 class PolicyEvaluator:
-    """Holds a set of rules and can interpret them."""
-    def __init__(self, policies: List[Rule]) -> None:
+    """Interprets policies to support planning and execution."""
+    def __init__(self, policy_source: IPolicySource) -> None:
         """Create a PolicyEvaluator.
 
         Args:
-            policies: A set of policies to manage.
+            policy_source: A source of policies to evaluate.
         """
-        self.policies = policies
+        self._policy_source = policy_source
 
     def permissions_for_asset(self, asset: str) -> Permissions:
         """Returns permissions for the given asset.
@@ -159,6 +170,7 @@ class PolicyEvaluator:
         Args:
             asset: The asset to get permissions for.
         """
+        self._policy_source.update()
         result = Permissions()
         result._sets = [self._equivalent_assets(asset)]
         return result
@@ -182,6 +194,7 @@ class PolicyEvaluator:
         Returns:
             The access permissions of the results.
         """
+        self._policy_source.update()
         result = Permissions()
         for input_perms in input_permissions:
             for asset_set in input_perms._sets:
@@ -204,12 +217,13 @@ class PolicyEvaluator:
         """
         def matches_one(asset_set: Set[str], party: str) -> bool:
             for asset in asset_set:
-                for rule in self.policies:
+                for rule in self._policy_source.policies():
                     if isinstance(rule, MayAccess):
                         if rule.asset == asset and rule.party == party:
                             return True
             return False
 
+        self._policy_source.update()
         return all([matches_one(asset_set, party)
                     for asset_set in permissions._sets])
 
@@ -228,7 +242,7 @@ class PolicyEvaluator:
             cur_parties.extend(new_parties)
             new_parties = list()
             for party in cur_parties:
-                for rule in self.policies:
+                for rule in self._policy_source.policies():
                     if isinstance(rule, InPartyCollection):
                         if rule.party == party:
                             new_parties.append(rule.collection)
@@ -249,7 +263,7 @@ class PolicyEvaluator:
             cur_assets |= new_assets
             new_assets = set()
             for asset in cur_assets:
-                for rule in self.policies:
+                for rule in self._policy_source.policies():
                     if isinstance(rule, InAssetCollection):
                         if rule.asset == asset:
                             if rule.collection not in cur_assets:
@@ -269,7 +283,7 @@ class PolicyEvaluator:
             """Gets all matching rules for the given single asset."""
             result = list()     # type: List[ResultOfIn]
             assets = self._equivalent_assets(asset)
-            for rule in self.policies:
+            for rule in self._policy_source.policies():
                 if isinstance(rule, ResultOfIn):
                     for asset in assets:
                         if rule.data_asset == asset:

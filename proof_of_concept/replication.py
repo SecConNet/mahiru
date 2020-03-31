@@ -177,11 +177,11 @@ class ReplicationServer(IReplicationServer[T]):
         return new_timestamp, new_objects, deleted_objects
 
 
-class Replica:
+class Replica(Generic[T]):
     """Stores a replica of a CanonicalStore."""
-    def __init__(self, server: ReplicationServer) -> None:
+    def __init__(self, server: IReplicationServer[T]) -> None:
         """Create an empty Replica."""
-        self.objects = set()        # type: Set[Replicable]
+        self.objects = set()        # type: Set[T]
 
         self._timestamp = None       # type: Optional[float]
         self._server = server

@@ -1,5 +1,5 @@
 """This module combines components into a site installation."""
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -8,11 +8,64 @@ from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import Metadata
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
-from proof_of_concept.policy import PolicyEvaluator, Rule
+from proof_of_concept.policy import IPolicySource, PolicyEvaluator, Rule
 from proof_of_concept.replication import (
-        CanonicalStore, ReplicableArchive, ReplicationServer)
+        CanonicalStore, IReplicationServer, Replica, ReplicableArchive,
+        ReplicationServer)
 from proof_of_concept.workflow import Job, Workflow
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
+
+
+class PolicySource(IPolicySource):
+    """Ties together various sources of policies."""
+    def __init__(
+            self, ddm_client: DDMClient, our_store: CanonicalStore[Rule],
+            max_lag: float) -> None:
+        """Create a PolicySource.
+
+        This will automatically keep the replicas up-to-date as needed
+        to keep the age of the policies in them below `max_lag`.
+
+        Args:
+            ddm_client: A DDMClient to use for getting servers.
+            our_store: A store containing our policies.
+            max_lag: How out-of-data the replicas are allowed to be (in
+                    seconds).
+        """
+        self._ddm_client = ddm_client
+        self._our_store = our_store
+        OtherStores = Dict[IReplicationServer[Rule], Replica[Rule]]
+        self._other_stores = dict()     # type: OtherStores
+        self._max_lag = max_lag
+
+    def policies(self) -> Iterable[Rule]:
+        """Returns the collected rules."""
+        our_rules = list(self._our_store.objects())
+        their_rules = [
+                rule for store in self._other_stores.values()
+                for rule in store.objects]
+        return our_rules + their_rules
+
+    def update(self) -> None:
+        """Update sources to match the given set."""
+        new_servers = self._ddm_client.list_policy_servers()
+        # add new servers
+        for new_server in new_servers:
+            if new_server not in self._other_stores:
+                self._other_stores[new_server] = Replica[Rule](new_server)
+
+        # removed ones that disappeared
+        removed_servers = [
+                server for server in self._other_stores
+                if server not in new_servers]
+
+        for server in removed_servers:
+            del(self._other_stores[server])
+
+        # update everyone
+        for store in self._other_stores.values():
+            if store.lag() > self._max_lag:
+                store.update()
 
 
 class Site:
@@ -48,9 +101,14 @@ class Site:
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()
         self._policy_store = CanonicalStore[Rule](self._policy_archive)
+        for rule in rules:
+            self._policy_store.insert(rule)
         self.policy_server = ReplicationServer[Rule](self._policy_archive)
         self._ddm_client.register_policy_server(self.name, self.policy_server)
-        self._policy_evaluator = PolicyEvaluator(rules)
+
+        self._policy_source = PolicySource(
+                self._ddm_client, self._policy_store, 10.0)
+        self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side
         self.store = AssetStore(name + '-store', self._policy_evaluator)
@@ -74,4 +132,5 @@ class Site:
 
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""
+        self._policy_source.update()
         return self._workflow_engine.execute(self.administrator, job)

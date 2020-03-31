@@ -15,43 +15,33 @@ import time
 from typing import Generic, Iterable, Optional, Set, Tuple, TypeVar
 
 
-class Replicable:
-    """Interface for objects that can be replicated.
+T = TypeVar('T')
 
-    Derive your class from this and call super().__init__() in your
-    __init__() method.
+
+class Replicable(Generic[T]):
+    """Wrapper for objects that are to be replicated.
+
+    Attributes:
+        created: The first version from which this object exists.
+        deleted: The first version from which this object no
+                longer exists.
+        object: The wrapped object.
     """
-    __time_created = None       # type: float
-    __time_deleted = None       # type: Optional[float]
+    def __init__(self, created: int, obj: T) -> None:
+        """Create a Replicable wrapping an object.
 
-    def __init__(self) -> None:
-        """Create a Replicable."""
-        self.__time_created = time.time()
-        self.__time_deleted = None          # type: Optional[float]
-
-    def time_created(self) -> float:
-        """Return the time when this record was created.
-
-        This is expressed as a number of seconds since the Unix epoch.
+        Args:
+            created: The version in which this object first existed.
+            obj: The object to be wrapped.
         """
-        return self.__time_created
+        self.created = created
+        self.deleted = None     # type: Optional[int]
+        self.object = obj
 
-    def time_deleted(self) -> Optional[float]:
-        """Return the time when this record was deleted, if any.
-
-        This is expressed as a number of seconds since the Unix epoch.
-        If the object currently exists, then returns None. If the
-        object no longer exists, returns a value larger than that
-        returned by `time_created`_.
-        """
-        return self.__time_deleted
-
-    def _delete(self) -> None:
-        # friend: ReplicationServer
-        self.__time_deleted = time.time()
-
-
-T = TypeVar('T', bound=Replicable)
+    def __repr__(self) -> str:
+        """Returns a string representation of the object."""
+        return 'Replicable({}, {}, {})'.format(
+                self.created, self.deleted, self.object)
 
 
 class ReplicableArchive(Generic[T]):
@@ -59,11 +49,16 @@ class ReplicableArchive(Generic[T]):
 
     This contains both existing and deleted objects. It models the raw
     database.
+
+    Attributes:
+        records: The stored records, encoding all versions of the data
+                set.
+        version: The current (latest) version of the data.
     """
     def __init__(self) -> None:
         """Create an empty archive."""
-        self.objects = set()        # type: Set[T]
-        self.timestamp = None       # type: Optional[float]
+        self.records = set()        # type: Set[Replicable[T]]
+        self.version = 0            # type: int
 
 
 class CanonicalStore(Generic[T]):
@@ -75,9 +70,9 @@ class CanonicalStore(Generic[T]):
 
     def objects(self) -> Iterable[T]:
         """Iterate through currently extant objects."""
-        return [
-                obj for obj in self._archive.objects
-                if obj.time_deleted() is None]
+        return {
+                rec.object for rec in self._archive.records
+                if rec.deleted is None}
 
     def insert(self, obj: T) -> None:
         """Insert an object into the collection of objects.
@@ -85,7 +80,9 @@ class CanonicalStore(Generic[T]):
         Args:
             obj: A new object to add.
         """
-        self._archive.objects.add(obj)
+        new_version = self._archive.version + 1
+        self._archive.records.add(Replicable(new_version, obj))
+        self._archive.version = new_version
 
     def delete(self, obj: T) -> None:
         """Delete an object from the collection of objects.
@@ -96,25 +93,31 @@ class CanonicalStore(Generic[T]):
         Raises:
             ValueError: If the object is not present.
         """
-        if obj not in self._archive.objects:
+        new_version = self._archive.version + 1
+        for rec in self._archive.records:
+            if rec.object == obj:
+                rec.deleted = new_version
+                break
+        else:
             raise ValueError('Object not found')
-        obj._delete()
+        self._archive.version = new_version
 
 
 class IReplicationServer(Generic[T]):
     """Generic interface for replication servers."""
     def get_updates_since(
-            self, timestamp: Optional[float]
-            ) -> Tuple[float, Set[T], Set[T]]:
-        """Return a set of objects modified since the given time.
+            self, from_version: Optional[int]
+            ) -> Tuple[int, Set[T], Set[T]]:
+        """Return a set of objects modified since the given version.
 
         Args:
-            timestamp: A timestamp received from a previous call to
-                    this function, or None to get all objects.
+            from_version: A version received from a previous call to
+                    this function, or None to get an update for a
+                    fresh replica.
 
         Return:
-            A new timestamp up to which this update updates the
-                    receiver, and a set of newly created objects,
+            A new version up to which this update updates the
+                    receiver, a set of newly created objects,
                     and a set of newly deleted objects.
         """
         raise NotImplementedError()
@@ -132,49 +135,47 @@ class ReplicationServer(IReplicationServer[T]):
         self._archive = archive
 
     def get_updates_since(
-            self, timestamp: Optional[float]
-            ) -> Tuple[float, Set[T], Set[T]]:
-        """Return a set of objects modified since the given time.
+            self, from_version: Optional[int]
+            ) -> Tuple[int, Set[T], Set[T]]:
+        """Return a set of objects modified since the given version.
 
         Args:
-            timestamp: A timestamp received from a previous call to
-                    this function, or None to get all objects.
+            from_version: A version received from a previous call to
+                    this function, or None to get an update for a
+                    fresh replica.
 
         Return:
-            A new timestamp up to which this update updates the
-                    receiver, and a set of newly created objects,
+            A new version up to which this update updates the
+                    receiver, a set of newly created objects,
                     and a set of newly deleted objects.
         """
-        def deleted_after(
-                timestamp: float, time_deleted: Optional[float]) -> bool:
-            if time_deleted is None:
+        def deleted_after(version: int, deleted: Optional[int]) -> bool:
+            if deleted is None:
+                return True
+            return version < deleted
+
+        def deleted_before(deleted: Optional[int], version: int) -> bool:
+            if deleted is None:
                 return False
-            return timestamp < time_deleted
+            return deleted <= version
 
-        def deleted_before(
-                time_deleted: Optional[float], timestamp: float) -> bool:
-            if time_deleted is None:
-                return False
-            return time_deleted <= timestamp
+        to_version = self._archive.version
+        if from_version is None:
+            from_version = -1
 
-        new_timestamp = time.time()
-        if timestamp is None:
-            new_objects = {
-                    obj for obj in self._archive.objects
-                    if obj.time_created() <= new_timestamp}
-            deleted_objects = set()    # type: Set[T]
-        else:
-            new_objects = {
-                    obj for obj in self._archive.objects
-                    if (timestamp < obj.time_created()
-                        and obj.time_created() <= new_timestamp)}
+        new_objects = {
+                rec.object for rec in self._archive.records
+                if (from_version < rec.created and
+                    rec.created <= to_version and
+                    deleted_after(to_version, rec.deleted))}
 
-            deleted_objects = {
-                    obj for obj in self._archive.objects
-                    if (deleted_after(timestamp, obj.time_deleted())
-                        and deleted_before(obj.time_deleted(), new_timestamp))}
+        deleted_objects = {
+                rec.object for rec in self._archive.records
+                if (rec.created <= from_version and
+                    deleted_after(from_version, rec.deleted) and
+                    deleted_before(rec.deleted, to_version))}
 
-        return new_timestamp, new_objects, deleted_objects
+        return to_version, new_objects, deleted_objects
 
 
 class Replica(Generic[T]):
@@ -183,8 +184,9 @@ class Replica(Generic[T]):
         """Create an empty Replica."""
         self.objects = set()        # type: Set[T]
 
-        self._timestamp = None       # type: Optional[float]
         self._server = server
+        self._version = None        # type: Optional[int]
+        self._timestamp = None      # type: Optional[float]
 
     def lag(self) -> float:
         """Returns the number of seconds since the last update.
@@ -197,9 +199,10 @@ class Replica(Generic[T]):
 
     def update(self) -> None:
         """Brings the replica up-to-date with the server."""
-        new_time, new_objs, del_objs = self._server.get_updates_since(
-                self._timestamp)
+        new_version, new_objs, del_objs = self._server.get_updates_since(
+                self._version)
         # In a database, do this in a single transaction
         self.objects.difference_update(del_objs)
         self.objects.update(new_objs)
-        self._timestamp = new_time
+        self._version = new_version
+        self._timestamp = time.time()

@@ -3,12 +3,8 @@ from proof_of_concept.replication import (
         ReplicationServer)
 
 
-class A(Replicable):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def __repr__(self) -> str:
-        return 'A({}, {})'.format(self.time_created(), self.time_deleted())
+class A:
+    pass
 
 
 def test_replication():
@@ -22,7 +18,14 @@ def test_replication():
     a2 = A()
     store.insert(a2)
 
-    assert archive.objects == {a1, a2}
+    assert store.objects() == {a1, a2}
+    a1_record = [r for r in archive.records if r.object == a1][0]
+    assert a1_record.created == 1
+    assert a1_record.deleted is None
+    a2_record = [r for r in archive.records if r.object == a2][0]
+    assert a2_record.created == 2
+    assert a2_record.deleted is None
+
     assert replica.objects == set()
     assert replica.lag() == float('inf')
     replica.update()
@@ -37,6 +40,9 @@ def test_replication():
     assert replica.objects == {a1, a2, a3}
 
     store.delete(a2)
+    assert a2_record.created == 2
+    assert a2_record.deleted == 4
+
     assert replica.objects == {a1, a2, a3}
     replica.update()
     assert set(replica.objects) == {a1, a3}

@@ -4,7 +4,7 @@ from typing import Dict, Iterable
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.policy import (
         IPolicySource, InPartyCollection, InAssetCollection, MayAccess,
-        ResultOfIn, Rule)
+        ResultOfDataIn, Rule)
 from proof_of_concept.replication import (
         CanonicalStore, IReplicationServer, ObjectValidator, Replica)
 
@@ -26,7 +26,7 @@ class RuleValidator(ObjectValidator[Rule]):
 
     def is_valid(self, rule: Rule) -> bool:
         """Return True iff the rule is properly signed."""
-        if isinstance(rule, ResultOfIn):
+        if isinstance(rule, ResultOfDataIn):
             namespace = rule.data_asset[3:].split('/')[0]
         elif isinstance(rule, MayAccess):
             namespace = rule.asset[3:].split('/')[0]

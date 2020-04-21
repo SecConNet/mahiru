@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 
 from proof_of_concept.policy import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfIn)
+        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn)
 from proof_of_concept.ddm_site import Site
 from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 
@@ -34,16 +34,16 @@ def test_pii(clean_global_registry):
             InAssetCollection(
                 'id:party1_ns/dataset/pii1', 'id:party1_ns/collection/PII1'),
             MayAccess('party1', 'id:party1_ns/collection/PII1'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party1_ns/collection/PII1', '*',
                 'id:party1_ns/collection/PII1'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party1_ns/collection/PII1', 'Anonymise',
                 'id:party1_ns/collection/ScienceOnly1'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party1_ns/collection/PII1', 'Aggregate',
                 'id:ddm_ns/collection/Public'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party1_ns/collection/ScienceOnly1', '*',
                 'id:party1_ns/collection/ScienceOnly1'),
             InAssetCollection(
@@ -56,13 +56,13 @@ def test_pii(clean_global_registry):
                 'id:party2_ns/dataset/pii2', 'id:party2_ns/collection/PII2'),
             MayAccess('party2', 'id:party2_ns/collection/PII2'),
             MayAccess('party1', 'id:party2_ns/collection/PII2'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party2_ns/collection/PII2', '*',
                 'id:party2_ns/collection/PII2'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party2_ns/collection/PII2', 'Anonymise',
                 'id:party2_ns/collection/ScienceOnly2'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party2_ns/collection/ScienceOnly2', '*',
                 'id:party2_ns/collection/ScienceOnly2'),
             InAssetCollection(
@@ -71,7 +71,7 @@ def test_pii(clean_global_registry):
             ]
 
     scenario['rules-ddm'] = [
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:ddm_ns/collection/Public', '*',
                 'id:ddm_ns/collection/Public'),
 
@@ -116,7 +116,7 @@ def test_saas_with_data(clean_global_registry):
     scenario['rules-party1'] = [
             MayAccess('party1', 'id:party1_ns/dataset/data1'),
             MayAccess('party2', 'id:party1_ns/dataset/data1'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party1_ns/dataset/data1', 'Addition',
                 'id:party1_ns/collection/result1'),
             MayAccess('party1', 'id:party1_ns/collection/result1'),
@@ -125,7 +125,7 @@ def test_saas_with_data(clean_global_registry):
 
     scenario['rules-party2'] = [
             MayAccess('party2', 'id:party2_ns/dataset/data2'),
-            ResultOfIn(
+            ResultOfDataIn(
                 'id:party2_ns/dataset/data2', 'Addition',
                 'id:party2_ns/collection/result2'),
             MayAccess('party1', 'id:party2_ns/collection/result2'),

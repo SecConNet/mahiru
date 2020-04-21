@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from proof_of_concept.policy import MayAccess, PolicyEvaluator, ResultOfIn
+from proof_of_concept.policy import MayAccess, PolicyEvaluator, ResultOfDataIn
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 from proof_of_concept.workflow_engine import WorkflowPlanner
 
@@ -27,9 +27,9 @@ def test_wf_output_checks():
 
     rules = [
             MayAccess('p1', 'id:p1/dataset/d1'),
-            ResultOfIn('id:p1/dataset/d1', 'Anonymise', 'Anonymous'),
+            ResultOfDataIn('id:p1/dataset/d1', 'Anonymise', 'Anonymous'),
             MayAccess('p1', 'Anonymous'),
-            ResultOfIn('Anonymous', 'Aggregate', 'Aggregated'),
+            ResultOfDataIn('Anonymous', 'Aggregate', 'Aggregated'),
             MayAccess('p1', 'Aggregated'),
             MayAccess('p2', 'Aggregated'),
             ]

@@ -1,5 +1,5 @@
 from proof_of_concept.policy import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfIn)
+        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn)
 
 
 def test_in_asset_collection_signatures(private_key):
@@ -44,7 +44,7 @@ def test_may_access_signatures(private_key):
 
 
 def test_result_of_in_signatures(private_key):
-    rule = ResultOfIn(
+    rule = ResultOfDataIn(
             'id:party1/dataset/asset1', 'id:party1/software/asset2',
             'id:party2/collection/collection1')
 

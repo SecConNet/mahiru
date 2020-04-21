@@ -85,7 +85,7 @@ class MayAccess(Rule):
         return '{}|{}'.format(self.party, self.asset).encode('utf-8')
 
 
-class ResultOfIn(Rule):
+class ResultOfDataIn(Rule):
     """Defines collections of results.
 
     Says that any Asset that was computed from data_asset via
@@ -93,7 +93,7 @@ class ResultOfIn(Rule):
     """
     def __init__(self, data_asset: str, compute_asset: str, collection: str
                  ) -> None:
-        """Create a ResultOfIn rule.
+        """Create a ResultOfDataIn rule.
 
         Args:
             data_asset: The source data asset.
@@ -172,8 +172,8 @@ class PolicyEvaluator:
             ) -> Permissions:
         """Determines access for the result of an operation.
 
-        This applies the ResultOfIn rules to determine, from the access
-        permissions for the inputs of an operation and the
+        This applies the ResultOfDataIn rules to determine, from the
+        access permissions for the inputs of an operation and the
         compute asset to use, the access permissions of the results.
 
         Args:
@@ -261,18 +261,18 @@ class PolicyEvaluator:
 
     def _resultofin_rules(
             self, asset_set: Set[str], compute_asset: str
-            ) -> List[ResultOfIn]:
-        """Returns all ResultOfIn rules that apply to these assets.
+            ) -> List[ResultOfDataIn]:
+        """Returns all ResultOfDataIn rules that apply to these assets.
 
         These are rules that have one of the given assets in their
         asset field, and the given compute_asset or an equivalent one.
         """
-        def rules_for_asset(asset: str) -> List[ResultOfIn]:
+        def rules_for_asset(asset: str) -> List[ResultOfDataIn]:
             """Gets all matching rules for the given single asset."""
-            result = list()     # type: List[ResultOfIn]
+            result = list()     # type: List[ResultOfDataIn]
             assets = self._equivalent_assets(asset)
             for rule in self._policy_source.policies():
-                if isinstance(rule, ResultOfIn):
+                if isinstance(rule, ResultOfDataIn):
                     for asset in assets:
                         if rule.data_asset == asset:
                             result.append(rule)
@@ -280,7 +280,7 @@ class PolicyEvaluator:
 
         comp_assets = self._equivalent_assets(compute_asset)
 
-        rules = list()  # type: List[ResultOfIn]
+        rules = list()  # type: List[ResultOfDataIn]
         for asset in asset_set:
             new_rules = rules_for_asset(asset)
             rules.extend([rule

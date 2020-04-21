@@ -1,5 +1,5 @@
 """Central registry of remote-accessible things."""
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
@@ -23,7 +23,7 @@ class Registry:
         self._runner_admins = dict()    # type: Dict[str, str]
         self._stores = dict()           # type: Dict[str, IAssetStore]
         self._store_admins = dict()     # type: Dict[str, str]
-        self._policy_servers = set()    # type: Set[IPolicyServer]
+        self._policy_servers = dict()   # type: Dict[str, IPolicyServer]
         self._assets = dict()           # type: Dict[str, str]
 
     def register_party(
@@ -68,16 +68,16 @@ class Registry:
         self._store_admins[store.name] = admin
 
     def register_policy_server(
-            self, admin: str, server: IPolicyServer) -> None:
+            self, namespace: str, server: IPolicyServer) -> None:
         """Register a PolicyServer with the registry.
 
         Args:
-            admin: The party administrating this runner.
+            namespace: The namespace this server serves policies for.
             server: The data store to register.
         """
         if server in self._policy_servers:
             raise RuntimeError('This server is already registered')
-        self._policy_servers.add(server)
+        self._policy_servers[namespace] = server
 
     def register_asset(self, asset_id: str, store_name: str) -> None:
         """Register an Asset with the Registry.
@@ -185,13 +185,14 @@ class Registry:
         """
         return self._store_admins[name]
 
-    def list_policy_servers(self) -> List[IPolicyServer]:
+    def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
         """List all known policy servers.
 
         Return:
-            A list of all registered policy servers.
+            A list of all registered policy servers and their
+                    namespaces.
         """
-        return list(self._policy_servers)
+        return list(self._policy_servers.items())
 
     def get_asset_location(self, asset_id: str) -> str:
         """Returns the name of the store this asset is in.

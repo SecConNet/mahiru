@@ -51,14 +51,15 @@ class DDMClient:
         global_registry.register_store(admin, store)
 
     def register_policy_server(
-            self, admin: str, server: IPolicyServer) -> None:
+            self, namespace: str, server: IPolicyServer) -> None:
         """Register a policy server with the registry.
 
         Args:
-            admin: The party administrating this runner.
+            namespace: The namespace containing the assets this policy
+                    server serves policy for.
             server: The data store to register.
         """
-        global_registry.register_policy_server(admin, server)
+        global_registry.register_policy_server(namespace, server)
 
     def register_asset(self, asset_id: str, store_name: str) -> None:
         """Register an Asset with the Registry.
@@ -90,11 +91,12 @@ class DDMClient:
         """Returns the id of the party administrating a store."""
         return global_registry.get_store_admin(store_id)
 
-    def list_policy_servers(self) -> List[IPolicyServer]:
+    def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
         """List all known policy servers.
 
         Return:
-            A list of all registered policy servers.
+            A list of all registered policy servers and their
+                    namespaces.
         """
         return global_registry.list_policy_servers()
 

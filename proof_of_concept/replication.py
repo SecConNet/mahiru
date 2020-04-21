@@ -133,6 +133,13 @@ class ReplicaUpdate(Generic[T]):
         self.deleted = deleted
 
 
+class ObjectValidator(Generic[T]):
+    """Validates incoming replica updates."""
+    def is_valid(self, received_object: T) -> bool:
+        """Returns True iff the object is valid."""
+        raise NotImplementedError()
+
+
 class IReplicationServer(Generic[T]):
     """Generic interface for replication servers."""
     def get_updates_since(
@@ -212,18 +219,39 @@ class ReplicationServer(IReplicationServer[T]):
 
 class Replica(Generic[T]):
     """Stores a replica of a CanonicalStore."""
-    def __init__(self, server: IReplicationServer[T]) -> None:
+    def __init__(
+            self, server: IReplicationServer[T],
+            validator: Optional[ObjectValidator[T]] = None
+            ) -> None:
         """Create an empty Replica."""
         self.objects = set()        # type: Set[T]
 
         self._server = server
+        self._validator = validator
         self._version = None        # type: Optional[int]
         self._valid_until = 0.0     # type: float
 
+    def is_valid(self) -> bool:
+        """Whether the replica is valid or outdated.
+
+        Return:
+            True iff the replica is now up-to-date enough according to
+            the server.
+        """
+        return time.time() < self._valid_until
+
     def update(self) -> None:
         """Updates the replica, if necessary."""
-        if self._valid_until <= time.time():
+        if not self.is_valid():
             update = self._server.get_updates_since(self._version)
+            if self._validator is not None:
+                for r in update.created:
+                    if not self._validator.is_valid(r):
+                        return
+                for r in update.deleted:
+                    if not self._validator.is_valid(r):
+                        return
+
             # In a database, do this in a single transaction
             self.objects.difference_update(update.deleted)
             self.objects.update(update.created)

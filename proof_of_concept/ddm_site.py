@@ -8,66 +8,19 @@ from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import Metadata
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
-from proof_of_concept.policy import IPolicySource, PolicyEvaluator, Rule
+from proof_of_concept.policy import PolicyEvaluator, Rule
+from proof_of_concept.policy_replication import PolicySource
 from proof_of_concept.replication import (
-        CanonicalStore, IReplicationServer, Replica, ReplicableArchive,
-        ReplicationServer)
+        CanonicalStore, ReplicableArchive, ReplicationServer)
 from proof_of_concept.workflow import Job, Workflow
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
-
-
-class PolicySource(IPolicySource):
-    """Ties together various sources of policies."""
-    def __init__(
-            self, ddm_client: DDMClient, our_store: CanonicalStore[Rule]
-            ) -> None:
-        """Create a PolicySource.
-
-        This will automatically keep the replicas up-to-date as needed.
-
-        Args:
-            ddm_client: A DDMClient to use for getting servers.
-            our_store: A store containing our policies.
-        """
-        self._ddm_client = ddm_client
-        self._our_store = our_store
-        OtherStores = Dict[IReplicationServer[Rule], Replica[Rule]]
-        self._other_stores = dict()     # type: OtherStores
-
-    def policies(self) -> Iterable[Rule]:
-        """Returns the collected rules."""
-        self._update()
-        our_rules = list(self._our_store.objects())
-        their_rules = [
-                rule for store in self._other_stores.values()
-                for rule in store.objects]
-        return our_rules + their_rules
-
-    def _update(self) -> None:
-        """Update sources to match the given set."""
-        new_servers = self._ddm_client.list_policy_servers()
-        # add new servers
-        for new_server in new_servers:
-            if new_server not in self._other_stores:
-                self._other_stores[new_server] = Replica[Rule](new_server)
-
-        # removed ones that disappeared
-        removed_servers = [
-                server for server in self._other_stores
-                if server not in new_servers]
-
-        for server in removed_servers:
-            del(self._other_stores[server])
-
-        # update everyone
-        for store in self._other_stores.values():
-            store.update()
 
 
 class Site:
     """Represents a single DDM peer installation."""
     def __init__(
-            self, name: str, administrator: str, stored_data: Dict[str, int],
+            self, name: str, administrator: str,
+            namespace: str, stored_data: Dict[str, int],
             rules: List[Rule]) -> None:
         """Create a Site.
 
@@ -76,12 +29,14 @@ class Site:
         Args:
             name: Name of the site
             administrator: Party which administrates this site.
+            namespace: Namespace used by this site.
             stored_data: Data sets stored at this site.
             rules: A policy to adhere to.
         """
         # Metadata
         self.name = name
         self.administrator = administrator
+        self.namespace = namespace
 
         self._ddm_client = DDMClient(administrator)
 
@@ -92,16 +47,19 @@ class Site:
                 backend=default_backend())
 
         self._ddm_client.register_party(
-                self.name, self.name, self._private_key.public_key())
+                self.name, self.namespace,
+                self._private_key.public_key())
 
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()
         self._policy_store = CanonicalStore[Rule](self._policy_archive)
         for rule in rules:
+            rule.sign(self._private_key)
             self._policy_store.insert(rule)
         self.policy_server = ReplicationServer[Rule](
                 self._policy_archive, 10.0)
-        self._ddm_client.register_policy_server(self.name, self.policy_server)
+        self._ddm_client.register_policy_server(
+                self.namespace, self.policy_server)
 
         self._policy_source = PolicySource(
                 self._ddm_client, self._policy_store)

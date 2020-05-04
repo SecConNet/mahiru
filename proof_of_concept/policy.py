@@ -1,5 +1,5 @@
 """Classes for describing and managing policies."""
-from typing import Iterable, List, Set
+from typing import Iterable, List, Set, Type
 
 from proof_of_concept.signable import Signable
 
@@ -85,15 +85,16 @@ class MayAccess(Rule):
         return '{}|{}'.format(self.party, self.asset).encode('utf-8')
 
 
-class ResultOfDataIn(Rule):
+class ResultOfIn(Rule):
     """Defines collections of results.
 
     Says that any Asset that was computed from data_asset via
-    compute_asset is in collection.
+    compute_asset is in collection, according to either the owner of
+    data_asset or the owner of compute_asset.
     """
     def __init__(self, data_asset: str, compute_asset: str, collection: str
                  ) -> None:
-        """Create a ResultOfDataIn rule.
+        """Create a ResultOfIn rule.
 
         Args:
             data_asset: The source data asset.
@@ -117,6 +118,16 @@ class ResultOfDataIn(Rule):
         return '{}|{}|{}'.format(
                 self.data_asset, self.compute_asset, self.collection
                 ).encode('utf-8')
+
+
+class ResultOfDataIn(ResultOfIn):
+    """ResultOfIn rule on behalf of the data asset owner."""
+    pass
+
+
+class ResultOfComputeIn(ResultOfIn):
+    """ResultOfIn rule on behalf of the compute asset owner."""
+    pass
 
 
 class Permissions:
@@ -172,9 +183,10 @@ class PolicyEvaluator:
             ) -> Permissions:
         """Determines access for the result of an operation.
 
-        This applies the ResultOfDataIn rules to determine, from the
-        access permissions for the inputs of an operation and the
-        compute asset to use, the access permissions of the results.
+        This applies the ResultOfDataIn and ResultOfSoftwareIn rules to
+        determine, from the access permissions for the inputs of an
+        operation and the compute asset to use, the access permissions
+        of the results.
 
         Args:
             input_permissions: A list of access permissions to
@@ -187,10 +199,18 @@ class PolicyEvaluator:
         result = Permissions()
         for input_perms in input_permissions:
             for asset_set in input_perms._sets:
-                rules = self._resultofin_rules(asset_set, compute_asset)
+                data_rules = self._resultofin_rules(
+                        ResultOfDataIn, asset_set, compute_asset)
                 result._sets.append({
                         asset
-                        for rule in rules
+                        for rule in data_rules
+                        for asset in self._equivalent_assets(rule.collection)})
+
+                compute_rules = self._resultofin_rules(
+                        ResultOfComputeIn, asset_set, compute_asset)
+                result._sets.append({
+                        asset
+                        for rule in compute_rules
                         for asset in self._equivalent_assets(rule.collection)})
         return result
 
@@ -260,19 +280,27 @@ class PolicyEvaluator:
         return cur_assets
 
     def _resultofin_rules(
-            self, asset_set: Set[str], compute_asset: str
-            ) -> List[ResultOfDataIn]:
-        """Returns all ResultOfDataIn rules that apply to these assets.
+            self, typ: Type, asset_set: Set[str], compute_asset: str
+            ) -> List[ResultOfIn]:
+        """Returns all ResultOfIn rules that apply to these assets.
 
         These are rules that have one of the given assets in their
         asset field, and the given compute_asset or an equivalent one.
+
+        The returned list contains only items of type typ.
+
+        Args:
+            typ: Either ResultOfDataIn or ResultOfSoftwareIn, specifies
+                    the kind of rules to return.
+            asset_set: Set of data assets to match rules to.
+            compute_asset: Compute asset to match rules to.
         """
-        def rules_for_asset(asset: str) -> List[ResultOfDataIn]:
+        def rules_for_asset(asset: str) -> List[ResultOfIn]:
             """Gets all matching rules for the given single asset."""
-            result = list()     # type: List[ResultOfDataIn]
+            result = list()     # type: List[ResultOfIn]
             assets = self._equivalent_assets(asset)
             for rule in self._policy_source.policies():
-                if isinstance(rule, ResultOfDataIn):
+                if isinstance(rule, typ):
                     for asset in assets:
                         if rule.data_asset == asset:
                             result.append(rule)
@@ -280,7 +308,7 @@ class PolicyEvaluator:
 
         comp_assets = self._equivalent_assets(compute_asset)
 
-        rules = list()  # type: List[ResultOfDataIn]
+        rules = list()  # type: List[ResultOfIn]
         for asset in asset_set:
             new_rules = rules_for_asset(asset)
             rules.extend([rule

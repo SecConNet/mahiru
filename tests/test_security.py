@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
-from proof_of_concept.policy import MayAccess, PolicyEvaluator, ResultOfDataIn
+from proof_of_concept.policy import (
+        MayAccess, PolicyEvaluator, ResultOfDataIn, ResultOfComputeIn)
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 from proof_of_concept.workflow_engine import WorkflowPlanner
 
@@ -26,10 +27,15 @@ def test_wf_output_checks():
             's1-store' if 'p1' in x else 's2-store')
 
     rules = [
+            ResultOfDataIn('Public', '*', 'Public'),
+            MayAccess('p1', 'Public'),
+            MayAccess('p2', 'Public'),
             MayAccess('p1', 'id:p1/dataset/d1'),
             ResultOfDataIn('id:p1/dataset/d1', 'Anonymise', 'Anonymous'),
+            ResultOfComputeIn('*', 'Anonymise', 'Public'),
             MayAccess('p1', 'Anonymous'),
             ResultOfDataIn('Anonymous', 'Aggregate', 'Aggregated'),
+            ResultOfComputeIn('*', 'Aggregate', 'Public'),
             MayAccess('p1', 'Aggregated'),
             MayAccess('p2', 'Aggregated'),
             ]

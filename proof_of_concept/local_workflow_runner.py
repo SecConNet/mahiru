@@ -77,13 +77,15 @@ class JobRun(Thread):
                         self._this_runner, step))
                     # run step
                     outputs = dict()    # type: Dict[str, Any]
-                    if step.compute_asset == 'Combine':
+                    if step.compute_asset == 'id:ddm_ns/software/combine':
                         outputs['y'] = [inputs['x1'], inputs['x2']]
-                    elif step.compute_asset == 'Anonymise':
+                    elif step.compute_asset == 'id:ddm_ns/software/anonymise':
                         outputs['y'] = [x - 10 for x in inputs['x1']]
-                    elif step.compute_asset == 'Aggregate':
+                    elif step.compute_asset == 'id:ddm_ns/software/aggregate':
                         outputs['y'] = sum(inputs['x1']) / len(inputs['x1'])
-                    elif step.compute_asset == 'Addition':
+                    elif (
+                            step.compute_asset
+                            == 'id:party2_ns/software/addition'):
                         outputs['y'] = inputs['x1'] + inputs['x2']
                     else:
                         raise RuntimeError('Unknown compute asset')

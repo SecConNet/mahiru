@@ -3,7 +3,8 @@ from typing import Any, Dict, List
 
 
 from proof_of_concept.policy import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn)
+        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
+        ResultOfComputeIn)
 from proof_of_concept.ddm_site import Site
 from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 
@@ -38,10 +39,10 @@ def test_pii(clean_global_registry):
                 'id:party1_ns/collection/PII1', '*',
                 'id:party1_ns/collection/PII1'),
             ResultOfDataIn(
-                'id:party1_ns/collection/PII1', 'Anonymise',
+                'id:party1_ns/collection/PII1', 'id:ddm_ns/software/anonymise',
                 'id:party1_ns/collection/ScienceOnly1'),
             ResultOfDataIn(
-                'id:party1_ns/collection/PII1', 'Aggregate',
+                'id:party1_ns/collection/PII1', 'id:ddm_ns/software/aggregate',
                 'id:ddm_ns/collection/Public'),
             ResultOfDataIn(
                 'id:party1_ns/collection/ScienceOnly1', '*',
@@ -60,7 +61,7 @@ def test_pii(clean_global_registry):
                 'id:party2_ns/collection/PII2', '*',
                 'id:party2_ns/collection/PII2'),
             ResultOfDataIn(
-                'id:party2_ns/collection/PII2', 'Anonymise',
+                'id:party2_ns/collection/PII2', 'id:ddm_ns/software/anonymise',
                 'id:party2_ns/collection/ScienceOnly2'),
             ResultOfDataIn(
                 'id:party2_ns/collection/ScienceOnly2', '*',
@@ -73,6 +74,18 @@ def test_pii(clean_global_registry):
     scenario['rules-ddm'] = [
             ResultOfDataIn(
                 'id:ddm_ns/collection/Public', '*',
+                'id:ddm_ns/collection/Public'),
+
+            ResultOfComputeIn(
+                '*', 'id:ddm_ns/software/anonymise',
+                'id:ddm_ns/collection/Public'),
+
+            ResultOfComputeIn(
+                '*', 'id:ddm_ns/software/aggregate',
+                'id:ddm_ns/collection/Public'),
+
+            ResultOfComputeIn(
+                '*', 'id:ddm_ns/software/combine',
                 'id:ddm_ns/collection/Public'),
 
             MayAccess('ddm', 'id:ddm_ns/collection/ScienceOnly'),
@@ -93,11 +106,14 @@ def test_pii(clean_global_registry):
     workflow = Workflow(
             ['x1', 'x2'], {'result': 'aggregate.y'}, [
                 WorkflowStep(
-                    'combine', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Combine'),
+                    'combine', {'x1': 'x1', 'x2': 'x2'}, ['y'],
+                    'id:ddm_ns/software/combine'),
                 WorkflowStep(
-                    'anonymise', {'x1': 'combine.y'}, ['y'], 'Anonymise'),
+                    'anonymise', {'x1': 'combine.y'}, ['y'],
+                    'id:ddm_ns/software/anonymise'),
                 WorkflowStep(
-                    'aggregate', {'x1': 'anonymise.y'}, ['y'], 'Aggregate')])
+                    'aggregate', {'x1': 'anonymise.y'}, ['y'],
+                    'id:ddm_ns/software/aggregate')])
 
     inputs = {
             'x1': 'id:party1_ns/dataset/pii1',
@@ -117,7 +133,7 @@ def test_saas_with_data(clean_global_registry):
             MayAccess('party1', 'id:party1_ns/dataset/data1'),
             MayAccess('party2', 'id:party1_ns/dataset/data1'),
             ResultOfDataIn(
-                'id:party1_ns/dataset/data1', 'Addition',
+                'id:party1_ns/dataset/data1', 'id:party2_ns/software/addition',
                 'id:party1_ns/collection/result1'),
             MayAccess('party1', 'id:party1_ns/collection/result1'),
             MayAccess('party2', 'id:party1_ns/collection/result1'),
@@ -126,10 +142,17 @@ def test_saas_with_data(clean_global_registry):
     scenario['rules-party2'] = [
             MayAccess('party2', 'id:party2_ns/dataset/data2'),
             ResultOfDataIn(
-                'id:party2_ns/dataset/data2', 'Addition',
+                'id:party2_ns/dataset/data2', 'id:party2_ns/software/addition',
+                'id:party2_ns/collection/result2'),
+            ResultOfComputeIn(
+                'id:party2_ns/dataset/data2', 'id:party2_ns/software/addition',
+                'id:party2_ns/collection/result2'),
+            ResultOfComputeIn(
+                'id:party1_ns/dataset/data1', 'id:party2_ns/software/addition',
                 'id:party2_ns/collection/result2'),
             MayAccess('party1', 'id:party2_ns/collection/result2'),
             MayAccess('party2', 'id:party2_ns/collection/result2'),
+            MayAccess('party2', 'id:party2_ns/collection/addition'),
             ]
 
     scenario['sites'] = [
@@ -143,7 +166,8 @@ def test_saas_with_data(clean_global_registry):
     workflow = Workflow(
             ['x1', 'x2'], {'y': 'addstep.y'}, [
                 WorkflowStep(
-                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'], 'Addition')
+                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'],
+                    'id:party2_ns/software/addition')
                 ])
 
     inputs = {

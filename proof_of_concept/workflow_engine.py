@@ -59,6 +59,7 @@ class WorkflowPlanner:
             return self._policy_evaluator.may_access(step_perms, party)
 
         permissions = self._permission_calculator.calculate_permissions(job)
+        print(permissions)
 
         for output in job.workflow.outputs:
             output_perms = permissions[output]

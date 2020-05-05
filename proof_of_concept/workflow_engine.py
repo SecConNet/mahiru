@@ -54,9 +54,19 @@ class WorkflowPlanner:
                 if not self._policy_evaluator.may_access(inp_perms, party):
                     return False
 
-            # check step itself (i.e. outputs)
+            # check step itself (i.e. compute asset)
             step_perms = permissions[step.name]
-            return self._policy_evaluator.may_access(step_perms, party)
+            if not self._policy_evaluator.may_access(step_perms, party):
+                return False
+
+            # check each output
+            for outp_name in step.outputs:
+                outp_key = '{}.{}'.format(step.name, outp_name)
+                outp_perms = permissions[outp_key]
+                if not self._policy_evaluator.may_access(outp_perms, party):
+                    return False
+
+            return True
 
         permissions = self._permission_calculator.calculate_permissions(job)
         print(permissions)

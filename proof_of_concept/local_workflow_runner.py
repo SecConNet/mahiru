@@ -136,10 +136,17 @@ class JobRun(Thread):
                             perms[inp_src], src_party):
                         return False
 
-                # check that we can access the step itself
                 if not self._policy_evaluator.may_access(
                         perms[step.name], self._administrator):
                     return False
+
+                # check that we can access the step's outputs
+                for outp_name in step.outputs:
+                    outp_id = '{}.{}'.format(step.name, outp_name)
+                    outp_perms = perms[outp_id]
+                    if not self._policy_evaluator.may_access(
+                            outp_perms, self._administrator):
+                        return False
 
         return True
 

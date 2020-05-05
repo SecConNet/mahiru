@@ -11,10 +11,10 @@ from proof_of_concept.workflow import Job, WorkflowStep, Workflow
 
 def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     # run
-    print('Rules:')
+    # print('Rules:')
     # for rule in scenario['rules']:
     #     print('    {}'.format(rule))
-    print()
+    # print()
     print('On behalf of: {}'.format(scenario['user_site'].administrator))
     print()
     print('Job:')
@@ -72,6 +72,16 @@ def test_pii(clean_global_registry):
             ]
 
     scenario['rules-ddm'] = [
+            InAssetCollection(
+                'id:ddm_ns/software/anonymise',
+                'id:ddm_ns/collection/PublicSoftware'),
+            InAssetCollection(
+                'id:ddm_ns/software/aggregate',
+                'id:ddm_ns/collection/PublicSoftware'),
+            InAssetCollection(
+                'id:ddm_ns/software/combine',
+                'id:ddm_ns/collection/PublicSoftware'),
+            MayAccess('*', 'id:ddm_ns/collection/PublicSoftware'),
             ResultOfDataIn(
                 'id:ddm_ns/collection/Public', '*',
                 'id:ddm_ns/collection/Public'),
@@ -141,6 +151,7 @@ def test_saas_with_data(clean_global_registry):
 
     scenario['rules-party2'] = [
             MayAccess('party2', 'id:party2_ns/dataset/data2'),
+            MayAccess('party2', 'id:party2_ns/software/addition'),
             ResultOfDataIn(
                 'id:party2_ns/dataset/data2', 'id:party2_ns/software/addition',
                 'id:party2_ns/collection/result2'),
@@ -152,7 +163,7 @@ def test_saas_with_data(clean_global_registry):
                 'id:party2_ns/collection/result2'),
             MayAccess('party1', 'id:party2_ns/collection/result2'),
             MayAccess('party2', 'id:party2_ns/collection/result2'),
-            MayAccess('party2', 'id:party2_ns/collection/addition'),
+            MayAccess('party2', 'id:party2_ns/software/addition'),
             ]
 
     scenario['sites'] = [

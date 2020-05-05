@@ -27,6 +27,8 @@ def test_wf_output_checks():
             's1-store' if 'p1' in x else 's2-store')
 
     rules = [
+            MayAccess('p1', 'Anonymise'),
+            MayAccess('p1', 'Aggregate'),
             ResultOfDataIn('Public', '*', 'Public'),
             MayAccess('p1', 'Public'),
             MayAccess('p2', 'Public'),

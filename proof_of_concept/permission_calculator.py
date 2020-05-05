@@ -81,27 +81,39 @@ class PermissionCalculator:
                 permissions: Dict[str, Permissions],
                 step: WorkflowStep
                 ) -> None:
-            """Derives the step's permissions and stores them."""
-            input_perms = list()     # type: List[Permissions]
-            for inp in step.inputs:
-                inp_key = '{}.{}'.format(step.name, inp)
-                input_perms.append(permissions[inp_key])
+            """Derives the step's permissions and stores them.
 
-            permissions[step.name] = \
-                self._policy_evaluator.propagate_permissions(
-                        input_perms, step.compute_asset)
+            These are the permissions needed to access the compute
+            asset.
+            """
+            permissions[step.name] = (
+                    self._policy_evaluator.permissions_for_asset(
+                        step.compute_asset))
 
         def prop_step_outputs(
                 permissions: Dict[str, Permissions],
                 step: WorkflowStep
                 ) -> None:
-            """Copies step permissions to its outputs.
+            """Derives step output permissions.
+
+            Propagates permissions from inputs via the step to the
+            outputs. This takes into account permissions induced by
+            the compute asset via ResultOfComputeIn rules, but not
+            access to the compute asset itself.
 
             This modifies the permissions argument.
             """
+            input_perms = list()     # type: List[Permissions]
+            for inp in step.inputs:
+                inp_key = '{}.{}'.format(step.name, inp)
+                input_perms.append(permissions[inp_key])
+
+            perms = self._policy_evaluator.propagate_permissions(
+                        input_perms, step.compute_asset)
+
             for output in step.outputs:
                 output_key = '{}.{}'.format(step.name, output)
-                permissions[output_key] = permissions[step.name]
+                permissions[output_key] = perms
 
         def set_workflow_outputs_permissions(
                 permissions: Dict[str, Permissions],

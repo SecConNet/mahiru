@@ -230,6 +230,8 @@ class PolicyEvaluator:
                     if isinstance(rule, MayAccess):
                         if rule.asset == asset and rule.party == party:
                             return True
+                        if rule.asset == asset and rule.party == '*':
+                            return True
             return False
 
         return all([matches_one(asset_set, party)

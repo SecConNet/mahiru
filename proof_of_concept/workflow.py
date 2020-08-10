@@ -2,13 +2,15 @@
 from hashlib import sha256
 from typing import Dict, List, Set, Tuple
 
+from proof_of_concept.asset import ComputeAsset
+
 
 class WorkflowStep:
     """Defines a workflow step."""
     def __init__(
             self, name: str,
             inputs: Dict[str, str], outputs: List[str],
-            compute_asset: str
+            compute_asset: ComputeAsset
             ) -> None:
         """Create a WorkflowStep.
 
@@ -18,7 +20,7 @@ class WorkflowStep:
                     their sources, either the name of a workflow input,
                     or of the form other_step.output_name.
             outputs: List of names of outputs produced.
-            compute_asset: Name of the compute asset to use.
+            compute_asset: The compute asset to use.
         """
         self.name = name
         self.inputs = inputs
@@ -237,7 +239,7 @@ class Job:
             for inp_name in sorted(step.inputs):
                 inp_item = '{}.{}'.format(step.name, inp_name)
                 step_hash.update(item_keys[inp_item].encode('utf-8'))
-            step_hash.update(step.compute_asset.encode('utf-8'))
+            step_hash.update(step.compute_asset.name.encode('utf-8'))
             for outp_name in step.outputs:
                 outp_item = '{}.{}'.format(step.name, outp_name)
                 outp_hash = step_hash.copy()

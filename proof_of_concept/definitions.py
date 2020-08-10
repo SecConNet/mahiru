@@ -1,9 +1,9 @@
 """Some global definitions."""
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Tuple
 
 from proof_of_concept.policy import Rule
 from proof_of_concept.replication import IReplicationServer
-from proof_of_concept.workflow import Job, Workflow, WorkflowStep
+from proof_of_concept.workflow import Job, WorkflowStep
 
 
 class Plan:

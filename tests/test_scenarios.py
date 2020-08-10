@@ -1,7 +1,7 @@
 from textwrap import indent
 from typing import Any, Dict, List
 
-
+from proof_of_concept.asset import ComputeAsset
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
         ResultOfComputeIn)
@@ -117,13 +117,21 @@ def test_pii(clean_global_registry):
             ['x1', 'x2'], {'result': 'aggregate.y'}, [
                 WorkflowStep(
                     'combine', {'x1': 'x1', 'x2': 'x2'}, ['y'],
-                    'id:ddm_ns/software/combine'),
+                    ComputeAsset(name='id:ddm_ns/software/combine',
+                                 data=None,
+                                 metadata=None)),
                 WorkflowStep(
                     'anonymise', {'x1': 'combine.y'}, ['y'],
-                    'id:ddm_ns/software/anonymise'),
+                    ComputeAsset(name='id:ddm_ns/software/anonymise',
+                                 data=None,
+                                 metadata=None)),
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise.y'}, ['y'],
-                    'id:ddm_ns/software/aggregate')])
+                    ComputeAsset(name='id:ddm_ns/software/aggregate',
+                                 data=None,
+                                 metadata=None))
+            ]
+    )
 
     inputs = {
             'x1': 'id:party1_ns/dataset/pii1',
@@ -178,7 +186,10 @@ def test_saas_with_data(clean_global_registry):
             ['x1', 'x2'], {'y': 'addstep.y'}, [
                 WorkflowStep(
                     'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'],
-                    'id:party2_ns/software/addition')
+                    ComputeAsset(name='id:party2_ns/software/addition',
+                                 data=None,
+                                 metadata=None)
+                    )
                 ])
 
     inputs = {

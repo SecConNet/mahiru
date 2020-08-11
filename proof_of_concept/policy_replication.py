@@ -84,7 +84,7 @@ class PolicySource(IPolicySource):
         # removed ones that disappeared
         removed_servers = [
                 server for server in self._other_stores
-                if server not in list(zip(*new_servers))[1]]
+                if server not in list(zip(*new_servers))[1]]  # type: ignore
 
         for server in removed_servers:
             del(self._other_stores[server])

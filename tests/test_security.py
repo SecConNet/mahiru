@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+from proof_of_concept.asset import ComputeAsset
 from proof_of_concept.policy import (
         MayAccess, PolicyEvaluator, ResultOfDataIn, ResultOfComputeIn)
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
@@ -46,9 +47,15 @@ def test_wf_output_checks():
     workflow = Workflow(
             ['x'], {'y': 'aggregate.y'},
             [
-                WorkflowStep('anonymise', {'x1': 'x'}, ['y'], 'Anonymise'),
+                WorkflowStep('anonymise', {'x1': 'x'}, ['y'],
+                             ComputeAsset(name='Anonymise',
+                                          data=None,
+                                          metadata=None)),
                 WorkflowStep(
-                    'aggregate', {'x1': 'anonymise.y'}, ['y'], 'Aggregate')])
+                    'aggregate', {'x1': 'anonymise.y'}, ['y'],
+                    ComputeAsset(name='Aggregate',
+                                 data=None,
+                                 metadata=None))])
     job = Job(workflow, {'x': 'id:p1/dataset/d1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)
     plans = planner.make_plans('p2', job)

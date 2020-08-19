@@ -3,6 +3,7 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
+from proof_of_concept.asset import ComputeAsset
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import ILocalWorkflowRunner, Metadata, Plan
@@ -72,11 +73,13 @@ class JobRun(Thread):
         while len(steps_to_do) > 0:
             for step in steps_to_do:
                 inputs = self._get_step_inputs(step, keys)
+                compute_asset = self._retrieve_compute_asset(
+                    step.compute_asset_name)
                 if inputs is not None:
                     print('Job at {} executing step {}'.format(
                         self._this_runner, step))
                     # run compute asset step
-                    outputs = step.compute_asset.run(inputs)
+                    outputs = compute_asset.run(inputs)
 
                     # save output to store
                     step_subjob = self._job.subjob(step)
@@ -92,6 +95,8 @@ class JobRun(Thread):
             else:
                 sleep(0.5)
         print('Job at {} done'.format(self._this_runner))
+
+    def _run_step(self):
 
     def _is_legal(self) -> bool:
         """Checks whether this request is legal.
@@ -173,6 +178,13 @@ class JobRun(Thread):
                 return None
 
         return step_input_data
+
+    def _retrieve_compute_asset(self, compute_asset_name: str) -> ComputeAsset:
+        # TODO: the store id is hardcoded so scenario pii test works,
+        #  but should be retrieved in some way
+        data, metadata = self._ddm_client.retrieve_data(store_id='site3-store',
+                                                        name=compute_asset_name)
+        return ComputeAsset(compute_asset_name, data, metadata)
 
     def _source(
             self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:

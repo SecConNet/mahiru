@@ -88,7 +88,7 @@ class PermissionCalculator:
             """
             permissions[step.name] = (
                     self._policy_evaluator.permissions_for_asset(
-                        step.compute_asset.name))
+                        step.compute_asset_name))
 
         def prop_step_outputs(
                 permissions: Dict[str, Permissions],
@@ -109,7 +109,7 @@ class PermissionCalculator:
                 input_perms.append(permissions[inp_key])
 
             perms = self._policy_evaluator.propagate_permissions(
-                        input_perms, step.compute_asset.name)
+                        input_perms, step.compute_asset_name)
 
             for output in step.outputs:
                 output_key = '{}.{}'.format(step.name, output)

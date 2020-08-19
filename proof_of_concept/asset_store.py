@@ -1,10 +1,9 @@
 """Asset stores store data and compute assets."""
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 from proof_of_concept.definitions import IAssetStore, Metadata
-from proof_of_concept.policy import PolicyEvaluator
 from proof_of_concept.permission_calculator import PermissionCalculator
-from proof_of_concept.workflow import Job, Workflow
+from proof_of_concept.policy import PolicyEvaluator
 
 
 class AssetStore(IAssetStore):

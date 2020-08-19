@@ -10,7 +10,7 @@ class WorkflowStep:
     def __init__(
             self, name: str,
             inputs: Dict[str, str], outputs: List[str],
-            compute_asset: ComputeAsset
+            compute_asset_name: str
             ) -> None:
         """Create a WorkflowStep.
 
@@ -20,19 +20,19 @@ class WorkflowStep:
                     their sources, either the name of a workflow input,
                     or of the form other_step.output_name.
             outputs: List of names of outputs produced.
-            compute_asset: The compute asset to use.
+            compute_asset_name: The name of the compute asset to use.
         """
         self.name = name
         self.inputs = inputs
         self.outputs = outputs
-        self.compute_asset = compute_asset
+        self.compute_asset_name = compute_asset_name
 
         self._validate()
 
     def __repr__(self) -> str:
         """Returns a string representation of the object."""
         return 'Step("{}", {} -> {} -> {})'.format(
-                self.name, self.inputs, self.compute_asset, self.outputs)
+                self.name, self.inputs, self.compute_asset_name, self.outputs)
 
     def _validate(self) -> None:
         """Validates the step.
@@ -239,7 +239,7 @@ class Job:
             for inp_name in sorted(step.inputs):
                 inp_item = '{}.{}'.format(step.name, inp_name)
                 step_hash.update(item_keys[inp_item].encode('utf-8'))
-            step_hash.update(step.compute_asset.name.encode('utf-8'))
+            step_hash.update(step.compute_asset_name.encode('utf-8'))
             for outp_name in step.outputs:
                 outp_item = '{}.{}'.format(step.name, outp_name)
                 outp_hash = step_hash.copy()

@@ -36,7 +36,9 @@ class Asset:
         Args:
             id: Name of the asset
             data: Data related to the asset
-            metadata: Metadata related to the asset
+            metadata: Metadata related to the asset. If no metadata is
+                passed, metadata is set to a niljob, indicating that this is
+                an asset that is not the product of some workflow.
 
         """
         if metadata is None:

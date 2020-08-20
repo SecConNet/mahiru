@@ -1,7 +1,7 @@
 """Some global definitions."""
-from typing import Any, Dict, Tuple
+from typing import Dict, Type, Union
 
-from proof_of_concept.asset import Asset
+from proof_of_concept.asset import Asset, ComputeAsset, DataAsset
 from proof_of_concept.policy import Rule
 from proof_of_concept.replication import IReplicationServer
 from proof_of_concept.workflow import Job, WorkflowStep
@@ -18,6 +18,7 @@ class Plan:
                 obtain them from.
         step_runners (Dict[WorkflowStep, str]): Maps steps to their
                 runner's id.
+
     """
     def __init__(
             self, input_stores: Dict[str, str],
@@ -29,6 +30,7 @@ class Plan:
             input_stores: A map from input names to a store id to get
                     them from.
             step_runners: A map from steps to their runner's id.
+
         """
         self.input_stores = input_stores
         self.step_runners = step_runners
@@ -55,10 +57,12 @@ class IAssetStore:
 
         Raises:
             KeyError: If there's already an asset with the asset id.
+
         """
         raise NotImplementedError()
 
-    def retrieve(self, asset_id: str, requester: str) -> Asset:
+    def retrieve(self, asset_id: str, requester: str
+                 ) -> Asset:
         """Retrieves an asset.
 
         Args:
@@ -70,6 +74,7 @@ class IAssetStore:
 
         Raises:
             KeyError: If no asset with the given id is stored here.
+
         """
         raise NotImplementedError()
 
@@ -83,6 +88,7 @@ class ILocalWorkflowRunner:
 
         Returns:
             A string with the name.
+
         """
         raise NotImplementedError()
 
@@ -98,6 +104,7 @@ class ILocalWorkflowRunner:
         Args:
             job: The job to execute part of.
             plan: The plan according to which to execute.
+
         """
         raise NotImplementedError()
 

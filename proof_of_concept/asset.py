@@ -1,5 +1,5 @@
 """Classes for describing assets."""
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from proof_of_concept.workflow import Job
 
@@ -11,7 +11,9 @@ class Metadata:
         job (Job): A minimal job that will generate this asset.
         item (str): The item in the job's workflow corresponding to
                 this asset.
+
     """
+
     def __init__(self, job: Job, item: str) -> None:
         """Create a Metadata object.
 
@@ -19,6 +21,7 @@ class Metadata:
             job: A minimal job that will generate this asset.
             item: The item in the job's workflow corresponding to this
                     asset.
+
         """
         self.job = job
         self.item = item
@@ -27,15 +30,16 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
-    def __init__(self, id: str, data: Any, metadata: Metadata = None):
+    def __init__(self, id: str, data: Any,
+                 metadata: Union[Metadata, None] = None):
         """Constructor.
 
         Args:
             id: Name of the asset
             data: Data related to the asset
             metadata: Metadata related to the asset
-        """
 
+        """
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
         self.id = id
@@ -59,6 +63,7 @@ class ComputeAsset(Asset):
         Returns:
             outputs: outputs for the compute step, a dictionary keyed by
                 variable name with corresponding values.
+
         """
         outputs = dict()  # type: Dict[str, Any]
         if self.id == 'id:ddm_ns/software/combine':
@@ -75,4 +80,4 @@ class ComputeAsset(Asset):
 
 
 class DataAsset(Asset):
-    """Data asset, represents a data set"""
+    """Data asset, represents a data set."""

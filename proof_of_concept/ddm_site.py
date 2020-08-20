@@ -1,10 +1,10 @@
 """This module combines components into a site installation."""
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Type, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from proof_of_concept.asset import Asset
+from proof_of_concept.asset import Asset, ComputeAsset, DataAsset
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
@@ -32,6 +32,7 @@ class Site:
             namespace: Namespace used by this site.
             stored_data: Data sets stored at this site.
             rules: A policy to adhere to.
+
         """
         # Metadata
         self.name = name

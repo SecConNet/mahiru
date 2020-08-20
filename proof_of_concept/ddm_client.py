@@ -1,12 +1,13 @@
 """Functionality for connecting to other DDM sites."""
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
+from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer, Metadata, Plan)
-from proof_of_concept.workflow import Job, Workflow
+    IAssetStore, ILocalWorkflowRunner, IPolicyServer, Plan)
 from proof_of_concept.registry import global_registry
+from proof_of_concept.workflow import Job
 
 
 class DDMClient:
@@ -100,20 +101,18 @@ class DDMClient:
         """
         return global_registry.list_policy_servers()
 
-    def get_asset_location(self, asset_id: str) -> str:
+    @staticmethod
+    def get_asset_location(asset_id: str) -> str:
         """Returns the name of the store which stores this asset."""
         return global_registry.get_asset_location(asset_id)
 
-    def retrieve_data(
-            self, store_id: str, name: str) -> Tuple[Any, Metadata]:
+    def retrieve_asset(self, store_id: str, asset_id: str) -> Asset:
         """Obtains a data item from a store."""
         store = global_registry.get_store(store_id)
-        return store.retrieve(name, self._party)
+        return store.retrieve(asset_id, self._party)
 
-    def submit_job(
-            self, runner_id: str,
-            job: Job, plan: Plan
-            ) -> None:
+    @staticmethod
+    def submit_job(runner_id: str, job: Job, plan: Plan) -> None:
         """Submits a job for execution to a local runner.
 
         Args:

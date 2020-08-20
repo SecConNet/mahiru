@@ -1,7 +1,7 @@
 from textwrap import indent
 from typing import Any, Dict, List
 
-from proof_of_concept.asset import ComputeAsset
+from proof_of_concept.asset import ComputeAsset, DataAsset
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
         ResultOfComputeIn)
@@ -106,15 +106,16 @@ def test_pii(clean_global_registry):
 
     scenario['sites'] = [
             Site(name='site1', administrator='party1', namespace='party1_ns',
-                 stored_data={'id:party1_ns/dataset/pii1': 42},
+                 stored_data=[DataAsset('id:party1_ns/dataset/pii1', 42)],
                  rules=scenario['rules-party1']),
             Site(name='site2', administrator='party2', namespace='party2_ns',
-                 stored_data={'id:party2_ns/dataset/pii2': 3},
+                 stored_data=[DataAsset('id:party2_ns/dataset/pii2', 3)],
                  rules=scenario['rules-party2']),
             Site(name='site3', administrator='ddm', namespace='ddm_ns',
-                 stored_data={'id:ddm_ns/software/combine': 42,
-                              'id:ddm_ns/software/anonymise': 42,
-                              'id:ddm_ns/software/aggregate': 42},
+                 stored_data=[
+                     ComputeAsset('id:ddm_ns/software/combine', None, None),
+                     ComputeAsset('id:ddm_ns/software/anonymise', None, None),
+                     ComputeAsset('id:ddm_ns/software/aggregate', None, None)],
                  rules=scenario['rules-ddm'])]
 
     workflow = Workflow(
@@ -178,11 +179,12 @@ def test_saas_with_data(clean_global_registry):
     scenario['sites'] = [
             Site(
                 'site1', 'party1', 'party1_ns',
-                {'id:party1_ns/dataset/data1': 42}, scenario['rules-party1']),
+                [DataAsset('id:party1_ns/dataset/data1', 42)],
+                scenario['rules-party1']),
             Site(
                 'site2', 'party2', 'party2_ns',
-                {'id:party2_ns/dataset/data2': 3,
-                 'id:party2_ns/software/addition': 42},
+                [DataAsset('id:party2_ns/dataset/data2', 3),
+                 ComputeAsset('id:party2_ns/software/addition', None, None)],
                 scenario['rules-party2'])]
 
     workflow = Workflow(inputs=['x1', 'x2'],

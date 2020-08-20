@@ -3,13 +3,13 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
-from proof_of_concept.asset import ComputeAsset
+from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
-from proof_of_concept.definitions import ILocalWorkflowRunner, Metadata, Plan
-from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.definitions import ILocalWorkflowRunner, Plan
 from proof_of_concept.permission_calculator import PermissionCalculator
-from proof_of_concept.workflow import Job, WorkflowStep, Workflow
+from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.workflow import Job, WorkflowStep
 
 
 class JobRun(Thread):
@@ -87,8 +87,10 @@ class JobRun(Thread):
                         result_item = '{}.{}'.format(step.name, output_name)
                         result_key = keys[result_item]
                         metadata = Metadata(step_subjob, result_item)
-                        self._target_store.store(
-                                result_key, output_value, metadata)
+                        asset = DataAsset(id=result_key,
+                                          data=output_value,
+                                          metadata=metadata)
+                        self._target_store.store(asset)
 
                     steps_to_do.remove(step)
                     break
@@ -164,12 +166,11 @@ class JobRun(Thread):
             print('Job at {} getting input {} from site {}'.format(
                 self._this_runner, data_key, source_store))
             try:
-                step_input_data[inp_name], metadata = (
-                        self._ddm_client.retrieve_data(
-                            source_store, data_key))
+                asset = self._ddm_client.retrieve_asset(source_store, data_key)
+                step_input_data[inp_name] = asset.data
                 print('Job at {} found input {} available.'.format(
                     self._this_runner, data_key))
-                print('Metadata: {}'.format(metadata))
+                print('Metadata: {}'.format(asset.metadata))
             except KeyError:
                 print('Job at {} found input {} not yet available.'.format(
                     self._this_runner, data_key))
@@ -179,9 +180,9 @@ class JobRun(Thread):
 
     def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
         store_id = self._ddm_client.get_asset_location(compute_asset_id)
-        data, metadata = self._ddm_client.retrieve_data(store_id=store_id,
-                                                        name=compute_asset_id)
-        return ComputeAsset(compute_asset_id, data, metadata)
+        asset = self._ddm_client.retrieve_asset(store_id=store_id,
+                                                asset_id=compute_asset_id)
+        return asset
 
     def _source(
             self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:

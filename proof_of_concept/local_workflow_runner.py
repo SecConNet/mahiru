@@ -35,6 +35,7 @@ class JobRun(Thread):
             job: The job to execute.
             plan: The plan for how to execute the job.
             target_store: The asset store to put results into.
+
         """
         super().__init__(name='JobAtRunner-{}'.format(this_runner))
         self._policy_evaluator = policy_evaluator
@@ -159,6 +160,7 @@ class JobRun(Thread):
         Return:
             A dictionary keyed by output name with corresponding
             values.
+
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
@@ -182,6 +184,8 @@ class JobRun(Thread):
         store_id = self._ddm_client.get_asset_location(compute_asset_id)
         asset = self._ddm_client.retrieve_asset(store_id=store_id,
                                                 asset_id=compute_asset_id)
+        if not isinstance(asset, ComputeAsset):
+            raise TypeError('Expecting a compute asset in workflow')
         return asset
 
     def _source(
@@ -199,6 +203,7 @@ class JobRun(Thread):
         Args:
             inp_source: Source description as above.
             keys: Keys for the workflow's items.
+
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
@@ -223,6 +228,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
             administrator: Party administrating this runner.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
+
         """
         self.name = name
         self._administrator = administrator
@@ -234,6 +240,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
 
         Returns:
             A string with the name.
+
         """
         return self._target_store.name
 
@@ -244,6 +251,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         Args:
             job: The job to execute.
             plan: The plan to execute to.
+
         """
         run = JobRun(
                 self._policy_evaluator, self.name, self._administrator,

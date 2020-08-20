@@ -48,12 +48,12 @@ def test_wf_output_checks():
             ['x'], {'y': 'aggregate.y'},
             [
                 WorkflowStep('anonymise', {'x1': 'x'}, ['y'],
-                             ComputeAsset(name='Anonymise',
+                             ComputeAsset(id='Anonymise',
                                           data=None,
                                           metadata=None)),
                 WorkflowStep(
                     'aggregate', {'x1': 'anonymise.y'}, ['y'],
-                    ComputeAsset(name='Aggregate',
+                    ComputeAsset(id='Aggregate',
                                  data=None,
                                  metadata=None))])
     job = Job(workflow, {'x': 'id:p1/dataset/d1'})

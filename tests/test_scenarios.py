@@ -122,15 +122,15 @@ def test_pii(clean_global_registry):
                 WorkflowStep(name='combine',
                              inputs={'x1': 'x1', 'x2': 'x2'},
                              outputs=['y'],
-                             compute_asset_name='id:ddm_ns/software/combine'),
+                             compute_asset_id='id:ddm_ns/software/combine'),
                 WorkflowStep(name='anonymise',
                              inputs={'x1': 'combine.y'},
                              outputs=['y'],
-                             compute_asset_name='id:ddm_ns/software/anonymise'),
+                             compute_asset_id='id:ddm_ns/software/anonymise'),
                 WorkflowStep(name='aggregate',
                              inputs={'x1': 'anonymise.y'},
                              outputs=['y'],
-                             compute_asset_name='id:ddm_ns/software/aggregate')
+                             compute_asset_id='id:ddm_ns/software/aggregate')
             ]
     )
 
@@ -192,7 +192,7 @@ def test_saas_with_data(clean_global_registry):
                     name='addstep',
                     inputs={'x1': 'x1', 'x2': 'x2'},
                     outputs=['y'],
-                    compute_asset_name='id:party2_ns/software/addition')
+                    compute_asset_id='id:party2_ns/software/addition')
                 ])
 
     inputs = {

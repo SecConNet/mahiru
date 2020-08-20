@@ -74,7 +74,7 @@ class JobRun(Thread):
             for step in steps_to_do:
                 inputs = self._get_step_inputs(step, keys)
                 compute_asset = self._retrieve_compute_asset(
-                    step.compute_asset_name)
+                    step.compute_asset_id)
                 if inputs is not None:
                     print('Job at {} executing step {}'.format(
                         self._this_runner, step))
@@ -95,8 +95,6 @@ class JobRun(Thread):
             else:
                 sleep(0.5)
         print('Job at {} done'.format(self._this_runner))
-
-    def _run_step(self):
 
     def _is_legal(self) -> bool:
         """Checks whether this request is legal.
@@ -179,12 +177,11 @@ class JobRun(Thread):
 
         return step_input_data
 
-    def _retrieve_compute_asset(self, compute_asset_name: str) -> ComputeAsset:
-        # TODO: the store id is hardcoded so scenario pii test works,
-        #  but should be retrieved in some way
-        data, metadata = self._ddm_client.retrieve_data(store_id='site3-store',
-                                                        name=compute_asset_name)
-        return ComputeAsset(compute_asset_name, data, metadata)
+    def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
+        store_id = self._ddm_client.get_asset_location(compute_asset_id)
+        data, metadata = self._ddm_client.retrieve_data(store_id=store_id,
+                                                        name=compute_asset_id)
+        return ComputeAsset(compute_asset_id, data, metadata)
 
     def _source(
             self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:

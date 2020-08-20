@@ -1,7 +1,7 @@
 """Some global definitions."""
-from typing import Dict, Type, Union
+from typing import Dict
 
-from proof_of_concept.asset import Asset, ComputeAsset, DataAsset
+from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
 from proof_of_concept.replication import IReplicationServer
 from proof_of_concept.workflow import Job, WorkflowStep

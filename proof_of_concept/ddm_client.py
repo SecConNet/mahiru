@@ -1,9 +1,9 @@
 """Functionality for connecting to other DDM sites."""
-from typing import List, Tuple, Type, Union
+from typing import List, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from proof_of_concept.asset import Asset, ComputeAsset, DataAsset
+from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
     IAssetStore, ILocalWorkflowRunner, IPolicyServer, Plan)
 from proof_of_concept.registry import global_registry

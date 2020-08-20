@@ -1,7 +1,7 @@
 """Asset stores store data and compute assets."""
-from typing import Dict, Type, Union
+from typing import Dict
 
-from proof_of_concept.asset import Asset, DataAsset, ComputeAsset
+from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import IAssetStore
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator

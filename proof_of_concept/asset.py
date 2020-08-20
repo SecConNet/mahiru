@@ -1,5 +1,5 @@
 """Classes for describing assets."""
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional
 
 from proof_of_concept.workflow import Job
 
@@ -30,8 +30,7 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
-    def __init__(self, id: str, data: Any,
-                 metadata: Union[Metadata, None] = None):
+    def __init__(self, id: str, data: Any, metadata: Optional[Metadata] = None):
         """Constructor.
 
         Args:

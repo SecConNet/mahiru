@@ -2,8 +2,6 @@
 from hashlib import sha256
 from typing import Dict, List, Set, Tuple
 
-from proof_of_concept.asset import ComputeAsset
-
 
 class WorkflowStep:
     """Defines a workflow step."""

@@ -47,15 +47,14 @@ def test_wf_output_checks():
     workflow = Workflow(
             ['x'], {'y': 'aggregate.y'},
             [
-                WorkflowStep('anonymise', {'x1': 'x'}, ['y'],
-                             ComputeAsset(name='Anonymise',
-                                          data=None,
-                                          metadata=None)),
-                WorkflowStep(
-                    'aggregate', {'x1': 'anonymise.y'}, ['y'],
-                    ComputeAsset(name='Aggregate',
-                                 data=None,
-                                 metadata=None))])
+                WorkflowStep(name='anonymise',
+                             inputs={'x1': 'x'},
+                             outputs=['y'],
+                             compute_asset_id='Anonymise'),
+                WorkflowStep(name='aggregate',
+                             inputs={'x1': 'anonymise.y'},
+                             outputs=['y'],
+                             compute_asset_id='Aggregate')])
     job = Job(workflow, {'x': 'id:p1/dataset/d1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)
     plans = planner.make_plans('p2', job)

@@ -3,12 +3,13 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
+from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
-from proof_of_concept.definitions import ILocalWorkflowRunner, Metadata, Plan
-from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.definitions import ILocalWorkflowRunner, Plan
 from proof_of_concept.permission_calculator import PermissionCalculator
-from proof_of_concept.workflow import Job, WorkflowStep, Workflow
+from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.workflow import Job, WorkflowStep
 
 
 class JobRun(Thread):
@@ -34,6 +35,7 @@ class JobRun(Thread):
             job: The job to execute.
             plan: The plan for how to execute the job.
             target_store: The asset store to put results into.
+
         """
         super().__init__(name='JobAtRunner-{}'.format(this_runner))
         self._policy_evaluator = policy_evaluator
@@ -72,11 +74,13 @@ class JobRun(Thread):
         while len(steps_to_do) > 0:
             for step in steps_to_do:
                 inputs = self._get_step_inputs(step, keys)
+                compute_asset = self._retrieve_compute_asset(
+                    step.compute_asset_id)
                 if inputs is not None:
                     print('Job at {} executing step {}'.format(
                         self._this_runner, step))
                     # run compute asset step
-                    outputs = step.compute_asset.run(inputs)
+                    outputs = compute_asset.run(inputs)
 
                     # save output to store
                     step_subjob = self._job.subjob(step)
@@ -84,8 +88,10 @@ class JobRun(Thread):
                         result_item = '{}.{}'.format(step.name, output_name)
                         result_key = keys[result_item]
                         metadata = Metadata(step_subjob, result_item)
-                        self._target_store.store(
-                                result_key, output_value, metadata)
+                        asset = DataAsset(id=result_key,
+                                          data=output_value,
+                                          metadata=metadata)
+                        self._target_store.store(asset)
 
                     steps_to_do.remove(step)
                     break
@@ -154,6 +160,7 @@ class JobRun(Thread):
         Return:
             A dictionary keyed by output name with corresponding
             values.
+
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
@@ -161,18 +168,25 @@ class JobRun(Thread):
             print('Job at {} getting input {} from site {}'.format(
                 self._this_runner, data_key, source_store))
             try:
-                step_input_data[inp_name], metadata = (
-                        self._ddm_client.retrieve_data(
-                            source_store, data_key))
+                asset = self._ddm_client.retrieve_asset(source_store, data_key)
+                step_input_data[inp_name] = asset.data
                 print('Job at {} found input {} available.'.format(
                     self._this_runner, data_key))
-                print('Metadata: {}'.format(metadata))
+                print('Metadata: {}'.format(asset.metadata))
             except KeyError:
                 print('Job at {} found input {} not yet available.'.format(
                     self._this_runner, data_key))
                 return None
 
         return step_input_data
+
+    def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
+        store_id = self._ddm_client.get_asset_location(compute_asset_id)
+        asset = self._ddm_client.retrieve_asset(store_id=store_id,
+                                                asset_id=compute_asset_id)
+        if not isinstance(asset, ComputeAsset):
+            raise TypeError('Expecting a compute asset in workflow')
+        return asset
 
     def _source(
             self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:
@@ -189,6 +203,7 @@ class JobRun(Thread):
         Args:
             inp_source: Source description as above.
             keys: Keys for the workflow's items.
+
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
@@ -213,6 +228,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
             administrator: Party administrating this runner.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
+
         """
         self.name = name
         self._administrator = administrator
@@ -224,6 +240,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
 
         Returns:
             A string with the name.
+
         """
         return self._target_store.name
 
@@ -234,6 +251,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         Args:
             job: The job to execute.
             plan: The plan to execute to.
+
         """
         run = JobRun(
                 self._policy_evaluator, self.name, self._administrator,

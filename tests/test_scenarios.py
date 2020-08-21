@@ -1,30 +1,24 @@
+import logging
 from textwrap import indent
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from proof_of_concept.asset import ComputeAsset, DataAsset
-from proof_of_concept.policy import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
-        ResultOfComputeIn)
 from proof_of_concept.ddm_site import Site
+from proof_of_concept.policy import (
+    InAssetCollection, MayAccess, ResultOfDataIn,
+    ResultOfComputeIn)
 from proof_of_concept.workflow import Job, WorkflowStep, Workflow
+
+logger = logging.getLogger(__file__)
 
 
 def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
-    # run
-    # print('Rules:')
-    # for rule in scenario['rules']:
-    #     print('    {}'.format(rule))
-    # print()
-    print('On behalf of: {}'.format(scenario['user_site'].administrator))
-    print()
-    print('Job:')
-    print(indent(str(scenario['job']), ' '*4))
-    print()
+    logger.info('On behalf of: {}'.format(scenario['user_site'].administrator))
+    logger.info(f'Job:\n'
+                f'{indent(str(scenario["job"]), " "*4)}')
 
     result = scenario['user_site'].run_job(scenario['job'])
-    print()
-    print('Result:')
-    print(result)
+    logger.info(f'Result:\n {result}')
     return result
 
 

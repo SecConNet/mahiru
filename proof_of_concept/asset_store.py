@@ -1,10 +1,13 @@
 """Asset stores store data and compute assets."""
+import logging
 from typing import Dict
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import IAssetStore
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
+
+logger = logging.getLogger(__file__)
 
 
 class AssetStore(IAssetStore):
@@ -50,10 +53,8 @@ class AssetStore(IAssetStore):
             KeyError: If no asset with the given id is stored here.
 
         """
-        print(
-                '{} servicing request from {} for data {}, '.format(
-                    self, requester, asset_id),
-                end='')
+        logger.info(f'{self} servicing request from {requester} for data: '
+                    f'{asset_id}, ')
         try:
             asset = self._assets[asset_id]
             perms = self._permission_calculator.calculate_permissions(
@@ -61,8 +62,8 @@ class AssetStore(IAssetStore):
             perm = perms[asset.metadata.item]
             if not self._policy_evaluator.may_access(perm, requester):
                 raise RuntimeError('Security error, access denied')
-            print('sending...')
+            logger.info('sending...')
             return asset
         except KeyError:
-            print('not found.')
+            logger.info('not found.')
             raise

@@ -1,4 +1,5 @@
 """Components for on-site workflow execution."""
+import logging
 from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
@@ -10,6 +11,8 @@ from proof_of_concept.definitions import ILocalWorkflowRunner, Plan
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
 from proof_of_concept.workflow import Job, WorkflowStep
+
+logger = logging.getLogger(__file__)
 
 
 class JobRun(Thread):
@@ -77,7 +80,7 @@ class JobRun(Thread):
                 compute_asset = self._retrieve_compute_asset(
                     step.compute_asset_id)
                 if inputs is not None:
-                    print('Job at {} executing step {}'.format(
+                    logger.info('Job at {} executing step {}'.format(
                         self._this_runner, step))
                     # run compute asset step
                     outputs = compute_asset.run(inputs)
@@ -97,7 +100,7 @@ class JobRun(Thread):
                     break
             else:
                 sleep(0.5)
-        print('Job at {} done'.format(self._this_runner))
+        logger.info('Job at {} done'.format(self._this_runner))
 
     def _is_legal(self) -> bool:
         """Checks whether this request is legal.
@@ -165,16 +168,16 @@ class JobRun(Thread):
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
             source_store, data_key = self._source(inp_source, keys)
-            print('Job at {} getting input {} from site {}'.format(
+            logger.info('Job at {} getting input {} from site {}'.format(
                 self._this_runner, data_key, source_store))
             try:
                 asset = self._ddm_client.retrieve_asset(source_store, data_key)
                 step_input_data[inp_name] = asset.data
-                print('Job at {} found input {} available.'.format(
+                logger.info('Job at {} found input {} available.'.format(
                     self._this_runner, data_key))
-                print('Metadata: {}'.format(asset.metadata))
+                logger.info('Metadata: {}'.format(asset.metadata))
             except KeyError:
-                print('Job at {} found input {} not yet available.'.format(
+                logger.info('Job at {} found input {} not yet available.'.format(
                     self._this_runner, data_key))
                 return None
 

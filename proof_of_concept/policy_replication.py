@@ -42,6 +42,11 @@ class RuleValidator(ObjectValidator[Rule]):
         return rule.has_valid_signature(self._key)
 
 
+# Defining this where it's used makes mypy crash.
+# See https://github.com/python/mypy/issues/7281
+_OtherStores = Dict[IReplicationServer[Rule], Replica[Rule]]
+
+
 class PolicySource(IPolicySource):
     """Ties together various sources of policies."""
     def __init__(
@@ -57,8 +62,7 @@ class PolicySource(IPolicySource):
         """
         self._ddm_client = ddm_client
         self._our_store = our_store
-        OtherStores = Dict[IReplicationServer[Rule], Replica[Rule]]
-        self._other_stores = dict()     # type: OtherStores
+        self._other_stores = dict()     # type: _OtherStores
 
     def policies(self) -> Iterable[Rule]:
         """Returns the collected rules."""

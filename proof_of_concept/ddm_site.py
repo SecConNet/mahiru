@@ -47,8 +47,11 @@ class Site:
                 backend=default_backend())
 
         self._ddm_client.register_party(
-                self.name, self.namespace,
+                self.administrator, self.namespace,
                 self._private_key.public_key())
+
+        # Register site with DDM
+        self._ddm_client.register_site(self.name + '-site', administrator)
 
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()
@@ -59,7 +62,7 @@ class Site:
         self.policy_server = ReplicationServer[Rule](
                 self._policy_archive, 10.0)
         self._ddm_client.register_policy_server(
-                self.namespace, self.policy_server)
+                self.name + '-site', self.namespace, self.policy_server)
 
         self._policy_source = PolicySource(
                 self._ddm_client, self._policy_store)
@@ -67,7 +70,7 @@ class Site:
 
         # Server side
         self.store = AssetStore(name + '-store', self._policy_evaluator)
-        self._ddm_client.register_store(administrator, self.store)
+        self._ddm_client.register_store(self.name + '-site', self.store)
         for key, val in stored_data.items():
             self.store.store(key, val, Metadata(Job.niljob(key), 'dataset'))
             self._ddm_client.register_asset(key, self.store.name)
@@ -75,7 +78,8 @@ class Site:
         self.runner = LocalWorkflowRunner(
                 name + '-runner', administrator,
                 self._policy_evaluator, self.store)
-        self._ddm_client.register_runner(administrator, self.runner)
+        self._ddm_client.register_runner(
+               self.name + '-site', administrator, self.runner)
 
         # Client side
         self._workflow_engine = GlobalWorkflowRunner(

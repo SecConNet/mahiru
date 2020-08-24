@@ -30,8 +30,8 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
-    def __init__(
-            self, id: str, data: Any, metadata: Optional[Metadata] = None):
+    def __init__(self, id: str, data: Any,
+                 metadata: Optional[Metadata] = None):
         """Constructor.
 
         Args:

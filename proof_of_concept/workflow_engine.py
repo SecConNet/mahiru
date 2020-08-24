@@ -1,4 +1,5 @@
 """Classes for running DDM-wide workflows."""
+import logging
 from copy import copy
 from time import sleep
 from typing import Any, Dict, Generator, List, Set
@@ -8,6 +9,8 @@ from proof_of_concept.definitions import Plan
 from proof_of_concept.policy import Permissions, PolicyEvaluator
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
+
+logger = logging.getLogger(__file__)
 
 
 class WorkflowPlanner:
@@ -69,7 +72,6 @@ class WorkflowPlanner:
             return True
 
         permissions = self._permission_calculator.calculate_permissions(job)
-        print(permissions)
 
         for output in job.workflow.outputs:
             output_perms = permissions[output]
@@ -205,16 +207,12 @@ class GlobalWorkflowRunner:
             job: The job to execute.
         """
         plans = self._planner.make_plans(submitter, job)
-        print('Plans:')
-        for plan in plans:
-            print(plan)
-        print()
-
         if not plans:
             raise RuntimeError(
                     'This workflow cannot be run due to insufficient'
                     ' permissions.')
-
+        for i, plan in enumerate(plans):
+            logger.info(f'Plan {i}: {plan}')
         selected_plan = plans[-1]
         results = self._executor.execute_workflow(job, selected_plan)
         return results

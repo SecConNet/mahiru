@@ -53,17 +53,19 @@ class AssetStore(IAssetStore):
             KeyError: If no asset with the given id is stored here.
 
         """
-        logger.info(f'{self} servicing request from {requester} for data: '
-                    f'{asset_id}, ')
+        logger.info(f'{self}: servicing request from {requester} for data: '
+                    f'{asset_id}')
         try:
             asset = self._assets[asset_id]
             perms = self._permission_calculator.calculate_permissions(
                     asset.metadata.job)
             perm = perms[asset.metadata.item]
             if not self._policy_evaluator.may_access(perm, requester):
-                raise RuntimeError('Security error, access denied')
-            logger.info('sending...')
+                raise RuntimeError(f'{self}: Security error, access denied'
+                                   f'for {requester} to {asset_id}')
+            logger.info(f'{self}: Sending asset {asset_id} to {requester}')
             return asset
         except KeyError:
-            logger.info('not found.')
+            logger.info(f'{self}: Asset {asset_id} not found'
+                        f'(requester = {requester}).')
             raise

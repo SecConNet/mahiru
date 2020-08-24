@@ -72,7 +72,6 @@ class WorkflowPlanner:
             return True
 
         permissions = self._permission_calculator.calculate_permissions(job)
-        logger.info(permissions)
 
         for output in job.workflow.outputs:
             output_perms = permissions[output]
@@ -208,15 +207,12 @@ class GlobalWorkflowRunner:
             job: The job to execute.
         """
         plans = self._planner.make_plans(submitter, job)
-        logger.info('Plans:')
-        for plan in plans:
-            logger.info(plan)
-
         if not plans:
             raise RuntimeError(
                     'This workflow cannot be run due to insufficient'
                     ' permissions.')
-
+        for i, plan in enumerate(plans):
+            logger.info(f'Plan {i}: {plan}')
         selected_plan = plans[-1]
         results = self._executor.execute_workflow(job, selected_plan)
         return results

@@ -13,12 +13,13 @@ logger = logging.getLogger(__file__)
 
 
 def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
-    logger.info('On behalf of: {}'.format(scenario['user_site'].administrator))
+    logger.info('Running test scenario '
+                'on behalf of: {}'.format(scenario['user_site'].administrator))
     logger.info(f'Job:\n'
                 f'{indent(str(scenario["job"]), " "*4)}')
 
     result = scenario['user_site'].run_job(scenario['job'])
-    logger.info(f'Result:\n {result}')
+    logger.info(f'Result: {result}')
     return result
 
 

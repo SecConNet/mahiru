@@ -1,7 +1,7 @@
 from textwrap import indent
 from typing import Any, Dict, List
 
-from proof_of_concept.asset import ComputeAsset
+from proof_of_concept.asset import ComputeAsset, DataAsset
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
         ResultOfComputeIn)
@@ -105,31 +105,33 @@ def test_pii(clean_global_registry):
             ]
 
     scenario['sites'] = [
-            Site(
-                'site1', 'party1', 'party1_ns',
-                {'id:party1_ns/dataset/pii1': 42}, scenario['rules-party1']),
-            Site(
-                'site2', 'party2', 'party2_ns',
-                {'id:party2_ns/dataset/pii2': 3}, scenario['rules-party2']),
-            Site('site3', 'ddm', 'ddm_ns', {}, scenario['rules-ddm'])]
+            Site(name='site1', administrator='party1', namespace='party1_ns',
+                 stored_data=[DataAsset('id:party1_ns/dataset/pii1', 42)],
+                 rules=scenario['rules-party1']),
+            Site(name='site2', administrator='party2', namespace='party2_ns',
+                 stored_data=[DataAsset('id:party2_ns/dataset/pii2', 3)],
+                 rules=scenario['rules-party2']),
+            Site(name='site3', administrator='ddm', namespace='ddm_ns',
+                 stored_data=[
+                     ComputeAsset('id:ddm_ns/software/combine', None, None),
+                     ComputeAsset('id:ddm_ns/software/anonymise', None, None),
+                     ComputeAsset('id:ddm_ns/software/aggregate', None, None)],
+                 rules=scenario['rules-ddm'])]
 
     workflow = Workflow(
             ['x1', 'x2'], {'result': 'aggregate.y'}, [
-                WorkflowStep(
-                    'combine', {'x1': 'x1', 'x2': 'x2'}, ['y'],
-                    ComputeAsset(name='id:ddm_ns/software/combine',
-                                 data=None,
-                                 metadata=None)),
-                WorkflowStep(
-                    'anonymise', {'x1': 'combine.y'}, ['y'],
-                    ComputeAsset(name='id:ddm_ns/software/anonymise',
-                                 data=None,
-                                 metadata=None)),
-                WorkflowStep(
-                    'aggregate', {'x1': 'anonymise.y'}, ['y'],
-                    ComputeAsset(name='id:ddm_ns/software/aggregate',
-                                 data=None,
-                                 metadata=None))
+                WorkflowStep(name='combine',
+                             inputs={'x1': 'x1', 'x2': 'x2'},
+                             outputs=['y'],
+                             compute_asset_id='id:ddm_ns/software/combine'),
+                WorkflowStep(name='anonymise',
+                             inputs={'x1': 'combine.y'},
+                             outputs=['y'],
+                             compute_asset_id='id:ddm_ns/software/anonymise'),
+                WorkflowStep(name='aggregate',
+                             inputs={'x1': 'anonymise.y'},
+                             outputs=['y'],
+                             compute_asset_id='id:ddm_ns/software/aggregate')
             ]
     )
 
@@ -177,19 +179,22 @@ def test_saas_with_data(clean_global_registry):
     scenario['sites'] = [
             Site(
                 'site1', 'party1', 'party1_ns',
-                {'id:party1_ns/dataset/data1': 42}, scenario['rules-party1']),
+                [DataAsset('id:party1_ns/dataset/data1', 42)],
+                scenario['rules-party1']),
             Site(
                 'site2', 'party2', 'party2_ns',
-                {'id:party2_ns/dataset/data2': 3}, scenario['rules-party2'])]
+                [DataAsset('id:party2_ns/dataset/data2', 3),
+                 ComputeAsset('id:party2_ns/software/addition', None, None)],
+                scenario['rules-party2'])]
 
-    workflow = Workflow(
-            ['x1', 'x2'], {'y': 'addstep.y'}, [
+    workflow = Workflow(inputs=['x1', 'x2'],
+                        outputs={'y': 'addstep.y'},
+                        steps=[
                 WorkflowStep(
-                    'addstep', {'x1': 'x1', 'x2': 'x2'}, ['y'],
-                    ComputeAsset(name='id:party2_ns/software/addition',
-                                 data=None,
-                                 metadata=None)
-                    )
+                    name='addstep',
+                    inputs={'x1': 'x1', 'x2': 'x2'},
+                    outputs=['y'],
+                    compute_asset_id='id:party2_ns/software/addition')
                 ])
 
     inputs = {

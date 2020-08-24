@@ -171,9 +171,9 @@ class WorkflowExecutor:
                             src_runner_name)
                     outp_key = keys[wf_outp_name]
                     try:
-                        results[wf_outp_name], _ = (
-                                self._ddm_client.retrieve_data(
-                                    src_store, outp_key))
+                        asset = self._ddm_client.retrieve_asset(
+                                    src_store, outp_key)
+                        results[wf_outp_name] = asset.data
                     except KeyError:
                         continue
             sleep(0.5)

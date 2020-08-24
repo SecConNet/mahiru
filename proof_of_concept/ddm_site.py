@@ -1,18 +1,18 @@
 """This module combines components into a site installation."""
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
-from proof_of_concept.definitions import Metadata
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
 from proof_of_concept.policy_replication import PolicySource
 from proof_of_concept.replication import (
-        CanonicalStore, ReplicableArchive, ReplicationServer)
-from proof_of_concept.workflow import Job, Workflow
+    CanonicalStore, ReplicableArchive, ReplicationServer)
+from proof_of_concept.workflow import Job
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
 
 
@@ -20,7 +20,7 @@ class Site:
     """Represents a single DDM peer installation."""
     def __init__(
             self, name: str, administrator: str,
-            namespace: str, stored_data: Dict[str, int],
+            namespace: str, stored_data: List[Asset],
             rules: List[Rule]) -> None:
         """Create a Site.
 
@@ -32,6 +32,7 @@ class Site:
             namespace: Namespace used by this site.
             stored_data: Data sets stored at this site.
             rules: A policy to adhere to.
+
         """
         # Metadata
         self.name = name
@@ -71,9 +72,9 @@ class Site:
         # Server side
         self.store = AssetStore(name + '-store', self._policy_evaluator)
         self._ddm_client.register_store(self.name + '-site', self.store)
-        for key, val in stored_data.items():
-            self.store.store(key, val, Metadata(Job.niljob(key), 'dataset'))
-            self._ddm_client.register_asset(key, self.store.name)
+        for asset in stored_data:
+            self.store.store(asset)
+            self._ddm_client.register_asset(asset.id, self.store.name)
 
         self.runner = LocalWorkflowRunner(
                 name + '-runner', administrator,

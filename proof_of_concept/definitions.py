@@ -1,6 +1,7 @@
 """Some global definitions."""
-from typing import Any, Dict, Tuple
+from typing import Dict
 
+from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
 from proof_of_concept.replication import IReplicationServer
 from proof_of_concept.workflow import Job, WorkflowStep
@@ -17,6 +18,7 @@ class Plan:
                 obtain them from.
         step_runners (Dict[WorkflowStep, str]): Maps steps to their
                 runner's id.
+
     """
     def __init__(
             self, input_stores: Dict[str, str],
@@ -28,6 +30,7 @@ class Plan:
             input_stores: A map from input names to a store id to get
                     them from.
             step_runners: A map from steps to their runner's id.
+
         """
         self.input_stores = input_stores
         self.step_runners = step_runners
@@ -42,56 +45,36 @@ class Plan:
         return result
 
 
-class Metadata:
-    """Stores metadata for stored assets.
-
-    Attributes:
-        job (Job): A minimal job that will generate this asset.
-        item (str): The item in the job's workflow corresponding to
-                this asset.
-    """
-    def __init__(self, job: Job, item: str) -> None:
-        """Create a Metadata object.
-
-        Args:
-            job: A minimal job that will generate this asset.
-            item: The item in the job's workflow corresponding to this
-                    asset.
-        """
-        self.job = job
-        self.item = item
-
-
 class IAssetStore:
     """An interface for asset stores."""
     name = None     # type: str
 
-    def store(self, name: str, data: Any, metadata: Metadata) -> None:
+    def store(self, asset: Asset) -> None:
         """Stores an asset.
 
         Args:
-            name: Name to store asset under.
-            data: Asset data to store.
-            metadata: Metadata to annotate the asset with.
+            asset: asset object to store
 
         Raises:
-            KeyError: If there's already an asset with name ``name``.
+            KeyError: If there's already an asset with the asset id.
+
         """
         raise NotImplementedError()
 
-    def retrieve(
-            self, asset_name: str, requester: str) -> Tuple[Any, Metadata]:
+    def retrieve(self, asset_id: str, requester: str
+                 ) -> Asset:
         """Retrieves an asset.
 
         Args:
-            asset_name: Name of the asset to retrieve.
+            asset_id: ID of the asset to retrieve.
             requester: Name of the party making the request.
 
         Return:
-            The asset data stored under the given name.
+            The asset object with asset_id.
 
         Raises:
-            KeyError: If no asset with the given name is stored here.
+            KeyError: If no asset with the given id is stored here.
+
         """
         raise NotImplementedError()
 
@@ -105,6 +88,7 @@ class ILocalWorkflowRunner:
 
         Returns:
             A string with the name.
+
         """
         raise NotImplementedError()
 
@@ -120,6 +104,7 @@ class ILocalWorkflowRunner:
         Args:
             job: The job to execute part of.
             plan: The plan according to which to execute.
+
         """
         raise NotImplementedError()
 

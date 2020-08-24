@@ -1,10 +1,11 @@
 """Functionality for connecting to other DDM sites."""
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
+from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer, Metadata, Plan)
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer, Plan)
 from proof_of_concept.workflow import Job, Workflow
 from proof_of_concept.registry import (
         global_registry, AssetStoreDescription, RegisteredObject,
@@ -19,6 +20,7 @@ class DDMClient:
 
         Args:
             party: The party on whose behalf this client acts.
+
         """
         self._party = party
         self._registry_replica = Replica[RegisteredObject](
@@ -32,6 +34,7 @@ class DDMClient:
             name: Name of the party.
             namespace: ID namespace owned by this party.
             public_key: Public key of this party.
+
         """
         global_registry.register_party(name, namespace, public_key)
 
@@ -53,6 +56,7 @@ class DDMClient:
             site_name: Name of the site where this runner is.
             admin_name: The party administrating this runner.
             runner: The runner to register.
+
         """
         global_registry.register_runner(site_name, admin_name, runner)
 
@@ -62,6 +66,7 @@ class DDMClient:
         Args:
             admin: The party administrating this runner.
             store: The data store to register.
+
         """
         global_registry.register_store(admin, store)
 
@@ -75,6 +80,7 @@ class DDMClient:
             namespace: The namespace containing the assets this policy
                     server serves policy for.
             server: The data store to register.
+
         """
         global_registry.register_policy_server(site_name, namespace, server)
 
@@ -84,6 +90,7 @@ class DDMClient:
         Args:
             asset_id: The id of the asset to register.
             store_name: Name of the store where it can be found.
+
         """
         global_registry.register_asset(asset_id, store_name)
 
@@ -130,6 +137,7 @@ class DDMClient:
         Return:
             A list of all registered policy servers and their
                     namespaces.
+
         """
         self._registry_replica.update()
 
@@ -139,26 +147,25 @@ class DDMClient:
                 result.append((o.namespace.name, o.server))
         return result
 
-    def get_asset_location(self, asset_id: str) -> str:
+    @staticmethod
+    def get_asset_location(asset_id: str) -> str:
         """Returns the name of the store which stores this asset."""
         return global_registry.get_asset_location(asset_id)
 
-    def retrieve_data(
-            self, store_id: str, name: str) -> Tuple[Any, Metadata]:
+    def retrieve_asset(self, store_id: str, asset_id: str
+                       ) -> Asset:
         """Obtains a data item from a store."""
         store_desc = self._get_store(store_id)
-        return store_desc.store.retrieve(name, self._party)
+        return store_desc.store.retrieve(asset_id, self._party)
 
-    def submit_job(
-            self, runner_id: str,
-            job: Job, plan: Plan
-            ) -> None:
+    def submit_job(self, runner_id: str, job: Job, plan: Plan) -> None:
         """Submits a job for execution to a local runner.
 
         Args:
             runner_id: The runner to submit to.
             job: The job to submit.
             plan: The plan to execute the workflow to.
+
         """
         runner_desc = self._get_runner(runner_id)
         return runner_desc.runner.execute_job(job, plan)

@@ -1,0 +1,153 @@
+openapi: "3.0.0"
+info:
+  version: 0.1.0
+  title: Proof of concept Asset Store
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+servers:
+  - url: /
+paths:
+  /assets:
+    post:
+      summary: Store an asset
+      operationId: store_asset
+      tags:
+        - assets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Asset'
+      responses:
+        '201':
+          description: Null response
+
+  /assets/{asset_id}:
+    get:
+      summary: Retrieve an asset by ID
+      operationId: get_asset
+      tags:
+        - assets
+      parameters:
+        - name: asset_id
+          in: path
+          required: true
+          description: "The id of the asset to retrieve"
+          example: "1"
+          schema:
+            type: string
+        - name: requester
+          in: query
+          required: true
+          description: "The id of the requester"
+          example: "Party1"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+components:
+  schemas:
+    Asset:
+      description: "A representation of a computation or piece of data."
+      type: object
+      required:
+        - id
+        - data
+      properties:
+        id:
+          description: "ID of the asset"
+          type: string
+          example: "1"
+        data:
+          type: object
+        metadata:
+          $ref: "#/components/schemas/Metadata"
+    
+    Metadata:
+      description: "Metadata of the asset"
+      type: object
+      required:
+        - job
+        - item
+      properties:
+        job:
+          $ref: "#/components/schemas/Job"
+        item:
+          description: "The item in the job's workflow corresponding to this asset."
+          example: "item_1"
+          type: string 
+        
+    Job:
+      description: "A minimal job that will generate this asset."
+      type: object
+      required:
+        - workflow
+        - inputs
+      properties:
+        workflow:
+          $ref: "#/components/schemas/Workflow"
+        inputs:
+          description: "A dictionary with input values"
+          example:
+            "x1": 3
+            "x2": 42
+          type: object
+          additionalProperties:
+            type: string
+    
+    Workflow:
+      required:
+        - inputs
+        - outputs
+        - steps
+      properties:
+        inputs:
+          type: array
+          items:
+            type: string
+        outputs:
+          description: "A dictionary holding output values"
+          example:
+            "y1": 42
+          type: object
+          additionalProperties:
+            type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowStep"
+            
+    WorkflowStep:
+      required: 
+        - name
+        - inputs
+        - outputs
+        - compute_asset_id
+      properties:
+        name:
+          example: "compute_something"
+          type: string
+        inputs:
+          description: "A dictionary with input values"
+          example:
+            "x1": 3
+            "x2": 42
+          type: object
+          additionalProperties:
+            type: string
+        outputs:
+          description: "List of names of outputs produced"
+          type: array
+          items:
+            example: "asset_1"
+            type: string
+        compute_asset_id:
+          example: "compute_asset_1"
+          type: string

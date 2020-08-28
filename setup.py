@@ -45,6 +45,7 @@ setup(
     ],
     setup_requires=[
         # dependency for `python setup.py test`
+        'flask-testing'
         'pytest-runner',
         'pytest-pycodestyle',
         'pytest-pydocstyle',

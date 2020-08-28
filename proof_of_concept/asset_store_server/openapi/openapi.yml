@@ -11,7 +11,7 @@ paths:
   /assets:
     post:
       summary: Store an asset
-      operationId: store_asset
+      operationId: proof_of_concept.asset_store_server.controllers.assets_controller.store_asset
       tags:
         - assets
       requestBody:
@@ -26,7 +26,7 @@ paths:
   /assets/{asset_id}:
     get:
       summary: Retrieve an asset by ID
-      operationId: get_asset
+      operationId: proof_of_concept.asset_store_server.controllers.assets_controller.get_asset
       tags:
         - assets
       parameters:
@@ -64,12 +64,13 @@ components:
         id:
           description: "ID of the asset"
           type: string
-          example: "1"
+          example: "id:party1_ns/collection/asset1"
         data:
-          type: object
+          description: "Data related to the asset"
+          example: 42
         metadata:
           $ref: "#/components/schemas/Metadata"
-    
+
     Metadata:
       description: "Metadata of the asset"
       type: object
@@ -82,8 +83,8 @@ components:
         item:
           description: "The item in the job's workflow corresponding to this asset."
           example: "item_1"
-          type: string 
-        
+          type: string
+
     Job:
       description: "A minimal job that will generate this asset."
       type: object
@@ -94,14 +95,15 @@ components:
         workflow:
           $ref: "#/components/schemas/Workflow"
         inputs:
-          description: "A dictionary with input values"
+          description: "A dictionary mapping the workflow's input
+                        parameters to data set ids."
           example:
-            "x1": 3
-            "x2": 42
+            "x1": "id:party1_ns/collection/input1"
+            "x2": "id:party1_ns/collection/input2"
           type: object
           additionalProperties:
             type: string
-    
+
     Workflow:
       required:
         - inputs
@@ -109,13 +111,16 @@ components:
         - steps
       properties:
         inputs:
+          description: "A list of input variables"
+          example: ['x1', 'x2']
           type: array
           items:
             type: string
         outputs:
-          description: "A dictionary holding output values"
+          description: "Dict mapping output parameter names to
+                        corresponding step outputs of the form step.output."
           example:
-            "y1": 42
+            "y1": "id:party1_ns/collection/y1"
           type: object
           additionalProperties:
             type: string
@@ -123,9 +128,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WorkflowStep"
-            
+
     WorkflowStep:
-      required: 
+      required:
         - name
         - inputs
         - outputs
@@ -135,10 +140,12 @@ components:
           example: "compute_something"
           type: string
         inputs:
-          description: "A dictionary with input values"
+          description: "Dict mapping input parameter names to references to
+                        their sources, either the name of a workflow input,
+                        or of the form other_step.output_name."
           example:
-            "x1": 3
-            "x2": 42
+            "x1": "id:party1_ns/collection/input1"
+            "x2": "id:party1_ns/collection/input2"
           type: object
           additionalProperties:
             type: string
@@ -146,8 +153,8 @@ components:
           description: "List of names of outputs produced"
           type: array
           items:
-            example: "asset_1"
+            example: "id:party1_ns/collection/result1"
             type: string
         compute_asset_id:
-          example: "compute_asset_1"
+          example: "id:party1_ns/collection/asset1"
           type: string

@@ -9,11 +9,11 @@ from proof_of_concept.policy import PolicyEvaluator
 
 class AssetStore(IAssetStore):
     """A simple store for assets."""
-    def __init__(self, name: str, policy_evaluator: PolicyEvaluator) -> None:
+    def __init__(self, name: str) -> None:
         """Create a new empty AssetStore."""
         self.name = name
-        self._policy_evaluator = policy_evaluator
-        self._permission_calculator = PermissionCalculator(policy_evaluator)
+        # self._policy_evaluator = policy_evaluator
+        # self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._assets = dict()  # type: Dict[str, Asset]
 
     def __repr__(self) -> str:
@@ -54,15 +54,17 @@ class AssetStore(IAssetStore):
                 '{} servicing request from {} for data {}, '.format(
                     self, requester, asset_id),
                 end='')
-        try:
-            asset = self._assets[asset_id]
-            perms = self._permission_calculator.calculate_permissions(
-                    asset.metadata.job)
-            perm = perms[asset.metadata.item]
-            if not self._policy_evaluator.may_access(perm, requester):
-                raise RuntimeError('Security error, access denied')
-            print('sending...')
-            return asset
-        except KeyError:
-            print('not found.')
-            raise
+        asset = self._assets[asset_id]
+        return asset
+        # try:
+        #     asset = self._assets[asset_id]
+        #     perms = self._permission_calculator.calculate_permissions(
+        #             asset.metadata.job)
+        #     perm = perms[asset.metadata.item]
+        #     if not self._policy_evaluator.may_access(perm, requester):
+        #         raise RuntimeError('Security error, access denied')
+        #     print('sending...')
+        #     return asset
+        # except KeyError:
+        #     print('not found.')
+        #     raise

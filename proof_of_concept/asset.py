@@ -1,37 +1,72 @@
 """Classes for describing assets."""
 from typing import Any, Dict, Optional
 
+from proof_of_concept.swagger import util
+from proof_of_concept.swagger.base_model_ import Model
 from proof_of_concept.workflow import Job
 
 
-class Metadata:
+class Metadata(Model):
     """Stores metadata for stored assets.
-
-    Attributes:
-        job (Job): A minimal job that will generate this asset.
-        item (str): The item in the job's workflow corresponding to
-                this asset.
-
     """
+    def __init__(self, job: Job = None, item: str = None):  # noqa: E501
+        """Metadata.
 
-    def __init__(self, job: Job, item: str) -> None:
-        """Create a Metadata object.
-
-        Args:
-            job: A minimal job that will generate this asset.
-            item: The item in the job's workflow corresponding to this
-                    asset.
-
+        Attributes:
+            job (Job): A minimal job that will generate this asset.
+            item (str): The item in the job's workflow corresponding to
+                    this asset.
         """
-        self.job = job
-        self.item = item
+        self.swagger_types = {
+            'job': Job,
+            'item': str
+        }
+
+        self.attribute_map = {
+            'job': 'job',
+            'item': 'item'
+        }
+        self._job = job
+        self._item = item
+
+    @classmethod
+    def from_dict(cls, dikt) -> 'Metadata':
+        """Returns the dict as a model."""
+        return util.deserialize_model(dikt, cls)
+
+    @property
+    def job(self) -> Job:
+        """Gets the job of this Metadata."""
+        return self._job
+
+    @job.setter
+    def job(self, job: Job):
+        """Sets the job of this Metadata."""
+        if job is None:
+            raise ValueError("Invalid value for `job`, must not be `None`")
+
+        self._job = job
+
+    @property
+    def item(self) -> str:
+        """Gets the item of this Metadata."""
+        return self._item
+
+    @item.setter
+    def item(self, item: str):
+        """Sets the item of this Metadata."""
+        if item is None:
+            raise ValueError("Invalid value for `item`, must not be `None`")
+
+        self._item = item
 
 
-class Asset:
-    """Asset, a representation of a computation or piece of data."""
+class Asset(Model):
+    """A representation of a computation or piece of data."""
 
-    def __init__(self, id: str, data: Any, metadata: Optional[Metadata] = None):
-        """Constructor.
+    def __init__(self, id: str = None,
+                 data: object = None, metadata: Optional[Metadata] = None):
+        """Asset.
 
         Args:
             id: Name of the asset
@@ -39,17 +74,71 @@ class Asset:
             metadata: Metadata related to the asset. If no metadata is
                 passed, metadata is set to a niljob, indicating that this is
                 an asset that is not the product of some workflow.
-
         """
+        self.swagger_types = {
+            'id': str,
+            'data': object,
+            'metadata': Metadata
+        }
+
+        self.attribute_map = {
+            'id': 'id',
+            'data': 'data',
+            'metadata': 'metadata'
+        }
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
-        self.id = id
-        self.data = data
-        self.metadata = metadata
+        self._id = id
+        self._data = data
+        self._metadata = metadata
 
+    @classmethod
+    def from_dict(cls, dikt) -> 'Asset':
+        """Returns the dict as a model"""
+        return util.deserialize_model(dikt, cls)
 
-class ComputeAsset(Asset):
-    """Compute asset, represents a computing step, i.e. software."""
+    # TODO: Do I need all this property and setters?
+
+    @property
+    def id(self) -> str:
+        """Gets the id of this Asset."""
+        return self._id
+
+    @id.setter
+    def id(self, id: str):
+        """Sets the id of this Asset.
+        """
+        if id is None:
+            raise ValueError("Invalid value for `id`,"
+                             "must not be `None`")
+        self._id = id
+
+    @property
+    def data(self) -> object:
+        """Gets the data of this Asset.
+        """
+        return self._data
+
+    @data.setter
+    def data(self, data: object):
+        """Sets the data of this Asset.
+        """
+        if data is None:
+            raise ValueError("Invalid value for `data`, must not be `None`")  # noqa: E501
+
+        self._data = data
+
+    @property
+    def metadata(self) -> Metadata:
+        """Gets the metadata of this Asset.
+        """
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, metadata: Metadata):
+        """Sets the metadata of this Asset.
+        """
+        self._metadata = metadata
 
     def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Run compute step.
@@ -78,7 +167,3 @@ class ComputeAsset(Asset):
         else:
             raise RuntimeError('Unknown compute asset')
         return outputs
-
-
-class DataAsset(Asset):
-    """Data asset, represents a data set."""

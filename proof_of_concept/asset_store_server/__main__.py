@@ -19,7 +19,7 @@ def create_app(store: AssetStore):
                 options={"swagger_ui": True},
                 arguments={'title': 'Proof of concept Asset store'}
                 )
-    _configure_dependency_injection(app, store)
+    _configure_dependency_injection(app.app, store)
 
     return app.app
 

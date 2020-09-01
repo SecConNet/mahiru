@@ -2,7 +2,6 @@
 from hashlib import sha256
 from typing import Dict, List, Set, Tuple
 
-from proof_of_concept.swagger import util
 from proof_of_concept.swagger.base_model_ import Model
 
 
@@ -23,10 +22,8 @@ class WorkflowStep(Model):
     }
 
     def __init__(
-            self, name: str = None,
-            inputs: Dict[str, str] = None, outputs: List[str] = None,
-            compute_asset_id: str = None
-            ) -> None:
+            self, name: str, inputs: Dict[str, str], outputs: List[str],
+            compute_asset_id: str) -> None:
         """Create a WorkflowStep.
 
         Args:
@@ -38,67 +35,11 @@ class WorkflowStep(Model):
             compute_asset_id: The id of the compute asset to use.
 
         """
-        self._name = name
-        self._inputs = inputs
-        self._outputs = outputs
-        self._compute_asset_id = compute_asset_id
+        self.name = name
+        self.inputs = inputs
+        self.outputs = outputs
+        self.compute_asset_id = compute_asset_id
         self._validate()
-
-    @property
-    def name(self) -> str:
-        """Gets the name of this WorkflowStep."""
-        return self._name
-
-    @name.setter
-    def name(self, name: str):
-        """Sets the name of this WorkflowStep."""
-        if name is None:
-            raise ValueError(
-                "Invalid value for `name`, must not be `None`")  # noqa: E501
-
-        self._name = name
-
-    @property
-    def inputs(self) -> Dict[str, str]:
-        """Gets the inputs of this WorkflowStep."""
-        return self._inputs
-
-    @inputs.setter
-    def inputs(self, inputs: Dict[str, str]):
-        """Sets the inputs of this WorkflowStep."""
-        if inputs is None:
-            raise ValueError(
-                "Invalid value for `inputs`, must not be `None`")  # noqa: E501
-
-        self._inputs = inputs
-
-    @property
-    def outputs(self) -> List[str]:
-        """Gets the outputs of this WorkflowStep."""
-        return self._outputs
-
-    @outputs.setter
-    def outputs(self, outputs: List[str]):
-        """Sets the outputs of this WorkflowStep. """
-        if outputs is None:
-            raise ValueError(
-                "Invalid value for `outputs`, must not be `None`")  # noqa: E501
-
-        self._outputs = outputs
-
-    @property
-    def compute_asset_id(self) -> str:
-        """Gets the compute_asset_id of this WorkflowStep."""
-        return self._compute_asset_id
-
-    @compute_asset_id.setter
-    def compute_asset_id(self, compute_asset_id: str):
-        """Sets the compute_asset_id of this WorkflowStep."""
-        if compute_asset_id is None:
-            raise ValueError(
-                "Invalid value for `compute_asset_id`, must not be `None`")  # noqa: E501
-
-        self._compute_asset_id = compute_asset_id
 
     def __repr__(self) -> str:
         """Returns a string representation of the object."""
@@ -136,9 +77,8 @@ class Workflow(Model):
     }
     """Defines a workflow."""
     def __init__(
-            self, inputs: List[str] = None, outputs: Dict[str, str] = None,
-            steps: List[WorkflowStep] = None
-            ) -> None:
+            self, inputs: List[str], outputs: Dict[str, str],
+            steps: List[WorkflowStep]) -> None:
         """Create a workflow.
 
         Args:
@@ -149,9 +89,9 @@ class Workflow(Model):
                     step name.
 
         """
-        self._inputs = inputs
-        self._outputs = outputs
-        self._steps = steps
+        self.inputs = inputs
+        self.outputs = outputs
+        self.steps = steps
         self._validate()
 
     @property
@@ -160,47 +100,6 @@ class Workflow(Model):
         for step in self.steps:
             steps_dict[step.name] = step
         return steps_dict
-
-    @property
-    def inputs(self) -> List[str]:
-        """Gets the inputs of this Workflow."""
-        return self._inputs
-
-    @inputs.setter
-    def inputs(self, inputs: List[str]):
-        """Sets the inputs of this Workflow. """
-        if inputs is None:
-            raise ValueError(
-                "Invalid value for `inputs`, must not be `None`")  # noqa: E501
-
-        self._inputs = inputs
-
-    @property
-    def outputs(self) -> Dict[str, str]:
-        """Gets the outputs of this Workflow."""
-        return self._outputs
-
-    @outputs.setter
-    def outputs(self, outputs: Dict[str, str]):
-        """Sets the outputs of this Workflow."""
-        if outputs is None:
-            raise ValueError(
-                "Invalid value for `outputs`, must not be `None`")
-
-        self._outputs = outputs
-
-    @property
-    def steps(self) -> List[WorkflowStep]:
-        """Gets the steps of this Workflow. """
-        return self._steps
-
-    @steps.setter
-    def steps(self, steps: List[WorkflowStep]):
-        """Sets the steps of this Workflow."""
-        if steps is None:
-            raise ValueError(
-                "Invalid value for `steps`, must not be `None`")
-        self._steps = steps
 
     def __str__(self) -> str:
         """Returns a string representation of the object."""

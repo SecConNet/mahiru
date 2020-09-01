@@ -19,7 +19,7 @@ class Metadata(Model):
         'item': 'item'
     }
 
-    def __init__(self, job: Job = None, item: str = None):  # noqa: E501
+    def __init__(self, job: Job, item: str):
         """Metadata.
 
         Attributes:
@@ -27,34 +27,8 @@ class Metadata(Model):
             item (str): The item in the job's workflow corresponding to
                     this asset.
         """
-        self._job = job
-        self._item = item
-
-    @property
-    def job(self) -> Job:
-        """Gets the job of this Metadata."""
-        return self._job
-
-    @job.setter
-    def job(self, job: Job):
-        """Sets the job of this Metadata."""
-        if job is None:
-            raise ValueError("Invalid value for `job`, must not be `None`")
-
-        self._job = job
-
-    @property
-    def item(self) -> str:
-        """Gets the item of this Metadata."""
-        return self._item
-
-    @item.setter
-    def item(self, item: str):
-        """Sets the item of this Metadata."""
-        if item is None:
-            raise ValueError("Invalid value for `item`, must not be `None`")
-
-        self._item = item
+        self.job = job
+        self.item = item
 
 
 class Asset(Model):
@@ -71,8 +45,8 @@ class Asset(Model):
         'metadata': 'metadata'
     }
 
-    def __init__(self, id: str = None,
-                 data: object = None, metadata: Optional[Metadata] = None):
+    def __init__(self, id: str, data: object,
+                 metadata: Optional[Metadata] = None):
         """Asset.
 
         Args:
@@ -84,49 +58,9 @@ class Asset(Model):
         """
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
-        self._id = id
-        self._data = data
-        self._metadata = metadata
-
-    # TODO: Do I need all this property and setters?
-
-    @property
-    def id(self) -> str:
-        """Gets the id of this Asset."""
-        return self._id
-
-    @id.setter
-    def id(self, id: str):
-        """Sets the id of this Asset.
-        """
-        if id is None:
-            raise ValueError("Invalid value for `id`,"
-                             "must not be `None`")
-        self._id = id
-
-    @property
-    def data(self) -> object:
-        """Gets the data of this Asset.
-        """
-        return self._data
-
-    @data.setter
-    def data(self, data: object):
-        """Sets the data of this Asset.
-        """
-        self._data = data
-
-    @property
-    def metadata(self) -> Metadata:
-        """Gets the metadata of this Asset.
-        """
-        return self._metadata
-
-    @metadata.setter
-    def metadata(self, metadata: Metadata):
-        """Sets the metadata of this Asset.
-        """
-        self._metadata = metadata
+        self.id = id
+        self.data = data
+        self.metadata = metadata
 
     def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Run compute step.

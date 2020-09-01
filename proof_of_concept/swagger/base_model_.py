@@ -1,17 +1,14 @@
 """Base model for models used by swagger."""
 import pprint
-from typing import Dict, Any
+from typing import Dict, Any, Type
 
 import six
-import typing
 
 from proof_of_concept.swagger import util
 
-T = typing.TypeVar('T')
-
 
 class Model(object):
-    """"Base model for models used by swagger."""
+    """Base model for models used by swagger."""
     # swaggerTypes: The key is attribute name and the
     # value is attribute type.
     swagger_types = {}  # type: Dict[str, Any]
@@ -21,11 +18,11 @@ class Model(object):
     attribute_map = {}  # type: Dict[str, str]
 
     @classmethod
-    def from_dict(cls: typing.Type[T], dikt) -> T:
+    def from_dict(cls: Type, dikt: Dict) -> Any:
         """Returns the dict as a model."""
         return util.deserialize_model(dikt, cls)
 
-    def to_dict(self) -> typing.Dict[typing.Any, typing.Any]:
+    def to_dict(self) -> Dict[Any, Any]:
         """Returns the model properties as a dict."""
         result = {}
 
@@ -49,22 +46,22 @@ class Model(object):
 
         return result
 
-    def to_str(self):
+    def to_str(self) -> str:
         """Returns the string representation of the model."""
         return pprint.pformat(self.to_dict())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """For `print` and `pprint`."""
         return self.to_str()
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """Returns true if both objects are equal."""
         try:
             return self.__dict__ == other.__dict__
         except AttributeError:
             return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         """Returns true if both objects are not equal."""
         return not self == other
 

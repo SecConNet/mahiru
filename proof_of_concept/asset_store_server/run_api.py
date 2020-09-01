@@ -1,9 +1,9 @@
 """Run asset_store_server api."""
 import logging
 import threading
-from typing import Any, Dict
+from typing import Any
 
-import connexion
+import connexion  # type: ignore
 
 logger = logging.getLogger(__file__)
 

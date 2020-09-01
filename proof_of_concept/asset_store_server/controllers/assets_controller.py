@@ -2,7 +2,7 @@
 import json
 from typing import Any
 
-import connexion
+import connexion  # type: ignore
 from flask import abort
 
 from proof_of_concept.asset import Asset

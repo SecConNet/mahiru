@@ -209,34 +209,8 @@ class Job(Model):
             inputs: A dictionary mapping the workflow's input
                     parameters to data set ids.
         """
-        self._workflow = workflow
-        self._inputs = inputs
-
-    @property
-    def workflow(self) -> Workflow:
-        """Gets the workflow of this Job."""
-        return self._workflow
-
-    @workflow.setter
-    def workflow(self, workflow: Workflow):
-        """Sets the workflow of this Job."""
-        if workflow is None:
-            raise ValueError("Invalid value for `workflow`, must not be `None`")  # noqa: E501
-
-        self._workflow = workflow
-
-    @property
-    def inputs(self) -> Dict[str, str]:
-        """Gets the inputs of this Job."""
-        return self._inputs
-
-    @inputs.setter
-    def inputs(self, inputs: Dict[str, str]):
-        """Sets the inputs of this Job."""
-        if inputs is None:
-            raise ValueError("Invalid value for `inputs`, must not be `None`")
-
-        self._inputs = inputs
+        self.workflow = workflow
+        self.inputs = inputs
 
     def __repr__(self) -> str:
         """Returns a string representation of the object."""

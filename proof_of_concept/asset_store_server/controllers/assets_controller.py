@@ -1,16 +1,15 @@
 """Controllers for asset store server 'assets' endpoint."""
 import json
+from typing import Any
 
 import connexion
 from flask import abort
-from injector import inject
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store_server.db import db
 
 
-@inject
-def get_asset(asset_id: str, requester: str):
+def get_asset(asset_id: str, requester: str) -> Any:
     """Retrieve an asset by ID.
 
     Arguments:
@@ -25,11 +24,10 @@ def get_asset(asset_id: str, requester: str):
         return json.dumps(asset.to_dict())
 
 
-@inject
-def store_asset():
+def store_asset() -> Any:
     """Store an asset."""
     if connexion.request.is_json:
-        asset = Asset.from_dict(connexion.request.get_json())  # noqa: E501
+        asset = Asset.from_dict(connexion.request.get_json())
         db[asset.id] = asset
         return None, 201
     else:

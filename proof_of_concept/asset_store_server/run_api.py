@@ -1,14 +1,14 @@
 """Run asset_store_server api."""
 import logging
 import threading
+from typing import Any, Dict
 
 import connexion
-from flask import Flask
 
 logger = logging.getLogger(__file__)
 
 
-def create_app() -> Flask:
+def create_app() -> Any:
     """Create app.
 
     Returns:
@@ -25,7 +25,7 @@ def create_app() -> Flask:
     return app.app
 
 
-def run(port: int = 5000, **kwargs) -> None:
+def run(port: int = 5000, **kwargs: int) -> None:
     """Run asset store server.
 
     Args:
@@ -37,11 +37,13 @@ def run(port: int = 5000, **kwargs) -> None:
     app.run(port=port, **kwargs)
 
 
-def run_async(port: int = 5000):
+def run_async(port: int = 5000) -> None:
     """Run app in background thread."""
-    def _run():
+    def _run() -> None:
         run(port=port, use_reloader=False)
-    threading.Thread(target=_run).start()
+    thread = threading.Thread(target=_run)
+    thread.daemon = True
+    thread.start()
 
 
 if __name__ == "__main__":

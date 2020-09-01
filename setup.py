@@ -44,7 +44,6 @@ setup(
         'cryptography',
         'connexion',
         'Flask',
-        'Flask-Injector'
     ],
     setup_requires=[
         # dependency for `python setup.py test`

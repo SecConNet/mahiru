@@ -1,7 +1,6 @@
 connexion==2.7.0
 cryptography==3.0
 Flask==1.1.2
-Flask-Injector==0.12.3
 pytest==6.0.1
 pytest-mypy==0.6.2
 pytest-pydocstyle==2.2.0

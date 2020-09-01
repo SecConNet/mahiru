@@ -313,11 +313,6 @@ class Job(Model):
         self._workflow = workflow
         self._inputs = inputs
 
-    @classmethod
-    def from_dict(cls, dikt) -> 'Job':
-        """Returns the dict as a model."""
-        return util.deserialize_model(dikt, cls)
-
     @property
     def workflow(self) -> Workflow:
         """Gets the workflow of this Job."""

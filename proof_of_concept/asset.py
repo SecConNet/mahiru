@@ -30,11 +30,6 @@ class Metadata(Model):
         self._job = job
         self._item = item
 
-    @classmethod
-    def from_dict(cls, dikt) -> 'Metadata':
-        """Returns the dict as a model."""
-        return util.deserialize_model(dikt, cls)
-
     @property
     def job(self) -> Job:
         """Gets the job of this Metadata."""
@@ -92,11 +87,6 @@ class Asset(Model):
         self._id = id
         self._data = data
         self._metadata = metadata
-
-    @classmethod
-    def from_dict(cls, dikt) -> 'Asset':
-        """Returns the dict as a model"""
-        return util.deserialize_model(dikt, cls)
 
     # TODO: Do I need all this property and setters?
 

@@ -175,8 +175,7 @@ class Registry:
             public_key: Public key of this party.
         """
         if self._in_store(PartyDescription, 'name', name):
-            raise RuntimeError(
-                    'There is already a party called {}'.format(name))
+            raise RuntimeError(f'There is already a party called {name}')
 
         party_desc = PartyDescription(name, public_key)
         self._store.insert(party_desc)
@@ -191,12 +190,11 @@ class Registry:
 
         """
         if self._in_store(SiteDescription, 'name', name):
-            raise RuntimeError(
-                    'There is already a site called {}'.format(name))
+            raise RuntimeError(f'There is already a site called {name}')
 
         admin = self._get_object(PartyDescription, 'name', admin_name)
         if admin is None:
-            raise RuntimeError('Party {} not found'.format(admin_name))
+            raise RuntimeError(f'Party {admin_name} not found')
 
         site_desc = SiteDescription(name, admin)
         self._store.insert(site_desc)
@@ -213,11 +211,11 @@ class Registry:
         """
         if self._in_store(RunnerDescription, 'runner', runner):
             raise RuntimeError(
-                    'There is already a runner called {}'.format(runner.name))
+                    f'There is already a runner called {runner.name}')
 
         site = self._get_object(SiteDescription, 'name', site_name)
         if site is None:
-            raise RuntimeError('Site {} not found'.format(site_name))
+            raise RuntimeError(f'Site {site_name} not found')
 
         runner_desc = RunnerDescription(site, runner)
         self._store.insert(runner_desc)
@@ -230,12 +228,11 @@ class Registry:
             store: The data store to register.
         """
         if self._in_store(AssetStoreDescription, 'store', store):
-            raise RuntimeError(
-                    'There is already a store called {}'.format(store.name))
+            raise RuntimeError(f'There is already a store called {store}')
 
         site = self._get_object(SiteDescription, 'name', site_name)
         if site is None:
-            raise RuntimeError('Site {} not found'.format(site_name))
+            raise RuntimeError(f'Site {site_name} not found')
 
         store_desc = AssetStoreDescription(site, store)
         self._store.insert(store_desc)
@@ -252,16 +249,16 @@ class Registry:
             server: The data store to register.
         """
         if self._in_store(PolicyServerDescription, 'server', server):
-            raise RuntimeError('The server is already registered')
+            raise RuntimeError(f'Server {server} is already registered')
 
         site = self._get_object(SiteDescription, 'name', site_name)
         if site is None:
-            raise RuntimeError('Site {} not found'.format(site_name))
+            raise RuntimeError(f'Site {site_name} not found')
 
         namespace = self._get_object(
                 NamespaceDescription, 'name', namespace_name)
         if namespace is None:
-            raise RuntimeError('Namespace {} not found'.format(namespace_name))
+            raise RuntimeError(f'Namespace {namespace_name} not found')
 
         server_desc = PolicyServerDescription(site, namespace, server)
         self._store.insert(server_desc)

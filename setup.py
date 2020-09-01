@@ -41,12 +41,12 @@ setup(
     ],
     test_suite='tests',
     install_requires=[
-        'cryptography'
-    ],
-    setup_requires=[
+        'cryptography',
         'connexion',
         'Flask',
-        'Flask-Injector',
+        'Flask-Injector'
+    ],
+    setup_requires=[
         # dependency for `python setup.py test`
         'flask-testing',
         'pytest-runner',

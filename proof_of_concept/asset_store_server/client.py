@@ -15,6 +15,8 @@ logger = logging.getLogger(__file__)
 
 
 class AssetStoreClient(IAssetStore):
+    """Client for assets tore server."""
+
     def __init__(self, name: str, policy_evaluator: PolicyEvaluator,
                  host: str = 'http://127.0.0.1', port: int = 5000) -> None:
         """Create a new AssetStoreClient."""
@@ -55,10 +57,11 @@ class AssetStoreClient(IAssetStore):
         Return:
             The asset object with asset_id.
 
-        TODO: We now solve permissions on the client side, which of course
-            defeats the purpose of having a REST asset store server. We
-            should probably also RESTify the policy evaluator and call that
-            from within the asset store server.
+        TODO: We now solve permissions on the client side, which of
+            course defeats the purpose of having a REST asset store
+            server. We should probably also RESTify the policy
+            evaluator and call that from within the asset
+            store server.
         """
         logger.info(f'{self}: servicing request from {requester} for data: '
                     f'{asset_id}')

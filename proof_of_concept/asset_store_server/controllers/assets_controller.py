@@ -1,3 +1,4 @@
+"""Controllers for asset store server 'assets' endpoint."""
 import json
 
 import connexion

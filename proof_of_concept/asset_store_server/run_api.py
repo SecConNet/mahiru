@@ -13,9 +13,9 @@ logger = logging.getLogger(__file__)
 
 def _configure_dependency_injection(flask_app: Flask, store: AssetStore
                                     ) -> None:
-    """
-    Configure dependency injection (https://levelup.gitconnected.com/
-    python-dependency-injection-with-flask-injector-50773d451a32).
+    """Configure dependency injection.
+    (https://levelup.gitconnected.com/ \
+    python-dependency-injection-with-flask-injector-50773d451a32)
 
     Args:
         flask_app: The flask app
@@ -31,8 +31,7 @@ def _configure_dependency_injection(flask_app: Flask, store: AssetStore
 
 
 def create_app(store: AssetStore) -> Flask:
-    """
-    Create app
+    """Create app.
 
     Args:
         store: The assetstore where we store assets
@@ -41,7 +40,9 @@ def create_app(store: AssetStore) -> Flask:
         flask app
 
     """
-    app = connexion.FlaskApp(__name__, specification_dir='openapi/', debug=True)
+    app = connexion.FlaskApp(__name__,
+                             specification_dir='openapi/',
+                             debug=True)
     app.add_api('openapi.yml',
                 options={"swagger_ui": True},
                 arguments={'title': 'Proof of concept Asset store'}
@@ -52,8 +53,7 @@ def create_app(store: AssetStore) -> Flask:
 
 
 def run(port: int = 5000, **kwargs) -> None:
-    """
-    Run asset store server.
+    """Run asset store server.
 
     Args:
         port: Port to run on
@@ -74,4 +74,3 @@ def run_async(port: int = 5000):
 
 if __name__ == "__main__":
     run(debug=True)
-

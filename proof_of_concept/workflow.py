@@ -64,6 +64,7 @@ class WorkflowStep(Model):
 
 
 class Workflow(Model):
+    """Defines a workflow."""
     swagger_types = {
         'inputs': List[str],
         'outputs': Dict[str, str],
@@ -75,7 +76,7 @@ class Workflow(Model):
         'outputs': 'outputs',
         'steps': 'steps'
     }
-    """Defines a workflow."""
+
     def __init__(
             self, inputs: List[str], outputs: Dict[str, str],
             steps: List[WorkflowStep]) -> None:
@@ -96,6 +97,7 @@ class Workflow(Model):
 
     @property
     def steps_dict(self) -> Dict[str, WorkflowStep]:
+        """Return steps as a dictionary keyed by step name."""
         steps_dict = dict()  # type: Dict[str, WorkflowStep]
         for step in self.steps:
             steps_dict[step.name] = step
@@ -126,7 +128,7 @@ class Workflow(Model):
         # every step input must match a workflow input or a step output
         # every output must match a workflow input or a step output
 
-        all_names = self.inputs + list(self.steps) + list(self.outputs)
+        all_names = self.inputs + list(self.steps_dict) + list(self.outputs)
         for i, name1 in enumerate(all_names):
             for j, name2 in enumerate(all_names):
                 if i != j and name1 == name2:
@@ -200,8 +202,7 @@ class Job(Model):
         'inputs': 'inputs'
     }
 
-    def __init__(self, workflow: Workflow = None,
-                 inputs: Dict[str, str] = None) -> None:
+    def __init__(self, workflow: Workflow, inputs: Dict[str, str]) -> None:
         """Create a job.
 
         Args:

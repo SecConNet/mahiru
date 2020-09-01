@@ -6,8 +6,7 @@ from proof_of_concept.workflow import Job
 
 
 class Metadata(Model):
-    """Stores metadata for stored assets.
-    """
+    """Stores metadata for stored assets."""
     swagger_types = {
         'job': Job,
         'item': str
@@ -52,8 +51,8 @@ class Asset(Model):
             id: Name of the asset
             data: Data related to the asset
             metadata: Metadata related to the asset. If no metadata is
-                passed, metadata is set to a niljob, indicating that this is
-                an asset that is not the product of some workflow.
+                passed, metadata is set to a niljob, indicating that this
+                is an asset that is not the product of some workflow.
         """
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')

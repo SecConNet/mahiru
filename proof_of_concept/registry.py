@@ -160,10 +160,10 @@ class Registry:
         """Create a new registry."""
         self._asset_locations = dict()           # type: Dict[str, str]
 
-        self._archive = ReplicableArchive[RegisteredObject]()
-        self._store = CanonicalStore[RegisteredObject](self._archive)
+        archive = ReplicableArchive[RegisteredObject]()
+        self._store = CanonicalStore[RegisteredObject](archive)
         self.replication_server = ReplicationServer[RegisteredObject](
-                self._archive, 1.0)
+                archive, 1.0)
 
     def register_party(
             self, name: str, namespace: str, public_key: RSAPublicKey) -> None:

@@ -1,7 +1,6 @@
 """Classes for describing assets."""
 from typing import Any, Dict, Optional
 
-from proof_of_concept.swagger import util
 from proof_of_concept.swagger.base_model_ import Model
 from proof_of_concept.workflow import Job
 
@@ -20,9 +19,9 @@ class Metadata(Model):
     }
 
     def __init__(self, job: Job, item: str):
-        """Metadata.
+        """Create a metadata object.
 
-        Attributes:
+        Args:
             job (Job): A minimal job that will generate this asset.
             item (str): The item in the job's workflow corresponding to
                     this asset.

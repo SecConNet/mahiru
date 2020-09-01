@@ -158,7 +158,7 @@ class Registry:
     """
     def __init__(self) -> None:
         """Create a new registry."""
-        self._assets = dict()           # type: Dict[str, str]
+        self._asset_locations = dict()           # type: Dict[str, str]
 
         self._archive = ReplicableArchive[RegisteredObject]()
         self._store = CanonicalStore[RegisteredObject](self._archive)
@@ -270,9 +270,9 @@ class Registry:
             asset_id: The id of the asset to register.
             store_name: Name of the store where it can be found.
         """
-        if asset_id in self._assets:
+        if asset_id in self._asset_locations:
             raise RuntimeError('There is already an asset with this name')
-        self._assets[asset_id] = store_name
+        self._asset_locations[asset_id] = store_name
 
     def get_asset_location(self, asset_id: str) -> str:
         """Returns the name of the store this asset is in.
@@ -286,7 +286,7 @@ class Registry:
         Raises:
             KeyError: If no asset with the given id is registered.
         """
-        return self._assets[asset_id]
+        return self._asset_locations[asset_id]
 
     def _get_object(
             self, typ: Type[_ReplicatedClass], attr_name: str, value: Any

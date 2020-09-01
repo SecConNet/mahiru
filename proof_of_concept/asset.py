@@ -9,6 +9,16 @@ from proof_of_concept.workflow import Job
 class Metadata(Model):
     """Stores metadata for stored assets.
     """
+    swagger_types = {
+        'job': Job,
+        'item': str
+    }
+
+    attribute_map = {
+        'job': 'job',
+        'item': 'item'
+    }
+
     def __init__(self, job: Job = None, item: str = None):  # noqa: E501
         """Metadata.
 
@@ -17,15 +27,6 @@ class Metadata(Model):
             item (str): The item in the job's workflow corresponding to
                     this asset.
         """
-        self.swagger_types = {
-            'job': Job,
-            'item': str
-        }
-
-        self.attribute_map = {
-            'job': 'job',
-            'item': 'item'
-        }
         self._job = job
         self._item = item
 
@@ -63,6 +64,17 @@ class Metadata(Model):
 
 class Asset(Model):
     """A representation of a computation or piece of data."""
+    swagger_types = {
+        'id': str,
+        'data': object,
+        'metadata': Metadata
+    }
+
+    attribute_map = {
+        'id': 'id',
+        'data': 'data',
+        'metadata': 'metadata'
+    }
 
     def __init__(self, id: str = None,
                  data: object = None, metadata: Optional[Metadata] = None):
@@ -75,17 +87,6 @@ class Asset(Model):
                 passed, metadata is set to a niljob, indicating that this is
                 an asset that is not the product of some workflow.
         """
-        self.swagger_types = {
-            'id': str,
-            'data': object,
-            'metadata': Metadata
-        }
-
-        self.attribute_map = {
-            'id': 'id',
-            'data': 'data',
-            'metadata': 'metadata'
-        }
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
         self._id = id

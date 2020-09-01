@@ -60,7 +60,10 @@ class Model(object):
 
     def __eq__(self, other):
         """Returns true if both objects are equal"""
-        return self.__dict__ == other.__dict__
+        try:
+            return self.__dict__ == other.__dict__
+        except AttributeError:
+            return False
 
     def __ne__(self, other):
         """Returns true if both objects are not equal"""

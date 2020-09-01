@@ -8,6 +8,20 @@ from proof_of_concept.swagger.base_model_ import Model
 
 class WorkflowStep(Model):
     """Defines a workflow step."""
+    swagger_types = {
+        'name': str,
+        'inputs': Dict[str, str],
+        'outputs': List[str],
+        'compute_asset_id': str
+    }
+
+    attribute_map = {
+        'name': 'name',
+        'inputs': 'inputs',
+        'outputs': 'outputs',
+        'compute_asset_id': 'compute_asset_id'
+    }
+
     def __init__(
             self, name: str = None,
             inputs: Dict[str, str] = None, outputs: List[str] = None,
@@ -22,28 +36,13 @@ class WorkflowStep(Model):
                     or of the form other_step.output_name.
             outputs: List of names of outputs produced.
             compute_asset_id: The id of the compute asset to use.
-        """
-        self.swagger_types = {
-            'name': str,
-            'inputs': Dict[str, str],
-            'outputs': List[str],
-            'compute_asset_id': str
-        }
 
-        self.attribute_map = {
-            'name': 'name',
-            'inputs': 'inputs',
-            'outputs': 'outputs',
-            'compute_asset_id': 'compute_asset_id'
-        }
+        """
         self._name = name
         self._inputs = inputs
         self._outputs = outputs
         self._compute_asset_id = compute_asset_id
-        # TODO: Validation now breaks when a class is constructed using the
-        #  from_dict method. Because there we call __init__ without arguments
-        #  and set the attributes after _validate was called. Fix this.
-        # self._validate()
+        self._validate()
 
     @property
     def name(self) -> str:
@@ -124,6 +123,17 @@ class WorkflowStep(Model):
 
 
 class Workflow(Model):
+    swagger_types = {
+        'inputs': List[str],
+        'outputs': Dict[str, str],
+        'steps': List[WorkflowStep]
+    }
+
+    attribute_map = {
+        'inputs': 'inputs',
+        'outputs': 'outputs',
+        'steps': 'steps'
+    }
     """Defines a workflow."""
     def __init__(
             self, inputs: List[str] = None, outputs: Dict[str, str] = None,
@@ -137,25 +147,12 @@ class Workflow(Model):
                     corresponding step outputs of the form step.output.
             steps: Dict of steps comprising this workflow, indexed by
                     step name.
-        """
-        self.swagger_types = {
-            'inputs': List[str],
-            'outputs': Dict[str, str],
-            'steps': List[WorkflowStep]
-        }
 
-        self.attribute_map = {
-            'inputs': 'inputs',
-            'outputs': 'outputs',
-            'steps': 'steps'
-        }
+        """
         self._inputs = inputs
         self._outputs = outputs
         self._steps = steps
-        # TODO: Validation now breaks when a class is constructed using the
-        #  from_dict method. Because there we call __init__ without arguments
-        #  and set the attributes after _validate was called. Fix this.
-        # self._validate()
+        self._validate()
 
     @property
     def steps_dict(self) -> Dict[str, WorkflowStep]:
@@ -294,6 +291,16 @@ class Workflow(Model):
 
 class Job(Model):
     """Represents a job to the system from a user."""
+    swagger_types = {
+        'workflow': Workflow,
+        'inputs': Dict[str, str]
+    }
+
+    attribute_map = {
+        'workflow': 'workflow',
+        'inputs': 'inputs'
+    }
+
     def __init__(self, workflow: Workflow = None,
                  inputs: Dict[str, str] = None) -> None:
         """Create a job.
@@ -303,15 +310,6 @@ class Job(Model):
             inputs: A dictionary mapping the workflow's input
                     parameters to data set ids.
         """
-        self.swagger_types = {
-            'workflow': Workflow,
-            'inputs': Dict[str, str]
-        }
-
-        self.attribute_map = {
-            'workflow': 'workflow',
-            'inputs': 'inputs'
-        }
         self._workflow = workflow
         self._inputs = inputs
 

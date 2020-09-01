@@ -6,20 +6,19 @@ from flask import abort
 from injector import inject
 
 from proof_of_concept.asset import Asset
-from proof_of_concept.asset_store_server.store import AssetStore
+from proof_of_concept.asset_store_server.db import db
 
 
 @inject
-def get_asset(store: AssetStore, asset_id: str, requester: str):
+def get_asset(asset_id: str, requester: str):
     """Retrieve an asset by ID.
 
     Arguments:
-        store: Asset store
         asset_id: The id of the asset to retrieve
         requester: The id of the requester
     """
     try:
-        asset = store.retrieve(asset_id, requester)
+        asset = db[asset_id]
     except KeyError:
         abort(404, 'Asset not found')
     else:
@@ -27,11 +26,11 @@ def get_asset(store: AssetStore, asset_id: str, requester: str):
 
 
 @inject
-def store_asset(store: AssetStore):
+def store_asset():
     """Store an asset."""
     if connexion.request.is_json:
         asset = Asset.from_dict(connexion.request.get_json())  # noqa: E501
-        store.store(asset)
+        db[asset.id] = asset
         return None, 201
     else:
         abort(400, 'Please pass json')

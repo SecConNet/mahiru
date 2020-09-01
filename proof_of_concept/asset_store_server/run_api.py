@@ -4,37 +4,12 @@ import threading
 
 import connexion
 from flask import Flask
-from flask_injector import FlaskInjector
-
-from proof_of_concept.asset_store_server.store import AssetStore
 
 logger = logging.getLogger(__file__)
 
 
-def _configure_dependency_injection(flask_app: Flask, store: AssetStore
-                                    ) -> None:
-    """Configure dependency injection.
-    (https://levelup.gitconnected.com/ \
-    python-dependency-injection-with-flask-injector-50773d451a32)
-
-    Args:
-        flask_app: The flask app
-        store: asset store object to be injected
-
-    """
-    def configure(binder):
-        binder.bind(AssetStore, to=store)
-    FlaskInjector(
-        app=flask_app,
-        modules=[configure],
-    )
-
-
-def create_app(store: AssetStore) -> Flask:
+def create_app() -> Flask:
     """Create app.
-
-    Args:
-        store: The assetstore where we store assets
 
     Returns:
         flask app
@@ -47,8 +22,6 @@ def create_app(store: AssetStore) -> Flask:
                 options={"swagger_ui": True},
                 arguments={'title': 'Proof of concept Asset store'}
                 )
-    _configure_dependency_injection(app.app, store)
-
     return app.app
 
 
@@ -60,8 +33,7 @@ def run(port: int = 5000, **kwargs) -> None:
         **kwargs: kwargs for app.run
 
     """
-    store = AssetStore('asset_store')
-    app = create_app(store)
+    app = create_app()
     app.run(port=port, **kwargs)
 
 

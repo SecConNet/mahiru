@@ -130,7 +130,7 @@ class PermissionCalculator:
 
         steps_done = set()  # type: Set[str]
         while len(steps_done) < len(job.workflow.steps):
-            for step in job.workflow.steps.values():
+            for step in job.workflow.steps:
                 if step.name not in steps_done:
                     try:
                         prop_input_sources(permissions, step)

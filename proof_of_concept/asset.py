@@ -123,9 +123,6 @@ class Asset(Model):
     def data(self, data: object):
         """Sets the data of this Asset.
         """
-        if data is None:
-            raise ValueError("Invalid value for `data`, must not be `None`")  # noqa: E501
-
         self._data = data
 
     @property

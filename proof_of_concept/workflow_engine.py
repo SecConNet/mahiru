@@ -112,18 +112,18 @@ class WorkflowPlanner:
         """
         # find dependencies for each step
         deps = dict()       # type: Dict[WorkflowStep, List[WorkflowStep]]
-        for step in workflow.steps.values():
+        for step in workflow.steps:
             step_deps = list()   # type: List[WorkflowStep]
             for name, ref in step.inputs.items():
                 if '.' in ref:
                     dep_name = ref.split('.')[0]
-                    step_deps.append(workflow.steps[dep_name])
+                    step_deps.append(workflow.steps_dict[dep_name])
             deps[step] = step_deps
 
         # sort based on dependencies
         result = list()     # type: List[WorkflowStep]
         while len(result) < len(workflow.steps):
-            for step in workflow.steps.values():
+            for step in workflow.steps:
                 if step in result:
                     continue
                 if all([dep in result for dep in deps[step]]):
@@ -168,7 +168,7 @@ class WorkflowExecutor:
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
                     src_runner_name = plan.step_runners[
-                            wf.steps[src_step_name]]
+                            wf.steps_dict[src_step_name]]
                     src_store = self._ddm_client.get_target_store(
                             src_runner_name)
                     outp_key = keys[wf_outp_name]

@@ -5,7 +5,7 @@ from flask import abort
 from injector import inject
 
 from proof_of_concept.asset import Asset
-from proof_of_concept.asset_store import AssetStore
+from proof_of_concept.asset_store_server.store import AssetStore
 
 
 @inject

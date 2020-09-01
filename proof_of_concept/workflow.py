@@ -45,11 +45,6 @@ class WorkflowStep(Model):
         #  and set the attributes after _validate was called. Fix this.
         # self._validate()
 
-    @classmethod
-    def from_dict(cls, dikt) -> 'WorkflowStep':
-        """Returns the dict as a model."""
-        return util.deserialize_model(dikt, cls)
-
     @property
     def name(self) -> str:
         """Gets the name of this WorkflowStep."""
@@ -162,10 +157,12 @@ class Workflow(Model):
         #  and set the attributes after _validate was called. Fix this.
         # self._validate()
 
-    @classmethod
-    def from_dict(cls, dikt) -> 'Workflow':
-        """Returns the dict as a model."""
-        return util.deserialize_model(dikt, cls)
+    @property
+    def steps_dict(self) -> Dict[str, WorkflowStep]:
+        steps_dict = dict()  # type: Dict[str, WorkflowStep]
+        for step in self.steps:
+            steps_dict[step.name] = step
+        return steps_dict
 
     @property
     def inputs(self) -> List[str]:
@@ -196,7 +193,7 @@ class Workflow(Model):
         self._outputs = outputs
 
     @property
-    def steps(self) -> Dict[str, WorkflowStep]:
+    def steps(self) -> List[WorkflowStep]:
         """Gets the steps of this Workflow. """
         return self._steps
 
@@ -206,16 +203,12 @@ class Workflow(Model):
         if steps is None:
             raise ValueError(
                 "Invalid value for `steps`, must not be `None`")
-        steps_dict = dict()  # type: Dict[str, WorkflowStep]
-
-        for step in steps:
-            steps_dict[step.name] = step
-        self._steps = steps_dict
+        self._steps = steps
 
     def __str__(self) -> str:
         """Returns a string representation of the object."""
         steps = ''
-        for step in self.steps.values():
+        for step in self.steps:
             steps += '    {}\n'.format(step)
         return 'Workflow({} -> {}:\n{})'.format(
             self.inputs, self.outputs, steps)
@@ -279,7 +272,7 @@ class Workflow(Model):
                 for inp in step.inputs.values():
                     if '.' in inp:
                         pred_name = inp.split('.')[0]
-                        pred = self.steps[pred_name]
+                        pred = self.steps_dict[pred_name]
                         if pred not in steps_done:
                             preds.add(pred)
                     else:
@@ -434,7 +427,7 @@ class Job(Model):
 
         steps_done = set()      # type: Set[str]
         while len(steps_done) < len(self.workflow.steps):
-            for step in self.workflow.steps.values():
+            for step in self.workflow.steps:
                 if step.name not in steps_done:
                     try:
                         prop_input_sources(item_keys, step)

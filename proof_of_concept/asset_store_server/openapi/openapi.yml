@@ -23,7 +23,6 @@ paths:
         '201':
           description: Null response
 
-  /assets/{asset_id}:
     get:
       summary: Retrieve an asset by ID
       operationId: proof_of_concept.asset_store_server.controllers.assets_controller.get_asset
@@ -31,7 +30,7 @@ paths:
         - assets
       parameters:
         - name: asset_id
-          in: path
+          in: query
           required: true
           description: "The id of the asset to retrieve"
           example: "1"
@@ -59,7 +58,6 @@ components:
       type: object
       required:
         - id
-        - data
       properties:
         id:
           description: "ID of the asset"

@@ -4,8 +4,8 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
-from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
-from proof_of_concept.asset_store import AssetStore
+from proof_of_concept.asset import Metadata, Asset
+from proof_of_concept.asset_store_server import AssetStoreClient
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.definitions import ILocalWorkflowRunner, Plan
 from proof_of_concept.permission_calculator import PermissionCalculator
@@ -24,7 +24,7 @@ class JobRun(Thread):
             self, policy_evaluator: PolicyEvaluator,
             this_runner: str, administrator: str,
             job: Job, plan: Plan,
-            target_store: AssetStore
+            target_store: AssetStoreClient
             ) -> None:
         """Creates a JobRun object.
 
@@ -71,7 +71,7 @@ class JobRun(Thread):
         keys = self._job.keys()
 
         steps_to_do = {
-                step for step in self._workflow.steps.values()
+                step for step in self._workflow.steps
                 if self._runners[step.name] == self._this_runner}
 
         while len(steps_to_do) > 0:
@@ -91,9 +91,9 @@ class JobRun(Thread):
                         result_item = '{}.{}'.format(step.name, output_name)
                         result_key = keys[result_item]
                         metadata = Metadata(step_subjob, result_item)
-                        asset = DataAsset(id=result_key,
-                                          data=output_value,
-                                          metadata=metadata)
+                        asset = Asset(id=result_key,
+                                      data=output_value,
+                                      metadata=metadata)
                         self._target_store.store(asset)
 
                     steps_to_do.remove(step)
@@ -109,7 +109,7 @@ class JobRun(Thread):
         is a legal job as far as we are concerned.
         """
         perms = self._permission_calculator.calculate_permissions(self._job)
-        for step in self._workflow.steps.values():
+        for step in self._workflow.steps:
             if self._runners[step.name] == self._this_runner:
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
@@ -183,12 +183,10 @@ class JobRun(Thread):
 
         return step_input_data
 
-    def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
+    def _retrieve_compute_asset(self, compute_asset_id: str) -> Asset:
         store_id = self._ddm_client.get_asset_location(compute_asset_id)
         asset = self._ddm_client.retrieve_asset(store_id=store_id,
                                                 asset_id=compute_asset_id)
-        if not isinstance(asset, ComputeAsset):
-            raise TypeError('Expecting a compute asset in workflow')
         return asset
 
     def _source(
@@ -223,7 +221,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
     def __init__(
             self, name: str, administrator: str,
             policy_evaluator: PolicyEvaluator,
-            target_store: AssetStore) -> None:
+            target_store: AssetStoreClient) -> None:
         """Creates a LocalWorkflowRunner.
 
         Args:

@@ -6,7 +6,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from proof_of_concept.asset import Asset
-from proof_of_concept.asset_store import AssetStore
+from proof_of_concept.asset_store_server import AssetStoreClient
 from proof_of_concept.ddm_client import DDMClient
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
@@ -24,7 +24,8 @@ class Site:
     def __init__(
             self, name: str, administrator: str,
             namespace: str, stored_data: List[Asset],
-            rules: List[Rule]) -> None:
+            rules: List[Rule],
+            asset_store_port: int) -> None:
         """Create a Site.
 
         Also registers its runner and store in the global registry.
@@ -35,7 +36,7 @@ class Site:
             namespace: Namespace used by this site.
             stored_data: Data sets stored at this site.
             rules: A policy to adhere to.
-
+            asset_store_port: Port of asset store server for this site
         """
         # Metadata
         self.name = name
@@ -70,7 +71,9 @@ class Site:
         self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side
-        self.store = AssetStore(name + '-store', self._policy_evaluator)
+        self.store = AssetStoreClient(name=name + '-store',
+                                      policy_evaluator=self._policy_evaluator,
+                                      port=asset_store_port)
         self._ddm_client.register_store(administrator, self.store)
         for asset in stored_data:
             self.store.store(asset)

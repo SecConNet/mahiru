@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock
 
-from proof_of_concept.asset import ComputeAsset
 from proof_of_concept.policy import (
-        MayAccess, PolicyEvaluator, ResultOfDataIn, ResultOfComputeIn)
+    MayAccess, PolicyEvaluator, ResultOfDataIn, ResultOfComputeIn)
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 from proof_of_concept.workflow_engine import WorkflowPlanner
 
@@ -60,8 +59,8 @@ def test_wf_output_checks():
     plans = planner.make_plans('p2', job)
     assert len(plans) == 1
     assert plans[0].input_stores['id:p1/dataset/d1'] == 's1-store'
-    assert plans[0].step_runners[workflow.steps['anonymise']] == 's1'
-    assert plans[0].step_runners[workflow.steps['aggregate']] == 's1'
+    assert plans[0].step_runners[workflow.steps_dict['anonymise']] == 's1'
+    assert plans[0].step_runners[workflow.steps_dict['aggregate']] == 's1'
 
     # test output from intermediate step
     workflow.outputs['y'] = 'anonymise.y'

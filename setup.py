@@ -46,7 +46,7 @@ setup(
     setup_requires=[
         'connexion',
         'Flask',
-        ''
+        'Flask-Injector',
         # dependency for `python setup.py test`
         'flask-testing',
         'pytest-runner',

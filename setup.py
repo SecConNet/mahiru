@@ -44,6 +44,9 @@ setup(
         'cryptography'
     ],
     setup_requires=[
+        'connexion',
+        'Flask',
+        ''
         # dependency for `python setup.py test`
         'flask-testing',
         'pytest-runner',

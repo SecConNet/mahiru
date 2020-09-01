@@ -229,11 +229,9 @@ class Registry:
             site_name: The site this store is located at.
             store: The data store to register.
         """
-        for o in self._store.objects():
-            if isinstance(o, AssetStoreDescription) and o.store == store:
-                raise RuntimeError(
-                        'There is already a store called {}'.format(
-                            store.name))
+        if self._in_store(AssetStoreDescription, 'store', store):
+            raise RuntimeError(
+                    'There is already a store called {}'.format(store.name))
 
         site = self._get_object(SiteDescription, 'name', site_name)
         if site is None:

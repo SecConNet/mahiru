@@ -1,5 +1,5 @@
 """Central registry of remote-accessible things."""
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
@@ -122,6 +122,9 @@ class AssetStoreDescription(RegisteredObject):
         self.store = store
 
 
+_ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
+
+
 class PolicyServerDescription(RegisteredObject):
     """Describes a policy server to the rest of the DDM.
 
@@ -171,10 +174,9 @@ class Registry:
             namespace: ID namespace owned by this party.
             public_key: Public key of this party.
         """
-        for i in self._store.objects():
-            if isinstance(i, PartyDescription) and i.name == name:
-                raise RuntimeError('There is already a party called {}'.format(
-                    name))
+        if self._in_store(PartyDescription, 'name', name):
+            raise RuntimeError(
+                    'There is already a party called {}'.format(name))
 
         party_desc = PartyDescription(name, public_key)
         self._store.insert(party_desc)
@@ -188,16 +190,12 @@ class Registry:
             admin_name: Party administrating this site.
 
         """
-        for o in self._store.objects():
-            if isinstance(o, SiteDescription) and o.name == name:
-                raise RuntimeError('There is already a site called {}'.format(
-                    name))
+        if self._in_store(SiteDescription, 'name', name):
+            raise RuntimeError(
+                    'There is already a site called {}'.format(name))
 
-        for o in self._store.objects():
-            if isinstance(o, PartyDescription) and o.name == admin_name:
-                admin = o
-                break
-        else:
+        admin = self._get_object(PartyDescription, 'name', admin_name)
+        if admin is None:
             raise RuntimeError('Party {} not found'.format(admin_name))
 
         site_desc = SiteDescription(name, admin)
@@ -213,13 +211,14 @@ class Registry:
             admin: The party administrating this runner.
             runner: The runner to register.
         """
-        for i in self._store.objects():
-            if isinstance(i, RunnerDescription) and i.runner == runner:
-                raise RuntimeError(
-                        'There is already a runner called {}'.format(
-                            runner.name))
+        if self._in_store(RunnerDescription, 'runner', runner):
+            raise RuntimeError(
+                    'There is already a runner called {}'.format(runner.name))
 
-        site = self._get_site(site_name)
+        site = self._get_object(SiteDescription, 'name', site_name)
+        if site is None:
+            raise RuntimeError('Site {} not found'.format(site_name))
+
         runner_desc = RunnerDescription(site, runner)
         self._store.insert(runner_desc)
 
@@ -236,7 +235,10 @@ class Registry:
                         'There is already a store called {}'.format(
                             store.name))
 
-        site = self._get_site(site_name)
+        site = self._get_object(SiteDescription, 'name', site_name)
+        if site is None:
+            raise RuntimeError('Site {} not found'.format(site_name))
+
         store_desc = AssetStoreDescription(site, store)
         self._store.insert(store_desc)
 
@@ -251,18 +253,16 @@ class Registry:
                     for.
             server: The data store to register.
         """
-        for o in self._store.objects():
-            if isinstance(o, PolicyServerDescription) and o.server == server:
-                raise RuntimeError('The server is already registered')
+        if self._in_store(PolicyServerDescription, 'server', server):
+            raise RuntimeError('The server is already registered')
 
-        site = self._get_site(site_name)
+        site = self._get_object(SiteDescription, 'name', site_name)
+        if site is None:
+            raise RuntimeError('Site {} not found'.format(site_name))
 
-        for o in self._store.objects():
-            if isinstance(o, NamespaceDescription):
-                if o.name == namespace_name:
-                    namespace = o
-                    break
-        else:
+        namespace = self._get_object(
+                NamespaceDescription, 'name', namespace_name)
+        if namespace is None:
             raise RuntimeError('Namespace {} not found'.format(namespace_name))
 
         server_desc = PolicyServerDescription(site, namespace, server)
@@ -293,13 +293,59 @@ class Registry:
         """
         return self._assets[asset_id]
 
-    def _get_site(self, site_name: str) -> SiteDescription:
-        """Returns the site of the given name, if registered."""
+    def _get_object(
+            self, typ: Type[_ReplicatedClass], attr_name: str, value: Any
+            ) -> Optional[_ReplicatedClass]:
+        """Returns an object from the store.
+
+        Searches the store for an object of type `typ` that has value
+        `value` for its attribute named `attr_name`. If there are
+        multiple such objects, one is returned at random.
+
+        Args:
+            typ: Type of object to consider, subclass of
+                RegisteredObject.
+            attr_name: Name of the attribute on that object to check.
+            value: Value that the attribute must have.
+
+        Returns:
+            The object, if found, or None if no object was found.
+
+        Raises:
+            AttributeError if an object of type `typ` is encountered
+                in the store which does not have an attribute named
+                `attr_name`.
+        """
         for o in self._store.objects():
-            if isinstance(o, SiteDescription) and o.name == site_name:
-                return o
-        else:
-            raise RuntimeError('Site {} not found'.format(site_name))
+            if isinstance(o, typ):
+                if getattr(o, attr_name) == value:
+                    return o
+        return None
+
+    def _in_store(
+            self, typ: Type[_ReplicatedClass], attr_name: str, value: Any
+            ) -> bool:
+        """Returns True iff a matching object is in the store.
+
+        Searches the store for an object of type `typ` that has value
+        `value` for its attribute named `attr_name`, and returns True
+        if there is at least one of those in the store.
+
+        Args:
+            typ: Type of object to consider, subclass of
+                RegisteredObject.
+            attr_name: Name of the attribute on that object to check.
+            value: Value that the attribute must have.
+
+        Returns:
+            True if a matching object was found, False otherwise.
+
+        Raises:
+            AttributeError if an object of type `typ` is encountered
+                in the store which does not have an attribute named
+                `attr_name`.
+        """
+        return self._get_object(typ, attr_name, value) is not None
 
 
 global_registry = Registry()

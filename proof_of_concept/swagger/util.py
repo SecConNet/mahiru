@@ -1,16 +1,18 @@
 import datetime
+from typing import Union, List, Dict, Any, ClassVar, GenericMeta
 
 import six
-import typing
 
 
-def _deserialize(data, klass):
+def _deserialize(data: Union[Dict, List, str], klass: ClassVar):
     """Deserializes dict, list, str into an object.
 
-    :param data: dict, list or str.
-    :param klass: class literal, or string of class name.
+    Args:
+        data: dict, list or str.
+        klass: class literal, or string of class name.
 
-    :return: object.
+    Returns:
+        The object
     """
     if data is None:
         return None
@@ -23,7 +25,7 @@ def _deserialize(data, klass):
         return deserialize_date(data)
     elif klass == datetime.datetime:
         return deserialize_datetime(data)
-    elif type(klass) == typing.GenericMeta:
+    elif type(klass) == GenericMeta:
         if klass.__extra__ == list:
             return _deserialize_list(data, klass.__args__[0])
         if klass.__extra__ == dict:
@@ -32,14 +34,16 @@ def _deserialize(data, klass):
         return deserialize_model(data, klass)
 
 
-def _deserialize_primitive(data, klass):
+def _deserialize_primitive(data: Any, klass: ClassVar
+                           ) -> Union[int, float, str, bool]:
     """Deserializes to primitive type.
 
-    :param data: data to deserialize.
-    :param klass: class literal.
+    Args:
+        data: data to deserialize.
+        klass: class literal.
 
-    :return: int, long, float, str, bool.
-    :rtype: int | long | float | str | bool
+    Returns:
+        deserialized primitive
     """
     try:
         value = klass(data)
@@ -50,22 +54,13 @@ def _deserialize_primitive(data, klass):
     return value
 
 
-def _deserialize_object(value):
-    """Return a original value.
-
-    :return: object.
-    """
+def _deserialize_object(value: Any) -> Any:
+    """Return a original value."""
     return value
 
 
-def deserialize_date(string):
-    """Deserializes string to date.
-
-    :param string: str.
-    :type string: str
-    :return: date.
-    :rtype: date
-    """
+def deserialize_date(string: str):
+    """Deserializes string to date."""
     try:
         from dateutil.parser import parse
         return parse(string).date()
@@ -73,16 +68,8 @@ def deserialize_date(string):
         return string
 
 
-def deserialize_datetime(string):
-    """Deserializes string to datetime.
-
-    The string should be in iso8601 datetime format.
-
-    :param string: str.
-    :type string: str
-    :return: datetime.
-    :rtype: datetime
-    """
+def deserialize_datetime(string: str):
+    """Deserializes string to datetime."""
     try:
         from dateutil.parser import parse
         return parse(string)
@@ -90,14 +77,8 @@ def deserialize_datetime(string):
         return string
 
 
-def deserialize_model(data, klass):
-    """Deserializes list or dict to model.
-
-    :param data: dict, list.
-    :type data: dict | list
-    :param klass: class literal.
-    :return: model object.
-    """
+def deserialize_model(data: Union[Dict, List], klass: ClassVar):
+    """Deserializes list or dict to model."""
     instance = klass()
 
     if not instance.swagger_types:
@@ -113,29 +94,13 @@ def deserialize_model(data, klass):
     return instance
 
 
-def _deserialize_list(data, boxed_type):
-    """Deserializes a list and its elements.
-
-    :param data: list to deserialize.
-    :type data: list
-    :param boxed_type: class literal.
-
-    :return: deserialized list.
-    :rtype: list
-    """
+def _deserialize_list(data: List, boxed_type: ClassVar) -> List:
+    """Deserializes a list and its elements."""
     return [_deserialize(sub_data, boxed_type)
             for sub_data in data]
 
 
-def _deserialize_dict(data, boxed_type):
-    """Deserializes a dict and its elements.
-
-    :param data: dict to deserialize.
-    :type data: dict
-    :param boxed_type: class literal.
-
-    :return: deserialized dict.
-    :rtype: dict
-    """
+def _deserialize_dict(data: Dict, boxed_type: ClassVar) -> Dict:
+    """Deserializes a dict and its elements."""
     return {k: _deserialize(v, boxed_type)
             for k, v in six.iteritems(data)}

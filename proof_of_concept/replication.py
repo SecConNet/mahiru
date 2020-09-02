@@ -65,7 +65,7 @@ class CanonicalStore(Generic[T]):
     """Stores Replicables and can be replicated."""
 
     def __init__(self, archive: ReplicableArchive) -> None:
-        """Create a ReplicatedStore."""
+        """Create a CanonicalStore."""
         self._archive = archive
 
     def objects(self) -> Iterable[T]:
@@ -166,7 +166,7 @@ class ReplicationServer(IReplicationServer[T]):
 
         Args:
             archive: An archive to serve updates from.
-            max_lag: Maximum time replicas may be out of date.
+            max_lag: Maximum time (s) replicas may be out of date.
         """
         self._archive = archive
         self._max_lag = max_lag

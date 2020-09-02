@@ -1,10 +1,152 @@
 """Central registry of remote-accessible things."""
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer)
+from proof_of_concept.replication import (
+        CanonicalStore, ReplicableArchive, ReplicationServer)
+
+
+class RegisteredObject:
+    """A parent class for DDM-wide metadata classes.
+
+    This is here mainly because it's required for the replication
+    system.
+
+    """
+    pass
+
+
+class PartyDescription(RegisteredObject):
+    """Describes a Party to the rest of the DDM.
+
+    Attributes:
+        name: Name of the party.
+        public_key: The party's public key for signing rules.
+
+    """
+    def __init__(self, name: str, public_key: RSAPublicKey) -> None:
+        """Create a PartyDescription.
+
+        Args:
+            name: Name of the party.
+            public_key: The party's public key for signing rules.
+        """
+        self.name = name
+        self.public_key = public_key
+
+
+class NamespaceDescription(RegisteredObject):
+    """Describes a namespace to the rest of the DDM.
+
+    Attributes:
+        name: Name of the namespace (i.e. the prefix)
+        owner: Party which owns the namespace and assets in it.
+
+    """
+    def __init__(self, name: str, owner: PartyDescription) -> None:
+        """Create a NamespaceDescription.
+
+        Args:
+            name: Name of the namespace (i.e. the prefix)
+            owner: Party which owns the namespace and assets in it.
+
+        """
+        self.name = name
+        self.owner = owner
+
+
+class SiteDescription(RegisteredObject):
+    """Describes a site to the rest of the DDM.
+
+    Attributes:
+        name: Name of the site.
+        admin: Party which administrates this site.
+
+    """
+    def __init__(self, name: str, admin: PartyDescription) -> None:
+        """Create a SiteDescription.
+
+        Args:
+            name: Name of the site.
+            admin: Party which administrates this site.
+
+        """
+        self.name = name
+        self.admin = admin
+
+
+class RunnerDescription(RegisteredObject):
+    """Describes a workflow runner to the rest of the DDM.
+
+    Attributes:
+        site: Site at which this runner is located.
+        runner: The runner service.
+
+    """
+    def __init__(
+            self, site: SiteDescription, runner: ILocalWorkflowRunner
+            ) -> None:
+        """Create a RunnerDescription.
+
+        Args:
+            site: Site at which this runner is located.
+            runner: The runner service.
+
+        """
+        self.site = site
+        self.runner = runner
+
+
+class AssetStoreDescription(RegisteredObject):
+    """Describes an asset store to the rest of the DDM.
+
+    Attributes:
+        site: The site at which this store is located.
+        store: The store service.
+
+    """
+    def __init__(
+            self, site: SiteDescription, store: IAssetStore
+            ) -> None:
+        """Create an AssetStoreDescription.
+
+        Args:
+            site: The site at which this store is located.
+            store: The store service.
+
+        """
+        self.site = site
+        self.store = store
+
+
+_ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
+
+
+class PolicyServerDescription(RegisteredObject):
+    """Describes a policy server to the rest of the DDM.
+
+    Attributes:
+        namespace: The namespace governed by this server.
+        site: The site at which this server is located.
+
+    """
+    def __init__(
+            self, site: SiteDescription, namespace: NamespaceDescription,
+            server: IPolicyServer) -> None:
+        """Create a PolicyServerDescription.
+
+        Args:
+            site: The site at which this server is located.
+            namespace: The namespace governed by this server.
+            server: The policy server.
+
+        """
+        self.site = site
+        self.namespace = namespace
+        self.server = server
 
 
 class Registry:
@@ -16,15 +158,12 @@ class Registry:
     """
     def __init__(self) -> None:
         """Create a new registry."""
-        self._party_namespaces = dict()     # type: Dict[str, str]
-        self._party_keys = dict()       # type: Dict[str, RSAPublicKey]
-        self._ns_owners = dict()        # type: Dict[str, str]
-        self._runners = dict()          # type: Dict[str, ILocalWorkflowRunner]
-        self._runner_admins = dict()    # type: Dict[str, str]
-        self._stores = dict()           # type: Dict[str, IAssetStore]
-        self._store_admins = dict()     # type: Dict[str, str]
-        self._policy_servers = dict()   # type: Dict[str, IPolicyServer]
-        self._assets = dict()           # type: Dict[str, str]
+        self._asset_locations = dict()           # type: Dict[str, str]
+
+        archive = ReplicableArchive[RegisteredObject]()
+        self._store = CanonicalStore[RegisteredObject](archive)
+        self.replication_server = ReplicationServer[RegisteredObject](
+                archive, 1.0)
 
     def register_party(
             self, name: str, namespace: str, public_key: RSAPublicKey) -> None:
@@ -35,49 +174,94 @@ class Registry:
             namespace: ID namespace owned by this party.
             public_key: Public key of this party.
         """
-        if name in self._party_namespaces:
-            raise RuntimeError('There is already a party with this name')
-        self._party_namespaces[name] = namespace
-        self._party_keys[name] = public_key
-        self._ns_owners[namespace] = name
+        if self._in_store(PartyDescription, 'name', name):
+            raise RuntimeError(f'There is already a party called {name}')
+
+        party_desc = PartyDescription(name, public_key)
+        self._store.insert(party_desc)
+        self._store.insert(NamespaceDescription(namespace, party_desc))
+
+    def register_site(self, name: str, admin_name: str) -> None:
+        """Register a Site with the Registry.
+
+        Args:
+            name: Name of the site.
+            admin_name: Party administrating this site.
+
+        """
+        if self._in_store(SiteDescription, 'name', name):
+            raise RuntimeError(f'There is already a site called {name}')
+
+        admin = self._get_object(PartyDescription, 'name', admin_name)
+        if admin is None:
+            raise RuntimeError(f'Party {admin_name} not found')
+
+        site_desc = SiteDescription(name, admin)
+        self._store.insert(site_desc)
 
     def register_runner(
-            self, admin: str, runner: ILocalWorkflowRunner
+            self, site_name: str, admin: str, runner: ILocalWorkflowRunner
             ) -> None:
         """Register a LocalWorkflowRunner with the Registry.
 
         Args:
+            site_name: Name of the site where the runner is located.
             admin: The party administrating this runner.
             runner: The runner to register.
         """
-        if runner.name in self._runners:
-            raise RuntimeError('There is already a runner with this name')
-        self._runners[runner.name] = runner
-        self._runner_admins[runner.name] = admin
+        if self._in_store(RunnerDescription, 'runner', runner):
+            raise RuntimeError(
+                    f'There is already a runner called {runner.name}')
 
-    def register_store(self, admin: str, store: IAssetStore) -> None:
+        site = self._get_object(SiteDescription, 'name', site_name)
+        if site is None:
+            raise RuntimeError(f'Site {site_name} not found')
+
+        runner_desc = RunnerDescription(site, runner)
+        self._store.insert(runner_desc)
+
+    def register_store(self, site_name: str, store: IAssetStore) -> None:
         """Register an AssetStore with the Registry.
 
         Args:
-            admin: The party administrating this runner.
+            site_name: The site this store is located at.
             store: The data store to register.
         """
-        if store.name in self._stores:
-            raise RuntimeError('There is already a store with this name')
-        self._stores[store.name] = store
-        self._store_admins[store.name] = admin
+        if self._in_store(AssetStoreDescription, 'store', store):
+            raise RuntimeError(f'There is already a store called {store}')
+
+        site = self._get_object(SiteDescription, 'name', site_name)
+        if site is None:
+            raise RuntimeError(f'Site {site_name} not found')
+
+        store_desc = AssetStoreDescription(site, store)
+        self._store.insert(store_desc)
 
     def register_policy_server(
-            self, namespace: str, server: IPolicyServer) -> None:
+            self, site_name: str, namespace_name: str, server: IPolicyServer
+            ) -> None:
         """Register a PolicyServer with the registry.
 
         Args:
-            namespace: The namespace this server serves policies for.
+            site_name: Site at which this server is located.
+            namespace_name: The namespace this server serves policies
+                    for.
             server: The data store to register.
         """
-        if server in self._policy_servers:
-            raise RuntimeError('This server is already registered')
-        self._policy_servers[namespace] = server
+        if self._in_store(PolicyServerDescription, 'server', server):
+            raise RuntimeError(f'Server {server} is already registered')
+
+        site = self._get_object(SiteDescription, 'name', site_name)
+        if site is None:
+            raise RuntimeError(f'Site {site_name} not found')
+
+        namespace = self._get_object(
+                NamespaceDescription, 'name', namespace_name)
+        if namespace is None:
+            raise RuntimeError(f'Namespace {namespace_name} not found')
+
+        server_desc = PolicyServerDescription(site, namespace, server)
+        self._store.insert(server_desc)
 
     def register_asset(self, asset_id: str, store_name: str) -> None:
         """Register an Asset with the Registry.
@@ -86,113 +270,9 @@ class Registry:
             asset_id: The id of the asset to register.
             store_name: Name of the store where it can be found.
         """
-        if asset_id in self._assets:
+        if asset_id in self._asset_locations:
             raise RuntimeError('There is already an asset with this name')
-        self._assets[asset_id] = store_name
-
-    def get_ns_owner(self, namespace: str) -> str:
-        """Returns the name of the party owning a namespace.
-
-        Args:
-            namespace: Namespace to look up
-
-        Return:
-            Name of the owner of the namespace.
-
-        Raises:
-            KeyError: If no namespace with the given name is
-                    registered.
-        """
-        return self._ns_owners[namespace]
-
-    def get_public_key(self, party: str) -> RSAPublicKey:
-        """Returns the public key of the given party.
-
-        Args:
-            party: Name of the party to look up.
-
-        Return:
-            The public key of the given party.
-
-        Raises:
-            KeyError: If no party with the given name is registered.
-        """
-        return self._party_keys[party]
-
-    def list_runners(self) -> List[str]:
-        """List names of all registered runners.
-
-        Returns:
-            A list of names as strings.
-        """
-        return list(self._runners.keys())
-
-    def get_runner(self, name: str) -> ILocalWorkflowRunner:
-        """Look up a LocalWorkflowRunner.
-
-        Args:
-            name: The name of the runner to look up.
-
-        Return:
-            The runner with that name.
-
-        Raises:
-            KeyError: If no runner with the given name is
-                    registered.
-        """
-        return self._runners[name]
-
-    def get_runner_admin(self, name: str) -> str:
-        """Look up who administrates a given runner.
-
-        Args:
-            name: The name of the runner to look up.
-
-        Return:
-            The name of the party administrating it.
-
-        Raises:
-            KeyError: If no runner with the given name is regstered.
-        """
-        return self._runner_admins[name]
-
-    def get_store(self, name: str) -> IAssetStore:
-        """Look up an AssetStore.
-
-        Args:
-            name: The name of the store to look up.
-
-        Return:
-            The store with that name.
-
-        Raises:
-            KeyError: If no store with the given name is currently
-                    registered.
-        """
-        return self._stores[name]
-
-    def get_store_admin(self, name: str) -> str:
-        """Look up who administrates a given store.
-
-        Args:
-            name: The name of the store to look up.
-
-        Return:
-            The name of the party administrating it.
-
-        Raises:
-            KeyError: If no runner with the given name is registered.
-        """
-        return self._store_admins[name]
-
-    def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
-        """List all known policy servers.
-
-        Return:
-            A list of all registered policy servers and their
-                    namespaces.
-        """
-        return list(self._policy_servers.items())
+        self._asset_locations[asset_id] = store_name
 
     def get_asset_location(self, asset_id: str) -> str:
         """Returns the name of the store this asset is in.
@@ -206,7 +286,61 @@ class Registry:
         Raises:
             KeyError: If no asset with the given id is registered.
         """
-        return self._assets[asset_id]
+        return self._asset_locations[asset_id]
+
+    def _get_object(
+            self, typ: Type[_ReplicatedClass], attr_name: str, value: Any
+            ) -> Optional[_ReplicatedClass]:
+        """Returns an object from the store.
+
+        Searches the store for an object of type `typ` that has value
+        `value` for its attribute named `attr_name`. If there are
+        multiple such objects, one is returned at random.
+
+        Args:
+            typ: Type of object to consider, subclass of
+                RegisteredObject.
+            attr_name: Name of the attribute on that object to check.
+            value: Value that the attribute must have.
+
+        Returns:
+            The object, if found, or None if no object was found.
+
+        Raises:
+            AttributeError if an object of type `typ` is encountered
+                in the store which does not have an attribute named
+                `attr_name`.
+        """
+        for o in self._store.objects():
+            if isinstance(o, typ):
+                if getattr(o, attr_name) == value:
+                    return o
+        return None
+
+    def _in_store(
+            self, typ: Type[_ReplicatedClass], attr_name: str, value: Any
+            ) -> bool:
+        """Returns True iff a matching object is in the store.
+
+        Searches the store for an object of type `typ` that has value
+        `value` for its attribute named `attr_name`, and returns True
+        if there is at least one of those in the store.
+
+        Args:
+            typ: Type of object to consider, subclass of
+                RegisteredObject.
+            attr_name: Name of the attribute on that object to check.
+            value: Value that the attribute must have.
+
+        Returns:
+            True if a matching object was found, False otherwise.
+
+        Raises:
+            AttributeError if an object of type `typ` is encountered
+                in the store which does not have an attribute named
+                `attr_name`.
+        """
+        return self._get_object(typ, attr_name, value) is not None
 
 
 global_registry = Registry()

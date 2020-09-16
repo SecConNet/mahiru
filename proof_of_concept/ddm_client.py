@@ -81,35 +81,15 @@ class DDMClient:
                     return o.owner.public_key
         raise RuntimeError('Namespace {} not found'.format(namespace))
 
-    def list_runners(self) -> List[str]:
-        """Returns a list of id's of available runners."""
+    def list_sites_with_runners(self) -> List[str]:
+        """Returns a list of id's of sites with runners."""
         self._registry_replica.update()
-        runners = list()    # type: List[str]
+        sites = list()    # type: List[str]
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
                 if o.runner is not None:
-                    runners.append(o.runner.name)
-        return runners
-
-    def get_target_site(self, runner_name: str) -> str:
-        """Returns the name of the site of the given runner."""
-        self._registry_replica.update()
-        for o in self._registry_replica.objects:
-            if isinstance(o, SiteDescription):
-                if o.runner is not None:
-                    if o.runner.name == runner_name:
-                        return o.name
-        raise RuntimeError('Runner {} not found'.format(runner_name))
-
-    def get_runner_administrator(self, runner_name: str) -> str:
-        """Returns the name of the party administrating a runner."""
-        self._registry_replica.update()
-        for o in self._registry_replica.objects:
-            if isinstance(o, SiteDescription):
-                if o.runner is not None:
-                    if o.runner.name == runner_name:
-                        return o.admin.name
-        raise RuntimeError('Runner {} not found'.format(runner_name))
+                    sites.append(o.name)
+        return sites
 
     def get_site_administrator(self, site_name: str) -> str:
         """Returns the name of the party administrating a site."""
@@ -147,27 +127,27 @@ class DDMClient:
         store = self._get_store(site_id)
         return store.retrieve(asset_id, self._party)
 
-    def submit_job(self, runner_id: str, job: Job, plan: Plan) -> None:
+    def submit_job(self, site_id: str, job: Job, plan: Plan) -> None:
         """Submits a job for execution to a local runner.
 
         Args:
-            runner_id: The runner to submit to.
+            site_id: The site to submit to.
             job: The job to submit.
             plan: The plan to execute the workflow to.
 
         """
-        runner = self._get_runner(runner_id)
+        runner = self._get_runner(site_id)
         return runner.execute_job(job, plan)
 
-    def _get_runner(self, runner_name: str) -> ILocalWorkflowRunner:
-        """Returns the runner with the given name."""
+    def _get_runner(self, site_name: str) -> ILocalWorkflowRunner:
+        """Returns the runner at the given site."""
         self._registry_replica.update()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
-                if o.runner is not None:
-                    if o.runner.name == runner_name:
+                if o.name == site_name:
+                    if o.runner is not None:
                         return o.runner
-        raise RuntimeError(f'Runner {runner_name} not found')
+        raise RuntimeError(f'Runner at site {site_name} not found')
 
     def _get_store(self, site_name: str) -> IAssetStore:
         """Returns the store with the given name."""

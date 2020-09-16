@@ -45,10 +45,10 @@ class WorkflowPlanner:
         """
         def may_run(
                 permissions: Dict[str, Permissions],
-                step: WorkflowStep, runner: str
+                step: WorkflowStep, site: str
                 ) -> bool:
-            """Check whether the given runner may run the given step."""
-            party = self._ddm_client.get_runner_administrator(runner)
+            """Check whether the given site may run the given step."""
+            party = self._ddm_client.get_site_administrator(site)
 
             # check each input
             for inp_name in step.inputs:
@@ -88,21 +88,24 @@ class WorkflowPlanner:
             """
             cur_step = sorted_steps[cur_step_idx]
             step_perms = permissions[cur_step.name]
-            for runner in self._ddm_client.list_runners():
-                if may_run(permissions, cur_step, runner):
-                    plan[cur_step_idx] = runner
+            for site in self._ddm_client.list_sites_with_runners():
+                if may_run(permissions, cur_step, site):
+                    plan[cur_step_idx] = site
                     if cur_step_idx == len(plan) - 1:
                         yield copy(plan)
                     else:
                         yield from plan_from(cur_step_idx + 1)
 
-        step_runners = [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
+        step_sites_per_plan = [
+                dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
         # We'll have some other kind of resolver here later
         input_sites = {
                 inp: self._ddm_client.get_asset_location(inp)
                 for inp in job.inputs.values()}
 
-        return [Plan(input_sites, runners) for runners in step_runners]
+        return [
+                Plan(input_sites, step_sites)
+                for step_sites in step_sites_per_plan]
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
         """Sorts the workflow's steps topologically.
@@ -154,10 +157,9 @@ class WorkflowExecutor:
         Returns:
             A dictionary of results, indexed by workflow output name.
         """
-        # launch all the local runners
-        selected_runner_names = set(plan.step_runners.values())
-        for runner_name in selected_runner_names:
-            self._ddm_client.submit_job(runner_name, job, plan)
+        # launch all the runners
+        for site_name in set(plan.step_sites.values()):
+            self._ddm_client.submit_job(site_name, job, plan)
 
         # get workflow outputs whenever they're available
         wf = job.workflow
@@ -167,10 +169,7 @@ class WorkflowExecutor:
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
-                    src_runner_name = plan.step_runners[
-                            wf.steps[src_step_name]]
-                    src_site = self._ddm_client.get_target_site(
-                            src_runner_name)
+                    src_site = plan.step_sites[wf.steps[src_step_name]]
                     outp_key = keys[wf_outp_name]
                     try:
                         asset = self._ddm_client.retrieve_asset(

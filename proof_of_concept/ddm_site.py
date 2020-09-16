@@ -72,7 +72,7 @@ class Site:
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = LocalWorkflowRunner(
-                name + '-runner', self.administrator,
+                name + '-site', self.administrator,
                 self._policy_evaluator, self.store)
 
         # Client side

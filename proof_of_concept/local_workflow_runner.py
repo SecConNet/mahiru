@@ -22,7 +22,7 @@ class JobRun(Thread):
     """
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
-            this_runner: str, administrator: str,
+            this_site: str, administrator: str,
             job: Job, plan: Plan,
             target_store: AssetStore
             ) -> None:
@@ -33,25 +33,25 @@ class JobRun(Thread):
 
         Args:
             policy_evaluator: A policy evaluator to use to check policy.
-            this_runner: The runner we're running in.
-            administrator: Name of the party administrating this runner.
+            this_site: The site we're running at.
+            administrator: Name of the party administrating this site.
             job: The job to execute.
             plan: The plan for how to execute the job.
             target_store: The asset store to put results into.
 
         """
-        super().__init__(name='JobAtRunner-{}'.format(this_runner))
+        super().__init__(name='JobAtRunner-{}'.format(this_site))
         self._policy_evaluator = policy_evaluator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
-        self._this_runner = this_runner
+        self._this_site = this_site
         self._administrator = administrator
         self._job = job
         self._workflow = job.workflow
         self._inputs = job.inputs
         self._plan = plan
-        self._runners = {
-                step.name: runner
-                for step, runner in plan.step_runners.items()}
+        self._sites = {
+                step.name: site
+                for step, site in plan.step_sites.items()}
         self._target_store = target_store
         self._ddm_client = DDMClient(administrator)
 
@@ -72,7 +72,7 @@ class JobRun(Thread):
 
         steps_to_do = {
                 step for step in self._workflow.steps.values()
-                if self._runners[step.name] == self._this_runner}
+                if self._sites[step.name] == self._this_site}
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
@@ -81,7 +81,7 @@ class JobRun(Thread):
                     step.compute_asset_id)
                 if inputs is not None:
                     logger.info('Job at {} executing step {}'.format(
-                        self._this_runner, step))
+                        self._this_site, step))
                     # run compute asset step
                     outputs = compute_asset.run(inputs)
 
@@ -100,7 +100,7 @@ class JobRun(Thread):
                     break
             else:
                 sleep(0.5)
-        logger.info('Job at {} done'.format(self._this_runner))
+        logger.info('Job at {} done'.format(self._this_site))
 
     def _is_legal(self) -> bool:
         """Checks whether this request is legal.
@@ -110,7 +110,7 @@ class JobRun(Thread):
         """
         perms = self._permission_calculator.calculate_permissions(self._job)
         for step in self._workflow.steps.values():
-            if self._runners[step.name] == self._this_runner:
+            if self._sites[step.name] == self._this_site:
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
                     inp_id = '{}.{}'.format(step.name, inp_name)
@@ -122,8 +122,8 @@ class JobRun(Thread):
                     # from may access it
                     if '.' in inp_src:
                         src_step, _ = inp_src.split('.')
-                        src_party = self._ddm_client.get_runner_administrator(
-                                self._runners[src_step])
+                        src_party = self._ddm_client.get_site_administrator(
+                                self._sites[src_step])
                     else:
                         inp_asset_id = self._job.inputs[inp_src]
                         src_party = self._ddm_client.get_site_administrator(
@@ -133,6 +133,7 @@ class JobRun(Thread):
                             perms[inp_src], src_party):
                         return False
 
+                # check that we can access the compute asset
                 if not self._policy_evaluator.may_access(
                         perms[step.name], self._administrator):
                     return False
@@ -169,15 +170,15 @@ class JobRun(Thread):
         for inp_name, inp_source in step.inputs.items():
             source_site, data_key = self._source(inp_source, keys)
             logger.info('Job at {} getting input {} from site {}'.format(
-                self._this_runner, data_key, source_site))
+                self._this_site, data_key, source_site))
             try:
                 asset = self._ddm_client.retrieve_asset(source_site, data_key)
                 step_input_data[inp_name] = asset.data
                 logger.info('Job at {} found input {} available.'.format(
-                    self._this_runner, data_key))
+                    self._this_site, data_key))
                 logger.info('Metadata: {}'.format(asset.metadata))
             except KeyError:
-                logger.info(f'Job at {self._this_runner} found input'
+                logger.info(f'Job at {self._this_site} found input'
                             f'{data_key} not yet available.')
                 return None
 
@@ -196,8 +197,8 @@ class JobRun(Thread):
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
-        target site for the runner which is to execute that step
-        according to the current plan, and the output name.
+        target site which is to execute that step according to the
+        current plan, and the output name.
 
         If the input is of the form 'site:data', this will return the
         corresponding site from the plan and the name of the input
@@ -210,9 +211,7 @@ class JobRun(Thread):
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
-            src_runner_name = self._runners[step_name]
-            src_site = self._ddm_client.get_target_site(src_runner_name)
-            return src_site, keys[inp_source]
+            return self._sites[step_name], keys[inp_source]
         else:
             dataset = self._inputs[inp_source]
             return self._plan.input_sites[dataset], dataset
@@ -221,19 +220,19 @@ class JobRun(Thread):
 class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site."""
     def __init__(
-            self, name: str, administrator: str,
+            self, site: str, administrator: str,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
 
         Args:
-            name: Name identifying this runner.
+            site: Name of the site this runner is located at.
             administrator: Party administrating this runner.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
-        self.name = name
+        self._site = site
         self._administrator = administrator
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
@@ -248,7 +247,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
 
         """
         run = JobRun(
-                self._policy_evaluator, self.name, self._administrator,
+                self._policy_evaluator, self._site, self._administrator,
                 job, plan,
                 self._target_store)
         run.start()

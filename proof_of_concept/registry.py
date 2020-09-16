@@ -82,6 +82,9 @@ class SiteDescription(RegisteredObject):
         self.namespace = namespace
         self.policy_server = policy_server
 
+        if store is None and runner is not None:
+            raise RuntimeError('Site with runner needs a store')
+
         if namespace is None and policy_server is not None:
             raise RuntimeError('Policy server specified without namespace')
 
@@ -160,25 +163,25 @@ class Registry:
                 name, owner, admin, runner, store, namespace, policy_server)
         self._store.insert(site_desc)
 
-    def register_asset(self, asset_id: str, store_name: str) -> None:
+    def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.
 
         Args:
             asset_id: The id of the asset to register.
-            store_name: Name of the store where it can be found.
+            site_name: Name of the site where it can be found.
         """
         if asset_id in self._asset_locations:
             raise RuntimeError('There is already an asset with this name')
-        self._asset_locations[asset_id] = store_name
+        self._asset_locations[asset_id] = site_name
 
     def get_asset_location(self, asset_id: str) -> str:
-        """Returns the name of the store this asset is in.
+        """Returns the name of the site this asset is in.
 
         Args:
             asset_id: ID of the asset to find.
 
         Return:
-            The store it can be found in.
+            The site it can be found at.
 
         Raises:
             KeyError: If no asset with the given id is registered.

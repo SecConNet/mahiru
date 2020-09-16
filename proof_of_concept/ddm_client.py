@@ -61,15 +61,15 @@ class DDMClient:
                 name, owner_name, admin_name, runner, store, namespace,
                 policy_server)
 
-    def register_asset(self, asset_id: str, store_name: str) -> None:
+    def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.
 
         Args:
             asset_id: The id of the asset to register.
-            store_name: Name of the store where it can be found.
+            site_name: Name of the site where it can be found.
 
         """
-        global_registry.register_asset(asset_id, store_name)
+        global_registry.register_asset(asset_id, site_name)
 
     def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
         """Get the public key of the owner of a namespace."""
@@ -91,10 +91,15 @@ class DDMClient:
                     runners.append(o.runner.name)
         return runners
 
-    def get_target_store(self, runner_name: str) -> str:
-        """Returns the name of the target store of the given runner."""
-        runner = self._get_runner(runner_name)
-        return runner.target_store()
+    def get_target_site(self, runner_name: str) -> str:
+        """Returns the name of the site of the given runner."""
+        self._registry_replica.update()
+        for o in self._registry_replica.objects:
+            if isinstance(o, SiteDescription):
+                if o.runner is not None:
+                    if o.runner.name == runner_name:
+                        return o.name
+        raise RuntimeError('Runner {} not found'.format(runner_name))
 
     def get_runner_administrator(self, runner_name: str) -> str:
         """Returns the name of the party administrating a runner."""
@@ -106,15 +111,14 @@ class DDMClient:
                         return o.admin.name
         raise RuntimeError('Runner {} not found'.format(runner_name))
 
-    def get_store_administrator(self, store_name: str) -> str:
-        """Returns the name of the party administrating a store."""
+    def get_site_administrator(self, site_name: str) -> str:
+        """Returns the name of the party administrating a site."""
         self._registry_replica.update()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
-                if o.store is not None:
-                    if o.store.name == store_name:
-                        return o.admin.name
-        raise RuntimeError('Store {} not found'.format(store_name))
+                if o.name == site_name:
+                    return o.admin.name
+        raise RuntimeError('Site {} not found'.format(site_name))
 
     def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
         """List all known policy servers.
@@ -134,13 +138,13 @@ class DDMClient:
 
     @staticmethod
     def get_asset_location(asset_id: str) -> str:
-        """Returns the name of the store which stores this asset."""
+        """Returns the name of the site which stores this asset."""
         return global_registry.get_asset_location(asset_id)
 
-    def retrieve_asset(self, store_id: str, asset_id: str
+    def retrieve_asset(self, site_id: str, asset_id: str
                        ) -> Asset:
         """Obtains a data item from a store."""
-        store = self._get_store(store_id)
+        store = self._get_store(site_id)
         return store.retrieve(asset_id, self._party)
 
     def submit_job(self, runner_id: str, job: Job, plan: Plan) -> None:
@@ -165,12 +169,12 @@ class DDMClient:
                         return o.runner
         raise RuntimeError(f'Runner {runner_name} not found')
 
-    def _get_store(self, store_name: str) -> IAssetStore:
+    def _get_store(self, site_name: str) -> IAssetStore:
         """Returns the store with the given name."""
         self._registry_replica.update()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
-                if o.store is not None:
-                    if o.store.name == store_name:
+                if o.name == site_name:
+                    if o.store is not None:
                         return o.store
-        raise RuntimeError('Store {} not found'.format(store_name))
+        raise RuntimeError(f'Site or store at site {site_name} not found')

@@ -12,16 +12,11 @@ logger = logging.getLogger(__file__)
 
 class AssetStore(IAssetStore):
     """A simple store for assets."""
-    def __init__(self, name: str, policy_evaluator: PolicyEvaluator) -> None:
+    def __init__(self, policy_evaluator: PolicyEvaluator) -> None:
         """Create a new empty AssetStore."""
-        self.name = name
         self._policy_evaluator = policy_evaluator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._assets = dict()  # type: Dict[str, Asset]
-
-    def __repr__(self) -> str:
-        """Return a string representation of this object."""
-        return 'AssetStore({})'.format(self.name)
 
     def store(self, asset: Asset) -> None:
         """Stores an asset.

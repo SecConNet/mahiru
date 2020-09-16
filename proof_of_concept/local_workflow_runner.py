@@ -126,8 +126,8 @@ class JobRun(Thread):
                                 self._runners[src_step])
                     else:
                         inp_asset_id = self._job.inputs[inp_src]
-                        src_party = self._ddm_client.get_store_administrator(
-                                self._plan.input_stores[inp_asset_id])
+                        src_party = self._ddm_client.get_site_administrator(
+                                self._plan.input_sites[inp_asset_id])
 
                     if not self._policy_evaluator.may_access(
                             perms[inp_src], src_party):
@@ -167,11 +167,11 @@ class JobRun(Thread):
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
-            source_store, data_key = self._source(inp_source, keys)
+            source_site, data_key = self._source(inp_source, keys)
             logger.info('Job at {} getting input {} from site {}'.format(
-                self._this_runner, data_key, source_store))
+                self._this_runner, data_key, source_site))
             try:
-                asset = self._ddm_client.retrieve_asset(source_store, data_key)
+                asset = self._ddm_client.retrieve_asset(source_site, data_key)
                 step_input_data[inp_name] = asset.data
                 logger.info('Job at {} found input {} available.'.format(
                     self._this_runner, data_key))
@@ -184,8 +184,8 @@ class JobRun(Thread):
         return step_input_data
 
     def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
-        store_id = self._ddm_client.get_asset_location(compute_asset_id)
-        asset = self._ddm_client.retrieve_asset(store_id=store_id,
+        site_id = self._ddm_client.get_asset_location(compute_asset_id)
+        asset = self._ddm_client.retrieve_asset(site_id=site_id,
                                                 asset_id=compute_asset_id)
         if not isinstance(asset, ComputeAsset):
             raise TypeError('Expecting a compute asset in workflow')
@@ -196,11 +196,11 @@ class JobRun(Thread):
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
-        target store for the runner which is to execute that step
+        target site for the runner which is to execute that step
         according to the current plan, and the output name.
 
-        If the input is of the form 'store:data', this will return the
-        corresponding store from the plan and the name of the input
+        If the input is of the form 'site:data', this will return the
+        corresponding site from the plan and the name of the input
         data asset to get from there.
 
         Args:
@@ -211,11 +211,11 @@ class JobRun(Thread):
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
             src_runner_name = self._runners[step_name]
-            src_store = self._ddm_client.get_target_store(src_runner_name)
-            return src_store, keys[inp_source]
+            src_site = self._ddm_client.get_target_site(src_runner_name)
+            return src_site, keys[inp_source]
         else:
             dataset = self._inputs[inp_source]
-            return self._plan.input_stores[dataset], dataset
+            return self._plan.input_sites[dataset], dataset
 
 
 class LocalWorkflowRunner(ILocalWorkflowRunner):
@@ -237,15 +237,6 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         self._administrator = administrator
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
-
-    def target_store(self) -> str:
-        """Returns the name of the store containing our results.
-
-        Returns:
-            A string with the name.
-
-        """
-        return self._target_store.name
 
     def execute_job(
             self, job: Job, plan: Plan) -> None:

@@ -69,10 +69,7 @@ class Site:
         self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side
-        self.store = AssetStore(name + '-store', self._policy_evaluator)
-        for asset in stored_data:
-            self.store.store(asset)
-            self._ddm_client.register_asset(asset.id, self.store.name)
+        self.store = AssetStore(self._policy_evaluator)
 
         self.runner = LocalWorkflowRunner(
                 name + '-runner', self.administrator,
@@ -86,6 +83,11 @@ class Site:
         self._ddm_client.register_site(
                 self.name + '-site', self.owner, self.administrator,
                 self.runner, self.store, self.namespace, self.policy_server)
+
+        # Insert data
+        for asset in stored_data:
+            self.store.store(asset)
+            self._ddm_client.register_asset(asset.id, self.name + '-site')
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""

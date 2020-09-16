@@ -98,11 +98,11 @@ class WorkflowPlanner:
 
         step_runners = [dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
         # We'll have some other kind of resolver here later
-        input_stores = {
+        input_sites = {
                 inp: self._ddm_client.get_asset_location(inp)
                 for inp in job.inputs.values()}
 
-        return [Plan(input_stores, runners) for runners in step_runners]
+        return [Plan(input_sites, runners) for runners in step_runners]
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
         """Sorts the workflow's steps topologically.
@@ -169,12 +169,12 @@ class WorkflowExecutor:
                     src_step_name, src_step_output = wf_outp_source.split('.')
                     src_runner_name = plan.step_runners[
                             wf.steps[src_step_name]]
-                    src_store = self._ddm_client.get_target_store(
+                    src_site = self._ddm_client.get_target_site(
                             src_runner_name)
                     outp_key = keys[wf_outp_name]
                     try:
                         asset = self._ddm_client.retrieve_asset(
-                                    src_store, outp_key)
+                                    src_site, outp_key)
                         results[wf_outp_name] = asset.data
                     except KeyError:
                         continue

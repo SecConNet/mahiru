@@ -14,32 +14,32 @@ class Plan:
     which site), and where the inputs should be obtained from.
 
     Attributes:
-        input_stores (Dict[str, str]): Maps inputs to the store to
+        input_sites (Dict[str, str]): Maps inputs to the site to
                 obtain them from.
         step_runners (Dict[WorkflowStep, str]): Maps steps to their
                 runner's id.
 
     """
     def __init__(
-            self, input_stores: Dict[str, str],
+            self, input_sites: Dict[str, str],
             step_runners: Dict[WorkflowStep, str]
             ) -> None:
         """Create a plan.
 
         Args:
-            input_stores: A map from input names to a store id to get
+            input_sites: A map from input names to a site id to get
                     them from.
             step_runners: A map from steps to their runner's id.
 
         """
-        self.input_stores = input_stores
+        self.input_sites = input_sites
         self.step_runners = step_runners
 
     def __str__(self) -> str:
         """Return a string representation of the object."""
         result = ''
-        for inp_name, store_id in self.input_stores.items():
-            result += '{} <- {}\n'.format(inp_name, store_id)
+        for inp_name, site_id in self.input_sites.items():
+            result += '{} <- {}\n'.format(inp_name, site_id)
         for step, runner_id in self.step_runners.items():
             result += '{} -> {}\n'.format(step.name, runner_id)
         return result
@@ -47,7 +47,6 @@ class Plan:
 
 class IAssetStore:
     """An interface for asset stores."""
-    name = None     # type: str
 
     def store(self, asset: Asset) -> None:
         """Stores an asset.
@@ -82,15 +81,6 @@ class IAssetStore:
 class ILocalWorkflowRunner:
     """Interface for services for running workflows at a given site."""
     name = None     # type: str
-
-    def target_store(self) -> str:
-        """Returns the name of the store containing our results.
-
-        Returns:
-            A string with the name.
-
-        """
-        raise NotImplementedError()
 
     def execute_job(
             self,

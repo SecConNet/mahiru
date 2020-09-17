@@ -1,5 +1,5 @@
 """Functionality for connecting to other DDM sites."""
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
@@ -73,13 +73,10 @@ class DDMClient:
 
     def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
         """Get the public key of the owner of a namespace."""
-        owner = None
-        self._registry_replica.update()
-        for o in self._registry_replica.objects:
-            if isinstance(o, SiteDescription) and o.namespace is not None:
-                if o.namespace == namespace:
-                    return o.owner.public_key
-        raise RuntimeError('Namespace {} not found'.format(namespace))
+        site = self._get_site('namespace', namespace)
+        if site is not None:
+            return site.owner.public_key
+        raise RuntimeError(f'No site with namespace {namespace} found')
 
     def list_sites_with_runners(self) -> List[str]:
         """Returns a list of id's of sites with runners."""
@@ -93,11 +90,9 @@ class DDMClient:
 
     def get_site_administrator(self, site_name: str) -> str:
         """Returns the name of the party administrating a site."""
-        self._registry_replica.update()
-        for o in self._registry_replica.objects:
-            if isinstance(o, SiteDescription):
-                if o.name == site_name:
-                    return o.admin.name
+        site = self._get_site('name', site_name)
+        if site is not None:
+            return site.admin.name
         raise RuntimeError('Site {} not found'.format(site_name))
 
     def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
@@ -121,40 +116,37 @@ class DDMClient:
         """Returns the name of the site which stores this asset."""
         return global_registry.get_asset_location(asset_id)
 
-    def retrieve_asset(self, site_id: str, asset_id: str
+    def retrieve_asset(self, site_name: str, asset_id: str
                        ) -> Asset:
         """Obtains a data item from a store."""
-        store = self._get_store(site_id)
-        return store.retrieve(asset_id, self._party)
+        site = self._get_site('name', site_name)
+        if site is not None and site.store is not None:
+            return site.store.retrieve(asset_id, self._party)
+        raise RuntimeError(f'Site or store at site {site_name} not found')
 
-    def submit_job(self, site_id: str, job: Job, plan: Plan) -> None:
+    def submit_job(self, site_name: str, job: Job, plan: Plan) -> None:
         """Submits a job for execution to a local runner.
 
         Args:
-            site_id: The site to submit to.
+            site_name: The site to submit to.
             job: The job to submit.
             plan: The plan to execute the workflow to.
 
         """
-        runner = self._get_runner(site_id)
-        return runner.execute_job(job, plan)
+        site = self._get_site('name', site_name)
+        if site is not None:
+            if site.runner is not None:
+                site.runner.execute_job(job, plan)
+                return
+        raise RuntimeError(f'Site or runner at site {site_name} not found')
 
-    def _get_runner(self, site_name: str) -> ILocalWorkflowRunner:
-        """Returns the runner at the given site."""
+    def _get_site(
+            self, attr_name: str, value: Any) -> Optional[SiteDescription]:
+        """Returns a site with a given attribute value."""
         self._registry_replica.update()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
-                if o.name == site_name:
-                    if o.runner is not None:
-                        return o.runner
-        raise RuntimeError(f'Runner at site {site_name} not found')
-
-    def _get_store(self, site_name: str) -> IAssetStore:
-        """Returns the store with the given name."""
-        self._registry_replica.update()
-        for o in self._registry_replica.objects:
-            if isinstance(o, SiteDescription):
-                if o.name == site_name:
-                    if o.store is not None:
-                        return o.store
-        raise RuntimeError(f'Site or store at site {site_name} not found')
+                a = getattr(o, attr_name)
+                if a is not None and a == value:
+                    return o
+        return None

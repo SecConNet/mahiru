@@ -185,8 +185,8 @@ class JobRun(Thread):
         return step_input_data
 
     def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
-        site_id = self._ddm_client.get_asset_location(compute_asset_id)
-        asset = self._ddm_client.retrieve_asset(site_id=site_id,
+        site_name = self._ddm_client.get_asset_location(compute_asset_id)
+        asset = self._ddm_client.retrieve_asset(site_name=site_name,
                                                 asset_id=compute_asset_id)
         if not isinstance(asset, ComputeAsset):
             raise TypeError('Expecting a compute asset in workflow')

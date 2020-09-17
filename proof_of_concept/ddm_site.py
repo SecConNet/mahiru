@@ -72,7 +72,7 @@ class Site:
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = LocalWorkflowRunner(
-                name + '-site', self.administrator,
+                name, self.administrator,
                 self._policy_evaluator, self.store)
 
         # Client side
@@ -81,13 +81,13 @@ class Site:
 
         # Register site with DDM
         self._ddm_client.register_site(
-                self.name + '-site', self.owner, self.administrator,
+                self.name, self.owner, self.administrator,
                 self.runner, self.store, self.namespace, self.policy_server)
 
         # Insert data
         for asset in stored_data:
             self.store.store(asset)
-            self._ddm_client.register_asset(asset.id, self.name + '-site')
+            self._ddm_client.register_asset(asset.id, self.name)
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""

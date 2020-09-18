@@ -4,63 +4,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription)
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
+        SiteDescription)
 from proof_of_concept.replication import (
         CanonicalStore, ReplicableArchive, ReplicationServer)
-
-
-class SiteDescription:
-    """Describes a site to the rest of the DDM.
-
-    Attributes:
-        name: Name of the site.
-        owner: Party which owns this site.
-        admin: Party which administrates this site.
-        runner: This site's local workflow runner.
-        store: This site's asset store.
-        namespace: The namespace managed by this site's policy server.
-        policy_server: This site's policy server.
-
-    """
-    def __init__(
-            self,
-            name: str,
-            owner: PartyDescription,
-            admin: PartyDescription,
-            runner: Optional[ILocalWorkflowRunner],
-            store: Optional[IAssetStore],
-            namespace: Optional[str],
-            policy_server: Optional[IPolicyServer]
-            ) -> None:
-        """Create a SiteDescription.
-
-        Args:
-            name: Name of the site.
-            owner: Party which owns this site.
-            admin: Party which administrates this site.
-            runner: This site's local workflow runner.
-            store: This site's asset store.
-            namespace: The namespace managed by this site's policy
-                server.
-            policy_server: This site's policy server.
-
-        """
-        self.name = name
-        self.owner = owner
-        self.admin = admin
-        self.runner = runner
-        self.store = store
-        self.namespace = namespace
-        self.policy_server = policy_server
-
-        if store is None and runner is not None:
-            raise RuntimeError('Site with runner needs a store')
-
-        if namespace is None and policy_server is not None:
-            raise RuntimeError('Policy server specified without namespace')
-
-        if namespace is not None and policy_server is None:
-            raise RuntimeError('Namespace specified but policy server missing')
 
 
 RegisteredObject = Union[PartyDescription, SiteDescription]
@@ -98,43 +45,28 @@ class Registry:
 
         self._store.insert(description)
 
-    def register_site(
-            self,
-            name: str,
-            owner_name: str,
-            admin_name: str,
-            runner: Optional[ILocalWorkflowRunner],
-            store: Optional[IAssetStore],
-            namespace: Optional[str],
-            policy_server: Optional[IPolicyServer]
-            ) -> None:
+    def register_site(self, description: SiteDescription) -> None:
         """Register a Site with the Registry.
 
         Args:
-            name: Name of the site.
-            owner_name: Party owning this site.
-            admin_name: Party administrating this site.
-            runner: This site's local workflow runner.
-            store: This site's asset store.
-            namespace: The namespace managed by this site's policy
-                server.
-            policy_server: This site's policy server.
+            description: Description of the site.
 
         """
-        if self._in_store(SiteDescription, 'name', name):
-            raise RuntimeError(f'There is already a site called {name}')
+        if self._in_store(SiteDescription, 'name', description.name):
+            raise RuntimeError(
+                    f'There is already a site called {description.name}')
 
-        owner = self._get_object(PartyDescription, 'name', owner_name)
+        owner = self._get_object(
+                PartyDescription, 'name', description.owner_name)
         if owner is None:
-            raise RuntimeError(f'Party {owner_name} not found')
+            raise RuntimeError(f'Party {description.owner_name} not found')
 
-        admin = self._get_object(PartyDescription, 'name', admin_name)
+        admin = self._get_object(
+                PartyDescription, 'name', description.admin_name)
         if admin is None:
-            raise RuntimeError(f'Party {admin_name} not found')
+            raise RuntimeError(f'Party {description.admin_name} not found')
 
-        site_desc = SiteDescription(
-                name, owner, admin, runner, store, namespace, policy_server)
-        self._store.insert(site_desc)
+        self._store.insert(description)
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.

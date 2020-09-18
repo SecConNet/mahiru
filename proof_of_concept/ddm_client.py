@@ -6,10 +6,9 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
-        Plan)
+        Plan, SiteDescription)
 from proof_of_concept.workflow import Job, Workflow
-from proof_of_concept.registry import (
-        global_registry, RegisteredObject, SiteDescription)
+from proof_of_concept.registry import (global_registry, RegisteredObject)
 from proof_of_concept.replication import Replica
 
 
@@ -35,30 +34,14 @@ class DDMClient:
         """
         global_registry.register_party(description)
 
-    def register_site(
-            self,
-            name: str,
-            owner_name: str,
-            admin_name: str,
-            runner: Optional[ILocalWorkflowRunner] = None,
-            store: Optional[IAssetStore] = None,
-            namespace: Optional[str] = None,
-            policy_server: Optional[IPolicyServer] = None
-            ) -> None:
+    def register_site(self, description: SiteDescription) -> None:
         """Register a site with the Registry.
 
         Args:
-            name: Name of the site.
-            owner_name: Name of the owning party.
-            admin_name: Name of the administrating party.
-            runner: This site's local workflow runner.
-            store: This site's asset store.
-            namespace: Namespace managed by this site's policy server.
-            policy_server: This site's policy server.
+            description: Description of the site.
+
         """
-        global_registry.register_site(
-                name, owner_name, admin_name, runner, store, namespace,
-                policy_server)
+        global_registry.register_site(description)
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.
@@ -74,7 +57,10 @@ class DDMClient:
         """Get the public key of the owner of a namespace."""
         site = self._get_site('namespace', namespace)
         if site is not None:
-            return site.owner.public_key
+            owner = self._get_party(site.owner_name)
+            if owner is None:
+                raise RuntimeError(f'Registry replica is broken')
+            return owner.public_key
         raise RuntimeError(f'No site with namespace {namespace} found')
 
     def list_sites_with_runners(self) -> List[str]:
@@ -91,7 +77,7 @@ class DDMClient:
         """Returns the name of the party administrating a site."""
         site = self._get_site('name', site_name)
         if site is not None:
-            return site.admin.name
+            return site.admin_name
         raise RuntimeError('Site {} not found'.format(site_name))
 
     def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
@@ -138,6 +124,15 @@ class DDMClient:
                 site.runner.execute_job(job, plan)
                 return
         raise RuntimeError(f'Site or runner at site {site_name} not found')
+
+    def _get_party(self, name: str) -> Optional[PartyDescription]:
+        """Returns the party with the given name."""
+        self._registry_replica.update()
+        for o in self._registry_replica.objects:
+            if isinstance(o, PartyDescription):
+                if o.name == name:
+                    return o
+        return None
 
     def _get_site(
             self, attr_name: str, value: Any) -> Optional[SiteDescription]:

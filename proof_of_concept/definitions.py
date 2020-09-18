@@ -1,7 +1,7 @@
 """Some global definitions."""
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from typing import Dict
+from typing import Dict, Optional
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
@@ -120,3 +120,57 @@ class PartyDescription:
         """
         self.name = name
         self.public_key = public_key
+
+
+class SiteDescription:
+    """Describes a site to the rest of the DDM.
+
+    Attributes:
+        name: Name of the site.
+        owner_name: Name of the party which owns this site.
+        admin_name: Name of the party which administrates this site.
+        runner: This site's local workflow runner.
+        store: This site's asset store.
+        namespace: The namespace managed by this site's policy server.
+        policy_server: This site's policy server.
+
+    """
+    def __init__(
+            self,
+            name: str,
+            owner_name: str,
+            admin_name: str,
+            runner: Optional[ILocalWorkflowRunner],
+            store: Optional[IAssetStore],
+            namespace: Optional[str],
+            policy_server: Optional[IPolicyServer]
+            ) -> None:
+        """Create a SiteDescription.
+
+        Args:
+            name: Name of the site.
+            owner_name: Name of the party which owns this site.
+            admin_name: Name of the party which administrates this site.
+            runner: This site's local workflow runner.
+            store: This site's asset store.
+            namespace: The namespace managed by this site's policy
+                server.
+            policy_server: This site's policy server.
+
+        """
+        self.name = name
+        self.owner_name = owner_name
+        self.admin_name = admin_name
+        self.runner = runner
+        self.store = store
+        self.namespace = namespace
+        self.policy_server = policy_server
+
+        if store is None and runner is not None:
+            raise RuntimeError('Site with runner needs a store')
+
+        if namespace is None and policy_server is not None:
+            raise RuntimeError('Policy server specified without namespace')
+
+        if namespace is not None and policy_server is None:
+            raise RuntimeError('Namespace specified but policy server missing')

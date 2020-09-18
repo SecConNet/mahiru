@@ -40,6 +40,9 @@ class Site:
         # Metadata
         self.name = name
         self.owner = owner
+        # Owner and administrator are the same for now, but could
+        # in principle be different, e.g. in a SaaS scenario. They also
+        # differ semantically, so we have both here to make that clear.
         self.administrator = owner
         self.namespace = namespace
 

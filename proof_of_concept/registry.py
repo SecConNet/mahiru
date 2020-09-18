@@ -4,28 +4,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer)
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription)
 from proof_of_concept.replication import (
         CanonicalStore, ReplicableArchive, ReplicationServer)
-
-
-class PartyDescription:
-    """Describes a Party to the rest of the DDM.
-
-    Attributes:
-        name: Name of the party.
-        public_key: The party's public key for signing rules.
-
-    """
-    def __init__(self, name: str, public_key: RSAPublicKey) -> None:
-        """Create a PartyDescription.
-
-        Args:
-            name: Name of the party.
-            public_key: The party's public key for signing rules.
-        """
-        self.name = name
-        self.public_key = public_key
 
 
 class SiteDescription:
@@ -105,18 +86,17 @@ class Registry:
                 archive, 1.0)
 
     def register_party(
-            self, name: str, public_key: RSAPublicKey) -> None:
+            self, description: PartyDescription) -> None:
         """Register a party with the DDM.
 
         Args:
-            name: Name of the party.
-            public_key: Public key of this party.
+            description: A description of the party
         """
-        if self._in_store(PartyDescription, 'name', name):
-            raise RuntimeError(f'There is already a party called {name}')
+        if self._in_store(PartyDescription, 'name', description.name):
+            raise RuntimeError(
+                    f'There is already a party called {description.name}')
 
-        party_desc = PartyDescription(name, public_key)
-        self._store.insert(party_desc)
+        self._store.insert(description)
 
     def register_site(
             self,

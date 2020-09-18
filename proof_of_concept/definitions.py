@@ -1,4 +1,6 @@
 """Some global definitions."""
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+
 from typing import Dict
 
 from proof_of_concept.asset import Asset
@@ -99,3 +101,22 @@ class ILocalWorkflowRunner:
 
 
 IPolicyServer = IReplicationServer[Rule]
+
+
+class PartyDescription:
+    """Describes a Party to the rest of the DDM.
+
+    Attributes:
+        name: Name of the party.
+        public_key: The party's public key for signing rules.
+
+    """
+    def __init__(self, name: str, public_key: RSAPublicKey) -> None:
+        """Create a PartyDescription.
+
+        Args:
+            name: Name of the party.
+            public_key: The party's public key for signing rules.
+        """
+        self.name = name
+        self.public_key = public_key

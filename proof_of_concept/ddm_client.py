@@ -5,7 +5,8 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer, Plan)
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
+        Plan)
 from proof_of_concept.workflow import Job, Workflow
 from proof_of_concept.registry import (
         global_registry, RegisteredObject, SiteDescription)
@@ -25,16 +26,14 @@ class DDMClient:
         self._registry_replica = Replica[RegisteredObject](
                 global_registry.replication_server)
 
-    def register_party(
-            self, name: str, public_key: RSAPublicKey) -> None:
+    def register_party(self, description: PartyDescription) -> None:
         """Register a party with the Registry.
 
         Args:
-            name: Name of the party.
-            public_key: Public key of this party.
+            description: Description of the party.
 
         """
-        global_registry.register_party(name, public_key)
+        global_registry.register_party(description)
 
     def register_site(
             self,

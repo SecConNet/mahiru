@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.definitions import PartyDescription
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
 from proof_of_concept.policy_replication import PolicySource
@@ -55,8 +56,8 @@ class Site:
                 backend=default_backend())
 
         self._ddm_client.register_party(
-                self.administrator,
-                self._private_key.public_key())
+                PartyDescription(
+                    self.administrator, self._private_key.public_key()))
 
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()

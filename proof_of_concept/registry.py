@@ -1,5 +1,5 @@
 """Central registry of remote-accessible things."""
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
@@ -9,17 +9,7 @@ from proof_of_concept.replication import (
         CanonicalStore, ReplicableArchive, ReplicationServer)
 
 
-class RegisteredObject:
-    """A parent class for DDM-wide metadata classes.
-
-    This is here mainly because it's required for the replication
-    system.
-
-    """
-    pass
-
-
-class PartyDescription(RegisteredObject):
+class PartyDescription:
     """Describes a Party to the rest of the DDM.
 
     Attributes:
@@ -38,7 +28,7 @@ class PartyDescription(RegisteredObject):
         self.public_key = public_key
 
 
-class SiteDescription(RegisteredObject):
+class SiteDescription:
     """Describes a site to the rest of the DDM.
 
     Attributes:
@@ -90,6 +80,9 @@ class SiteDescription(RegisteredObject):
 
         if namespace is not None and policy_server is None:
             raise RuntimeError('Namespace specified but policy server missing')
+
+
+RegisteredObject = Union[PartyDescription, SiteDescription]
 
 
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)

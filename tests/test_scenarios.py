@@ -14,7 +14,7 @@ logger = logging.getLogger(__file__)
 
 def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     logger.info('Running test scenario '
-                'on behalf of: {}'.format(scenario['user_site'].administrator))
+                'on behalf of: {}'.format(scenario['user_site'].owner))
     logger.info(f'Job:\n'
                 f'{indent(str(scenario["job"]), " "*4)}')
 
@@ -100,13 +100,13 @@ def test_pii(clean_global_registry):
             ]
 
     scenario['sites'] = [
-            Site(name='site1', administrator='party1', namespace='party1_ns',
+            Site(name='site1', owner='party1', namespace='party1_ns',
                  stored_data=[DataAsset('id:party1_ns/dataset/pii1', 42)],
                  rules=scenario['rules-party1']),
-            Site(name='site2', administrator='party2', namespace='party2_ns',
+            Site(name='site2', owner='party2', namespace='party2_ns',
                  stored_data=[DataAsset('id:party2_ns/dataset/pii2', 3)],
                  rules=scenario['rules-party2']),
-            Site(name='site3', administrator='ddm', namespace='ddm_ns',
+            Site(name='site3', owner='ddm', namespace='ddm_ns',
                  stored_data=[
                      ComputeAsset('id:ddm_ns/software/combine', None, None),
                      ComputeAsset('id:ddm_ns/software/anonymise', None, None),

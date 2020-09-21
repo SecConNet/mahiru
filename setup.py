@@ -41,7 +41,10 @@ setup(
     ],
     test_suite='tests',
     install_requires=[
-        'cryptography'
+        'cryptography',
+        'falcon',
+        'openapi-schema-validator',
+        'ruamel.yaml'
     ],
     setup_requires=[
         # dependency for `python setup.py test`

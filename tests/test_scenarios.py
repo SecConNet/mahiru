@@ -23,7 +23,7 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def test_pii(clean_global_registry):
+def test_pii(clean_global_registry, registry_server):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [
@@ -141,7 +141,7 @@ def test_pii(clean_global_registry):
     assert output['result'] == 12.5
 
 
-def test_saas_with_data(clean_global_registry):
+def test_saas_with_data(clean_global_registry, registry_server):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [

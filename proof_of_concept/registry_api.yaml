@@ -1,0 +1,62 @@
+openapi: "3.0.0"
+
+info:
+    version: 0.1.0
+    title: EFDDM Registry
+
+paths:
+  /parties:
+    post:
+      summary: Register a party
+      operationId: registerParty
+      requestBody:
+        description: Description of the party to register
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Party"
+        required: true
+      responses:
+        "201":
+          description: Successfully registered the party
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "409":
+          description: A party with this name was already registered
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+
+components:
+  schemas:
+    Party:
+      type: object
+      required:
+        - name
+        - public_key
+      properties:
+        name:
+          description: Name of the party
+          type: string
+        public_key:
+          description: The party's PEM-encoded RSA public key
+          type: string

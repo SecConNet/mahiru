@@ -1,4 +1,5 @@
 """Functionality for connecting to other DDM sites."""
+import requests
 from typing import Any, List, Optional, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -7,9 +8,10 @@ from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
         Plan, SiteDescription)
-from proof_of_concept.workflow import Job, Workflow
-from proof_of_concept.registry import (global_registry, RegisteredObject)
+from proof_of_concept.serialization import serialize
+from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import Replica
+from proof_of_concept.workflow import Job, Workflow
 
 
 class DDMClient:
@@ -22,6 +24,7 @@ class DDMClient:
 
         """
         self._party = party
+        self._registry_endpoint = 'http://localhost:4413/parties'
         self._registry_replica = Replica[RegisteredObject](
                 global_registry.replication_server)
 
@@ -32,7 +35,7 @@ class DDMClient:
             description: Description of the party.
 
         """
-        global_registry.register_party(description)
+        requests.post(self._registry_endpoint, data=serialize(description))
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a site with the Registry.

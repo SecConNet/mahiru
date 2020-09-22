@@ -45,6 +45,45 @@ paths:
               schema:
                 type: string
 
+  /sites:
+    post:
+      summary: Register a site
+      operationId: registerSite
+      requestBody:
+        description: Description of the site to register
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Site"
+        required: true
+      responses:
+        "201":
+          description: Successfully registered the site
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "409":
+          description: A site with this name was already registered
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
 
 components:
   schemas:
@@ -60,3 +99,40 @@ components:
         public_key:
           description: The party's PEM-encoded RSA public key
           type: string
+    Site:
+      type: object
+      required:
+        - name
+        - owner_name
+        - admin_name
+      properties:
+        name:
+          description: Name of the site
+          type: string
+        owner_name:
+          description: Name of the party which owns this site
+          type: string
+        admin_name:
+          description: Name of the party which administrates this site
+          type: string
+        runner_endpoint:
+          description: >-
+            REST endpoint at which the runner may be contacted. If present,
+            store_endpoint must also be specified.
+          type: string
+          format: uri
+        store_endpoint:
+          description: REST endpoint at which the asset store may be contacted
+          type: string
+          format: uri
+        namespace:
+          description: >-
+            Namespace for which the policy server serves policy. If present,
+            policy_server_endpoint must also be given.
+          type: string
+        policy_server_endpoint:
+          description: >-
+            REST endpoint at which the policy server may be contacted. If
+            present, namespace must also be given.
+          type: string
+          format: uri

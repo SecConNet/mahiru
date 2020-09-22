@@ -24,7 +24,7 @@ class DDMClient:
 
         """
         self._party = party
-        self._registry_endpoint = 'http://localhost:4413/parties'
+        self._registry_endpoint = 'http://localhost:4413'
         self._registry_replica = Replica[RegisteredObject](
                 global_registry.replication_server)
 
@@ -35,7 +35,9 @@ class DDMClient:
             description: Description of the party.
 
         """
-        requests.post(self._registry_endpoint, data=serialize(description))
+        requests.post(
+                self._registry_endpoint + '/parties',
+                data=serialize(description))
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a site with the Registry.
@@ -45,6 +47,9 @@ class DDMClient:
 
         """
         global_registry.register_site(description)
+        requests.post(
+                self._registry_endpoint + '/sites',
+                data=serialize(description))
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.

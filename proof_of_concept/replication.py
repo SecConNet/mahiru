@@ -11,8 +11,15 @@ policies and site and asset metadata, just enabling strict
 serialisation is probably the way to go. That's what we do here, using
 the Python GIL.
 """
+import requests
 import time
-from typing import Generic, Iterable, Optional, Set, Tuple, TypeVar
+from typing import (
+        Any, Dict, Generic, Iterable, Optional, Set, Tuple, Type, TypeVar)
+
+from falcon import Request, Response
+
+from proof_of_concept.definitions import IReplicationSource, ReplicaUpdate
+from proof_of_concept.serialization import ReplicaUpdateDeserializer, serialize
 
 
 T = TypeVar('T')
@@ -103,36 +110,6 @@ class CanonicalStore(Generic[T]):
         self._archive.version = new_version
 
 
-class ReplicaUpdate(Generic[T]):
-    """Contains an update for a Replica.
-
-    Attributes:
-        from_version: Version to apply this update to.
-        to_version: Version this update updates to.
-        valid_until: Time until which the new version is valid.
-        created: Set of objects that were created.
-        deleted: Set of objects that were deleted.
-    """
-    def __init__(
-            self, from_version: int, to_version: int, valid_until: float,
-            created: Set[T], deleted: Set[T]) -> None:
-        """Create a replica update.
-
-        Args:
-            from_version: Version to apply this update to.
-            to_version: Version this update updates to.
-            valid_until: Time (in seconds since the UNIX epoch) until
-                    which the new version is valid.
-            created: Set of objects that were created.
-            deleted: Set of objects that were deleted.
-        """
-        self.from_version = from_version
-        self.to_version = to_version
-        self.valid_until = valid_until
-        self.created = created
-        self.deleted = deleted
-
-
 class ObjectValidator(Generic[T]):
     """Validates incoming replica updates."""
     def is_valid(self, received_object: T) -> bool:
@@ -140,25 +117,7 @@ class ObjectValidator(Generic[T]):
         raise NotImplementedError()
 
 
-class IReplicationServer(Generic[T]):
-    """Generic interface for replication servers."""
-    def get_updates_since(
-            self, from_version: Optional[int]
-            ) -> ReplicaUpdate[T]:
-        """Return a set of objects modified since the given version.
-
-        Args:
-            from_version: A version received from a previous call to
-                    this function, or None to get an update for a
-                    fresh replica.
-
-        Return:
-            An update from the given version to a newer version.
-        """
-        raise NotImplementedError()
-
-
-class ReplicationServer(IReplicationServer[T]):
+class ReplicationServer(IReplicationSource[T]):
     """Serves Replicables from a set of them."""
 
     def __init__(self, archive: ReplicableArchive, max_lag: float) -> None:
@@ -217,16 +176,79 @@ class ReplicationServer(IReplicationServer[T]):
                 new_objects, deleted_objects)
 
 
+class ReplicationHandler(Generic[T]):
+    """A handler for a /updates REST API endpoint."""
+    def __init__(self, server: ReplicationServer[T]) -> None:
+        """Create a Replication handler.
+
+        Args:
+            server: The server to send requests to.
+        """
+        self._server = server
+
+    def on_get(self, request: Request, response: Response) -> None:
+        """Handle a registry update request.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+        """
+        if 'from_version' not in request.params:
+            from_version = None     # type: Optional[int]
+        else:
+            from_version = request.get_param_as_int(
+                    'from_version', required=True)
+
+        updates = self._server.get_updates_since(from_version)
+        response.media = serialize(updates)
+
+
+class ReplicationClient(IReplicationSource[T]):
+    """Client for a ReplicationHandler REST endpoint."""
+    def __init__(
+            self, endpoint: str, schema: Dict[str, Any], name: str,
+            replicated_type: Type) -> None:
+        """Create a ReplicationClient.
+
+        Note that replicated_type must match T, one is used by the
+        type checker, the other is available at runtime to help us
+        deserialize the correct type.
+
+        Args:
+            endpoint: URL of the endpoint to connect to.
+            schema: REST API schema to use.
+            name: Name of the type in the schema to validate against.
+            replicated_type: Type of the replicated objects.
+        """
+        self._endpoint = endpoint
+        self._deserializer = ReplicaUpdateDeserializer[T](
+                schema, name, replicated_type)
+
+    def get_updates_since(
+            self, from_version: Optional[int]) -> ReplicaUpdate[T]:
+        """Get updates since the given version.
+
+        Args:
+            from_version: Version to start at, None to get all updates.
+        """
+        params = dict()     # type: Dict[str, int]
+        if from_version is not None:
+            params['from_version'] = from_version
+        r = requests.get(self._endpoint, params=params)
+        update_json = r.json()
+        return self._deserializer(update_json)
+
+
 class Replica(Generic[T]):
     """Stores a replica of a CanonicalStore."""
     def __init__(
-            self, server: IReplicationServer[T],
+            self, source: IReplicationSource[T],
             validator: Optional[ObjectValidator[T]] = None
             ) -> None:
         """Create an empty Replica."""
         self.objects = set()        # type: Set[T]
 
-        self._server = server
+        self._source = source
         self._validator = validator
         self._version = None        # type: Optional[int]
         self._valid_until = 0.0     # type: float
@@ -243,7 +265,7 @@ class Replica(Generic[T]):
     def update(self) -> None:
         """Updates the replica, if necessary."""
         if not self.is_valid():
-            update = self._server.get_updates_since(self._version)
+            update = self._source.get_updates_since(self._version)
             if self._validator is not None:
                 for r in update.created:
                     if not self._validator.is_valid(r):

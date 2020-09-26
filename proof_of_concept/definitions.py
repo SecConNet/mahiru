@@ -1,11 +1,10 @@
 """Some global definitions."""
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from typing import Dict, Optional
+from typing import Dict, Generic, Optional, Set, TypeVar, Union
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
-from proof_of_concept.replication import IReplicationServer
 from proof_of_concept.workflow import Job, WorkflowStep
 
 
@@ -100,10 +99,66 @@ class ILocalWorkflowRunner:
         raise NotImplementedError()
 
 
-IPolicyServer = IReplicationServer[Rule]
+T = TypeVar('T')
 
 
-class PartyDescription:
+class ReplicaUpdate(Generic[T]):
+    """Contains an update for a Replica.
+
+    Attributes:
+        from_version: Version to apply this update to.
+        to_version: Version this update updates to.
+        valid_until: Time until which the new version is valid.
+        created: Set of objects that were created.
+        deleted: Set of objects that were deleted.
+    """
+    def __init__(
+            self, from_version: int, to_version: int, valid_until: float,
+            created: Set[T], deleted: Set[T]) -> None:
+        """Create a replica update.
+
+        Args:
+            from_version: Version to apply this update to.
+            to_version: Version this update updates to.
+            valid_until: Time (in seconds since the UNIX epoch) until
+                    which the new version is valid.
+            created: Set of objects that were created.
+            deleted: Set of objects that were deleted.
+        """
+        self.from_version = from_version
+        self.to_version = to_version
+        self.valid_until = valid_until
+        self.created = created
+        self.deleted = deleted
+
+
+class IReplicationSource(Generic[T]):
+    """Generic interface for replication sources."""
+    def get_updates_since(
+            self, from_version: Optional[int]
+            ) -> ReplicaUpdate[T]:
+        """Return a set of objects modified since the given version.
+
+        Args:
+            from_version: A version received from a previous call to
+                    this function, or None to get an update for a
+                    fresh replica.
+
+        Return:
+            An update from the given version to a newer version.
+        """
+        raise NotImplementedError()
+
+
+IPolicyServer = IReplicationSource[Rule]
+
+
+class RegisteredObject:
+    """Base class for objects in the registry."""
+    pass
+
+
+class PartyDescription(RegisteredObject):
     """Describes a Party to the rest of the DDM.
 
     Attributes:
@@ -122,7 +177,7 @@ class PartyDescription:
         self.public_key = public_key
 
 
-class SiteDescription:
+class SiteDescription(RegisteredObject):
     """Describes a site to the rest of the DDM.
 
     Attributes:
@@ -174,3 +229,6 @@ class SiteDescription:
 
         if namespace is not None and policy_server is None:
             raise RuntimeError('Namespace specified but policy server missing')
+
+
+RegistryUpdate = ReplicaUpdate[RegisteredObject]

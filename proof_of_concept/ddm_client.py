@@ -1,8 +1,10 @@
 """Functionality for connecting to other DDM sites."""
+from pathlib import Path
 import requests
 from typing import Any, List, Optional, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
@@ -10,7 +12,7 @@ from proof_of_concept.definitions import (
         Plan, SiteDescription)
 from proof_of_concept.serialization import serialize
 from proof_of_concept.registry import global_registry, RegisteredObject
-from proof_of_concept.replication import Replica
+from proof_of_concept.replication import Replica, ReplicationClient
 from proof_of_concept.workflow import Job, Workflow
 
 
@@ -24,7 +26,21 @@ class DDMClient:
 
         """
         self._party = party
+        # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
+
+        registry_api_file = Path(__file__).parent / 'registry_api.yaml'
+        with open(registry_api_file, 'r') as f:
+            registry_api_def = yaml.safe_load(f.read())
+
+        registry_client = ReplicationClient[RegisteredObject](
+                self._registry_endpoint + '/updates',
+                registry_api_def, 'RegistryUpdate', RegisteredObject)
+
+        # TODO: enable this when we can actually serialize runners
+        # and stores and policy servers.
+        # self._registry_replica = Replica[RegisteredObject](
+        #         registry_client)
         self._registry_replica = Replica[RegisteredObject](
                 global_registry.replication_server)
 

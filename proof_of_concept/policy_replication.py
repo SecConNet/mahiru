@@ -6,7 +6,7 @@ from proof_of_concept.policy import (
         IPolicySource, InPartyCollection, InAssetCollection, MayAccess,
         ResultOfDataIn, ResultOfComputeIn, Rule)
 from proof_of_concept.replication import (
-        CanonicalStore, IReplicationServer, ObjectValidator, Replica)
+        CanonicalStore, IReplicationSource, ObjectValidator, Replica)
 
 
 class RuleValidator(ObjectValidator[Rule]):
@@ -44,7 +44,7 @@ class RuleValidator(ObjectValidator[Rule]):
 
 # Defining this where it's used makes mypy crash.
 # See https://github.com/python/mypy/issues/7281
-_OtherStores = Dict[IReplicationServer[Rule], Replica[Rule]]
+_OtherStores = Dict[IReplicationSource[Rule], Replica[Rule]]
 
 
 class PolicySource(IPolicySource):

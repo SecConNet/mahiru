@@ -42,6 +42,7 @@ setup(
     test_suite='tests',
     install_requires=[
         'cryptography',
+        'python-dateutil',
         'falcon',
         'openapi-schema-validator',
         'ruamel.yaml'

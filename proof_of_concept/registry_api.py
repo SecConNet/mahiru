@@ -1,11 +1,15 @@
 """REST-style API for central registry."""
+from pathlib import Path
 from typing import Any
 
 from falcon import App, HTTP_201, HTTP_400, HTTP_409, Request, Response
+import ruamel.yaml as yaml
 
-from proof_of_concept.definitions import PartyDescription, SiteDescription
+from proof_of_concept.definitions import (
+        PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.serialization import Deserializer, ValidationError
 from proof_of_concept.registry import Registry
+from proof_of_concept.replication import ReplicationHandler
 
 
 class PartyRegistration:
@@ -48,7 +52,7 @@ class SiteRegistration:
 
         Args:
             registry: The registry to send requests to.
-            deserializer: A Deserializer to (de)serialise objects with.
+            deserializer: A Deserializer to deserialise objects with.
         """
         self._registry = registry
         self._deserializer = deserializer
@@ -90,10 +94,18 @@ class RegistryApi:
         """
         self.app = App()
 
-        deserializer = Deserializer()
+        registry_api_file = Path(__file__).parent / 'registry_api.yaml'
+        with open(registry_api_file, 'r') as f:
+            registry_api_def = yaml.safe_load(f.read())
+
+        deserializer = Deserializer(registry_api_def)
 
         party_registration = PartyRegistration(registry, deserializer)
         self.app.add_route('/parties', party_registration)
 
         site_registration = SiteRegistration(registry, deserializer)
         self.app.add_route('/sites', site_registration)
+
+        registry_replication = ReplicationHandler[RegisteredObject](
+                registry.replication_server)
+        self.app.add_route('/updates', registry_replication)

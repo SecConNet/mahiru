@@ -5,12 +5,9 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
-        SiteDescription)
+        RegisteredObject, RegistryUpdate, SiteDescription)
 from proof_of_concept.replication import (
-        CanonicalStore, ReplicableArchive, ReplicationServer)
-
-
-RegisteredObject = Union[PartyDescription, SiteDescription]
+        CanonicalStore, ReplicableArchive, ReplicationServer, ReplicaUpdate)
 
 
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)

@@ -85,6 +85,40 @@ paths:
               schema:
                 type: string
 
+  /updates:
+    get:
+      summary: Get registry updates
+      operationId: getUpdates
+      parameters:
+        - name: from_version
+          in: query
+          description: >-
+            Current version of the replica the update is for. If omitted,
+            returns an update from the beginning.
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A replica update starting from the given version.
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RegistryUpdate"
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
 components:
   schemas:
     Party:
@@ -99,6 +133,7 @@ components:
         public_key:
           description: The party's PEM-encoded RSA public key
           type: string
+
     Site:
       type: object
       required:
@@ -136,3 +171,37 @@ components:
             present, namespace must also be given.
           type: string
           format: uri
+
+    RegistryUpdate:
+      type: object
+      required:
+        - from_version
+        - to_version
+        - valid_until
+        - created
+        - deleted
+      properties:
+        from_version:
+          description: Version this update applies to
+          type: integer
+        to_version:
+          description: Version this update updates to
+          type: integer
+        valid_until:
+          description: Time until which the new version is valid
+          type: string
+          format: date-time
+        created:
+          description: Objects that were created since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/Party"
+              - "$ref": "#/components/schemas/Site"
+        deleted:
+          description: Objects that were deleted since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/Party"
+              - "$ref": "#/components/schemas/Site"

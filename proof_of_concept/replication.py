@@ -19,7 +19,6 @@ from typing import (
 from falcon import Request, Response
 
 from proof_of_concept.definitions import IReplicationSource, ReplicaUpdate
-from proof_of_concept.serialization import ReplicaUpdateDeserializer, serialize
 
 
 T = TypeVar('T')
@@ -174,69 +173,6 @@ class ReplicationServer(IReplicationSource[T]):
         return ReplicaUpdate(
                 from_version, to_version, valid_until,
                 new_objects, deleted_objects)
-
-
-class ReplicationHandler(Generic[T]):
-    """A handler for a /updates REST API endpoint."""
-    def __init__(self, server: ReplicationServer[T]) -> None:
-        """Create a Replication handler.
-
-        Args:
-            server: The server to send requests to.
-        """
-        self._server = server
-
-    def on_get(self, request: Request, response: Response) -> None:
-        """Handle a registry update request.
-
-        Args:
-            request: The submitted request.
-            response: A response object to configure.
-        """
-        if 'from_version' not in request.params:
-            from_version = None     # type: Optional[int]
-        else:
-            from_version = request.get_param_as_int(
-                    'from_version', required=True)
-
-        updates = self._server.get_updates_since(from_version)
-        response.media = serialize(updates)
-
-
-class ReplicationClient(IReplicationSource[T]):
-    """Client for a ReplicationHandler REST endpoint."""
-    def __init__(
-            self, endpoint: str, schema: Dict[str, Any], name: str,
-            replicated_type: Type) -> None:
-        """Create a ReplicationClient.
-
-        Note that replicated_type must match T, one is used by the
-        type checker, the other is available at runtime to help us
-        deserialize the correct type.
-
-        Args:
-            endpoint: URL of the endpoint to connect to.
-            schema: REST API schema to use.
-            name: Name of the type in the schema to validate against.
-            replicated_type: Type of the replicated objects.
-        """
-        self._endpoint = endpoint
-        self._deserializer = ReplicaUpdateDeserializer[T](
-                schema, name, replicated_type)
-
-    def get_updates_since(
-            self, from_version: Optional[int]) -> ReplicaUpdate[T]:
-        """Get updates since the given version.
-
-        Args:
-            from_version: Version to start at, None to get all updates.
-        """
-        params = dict()     # type: Dict[str, int]
-        if from_version is not None:
-            params['from_version'] = from_version
-        r = requests.get(self._endpoint, params=params)
-        update_json = r.json()
-        return self._deserializer(update_json)
 
 
 class Replica(Generic[T]):

@@ -7,22 +7,27 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.definitions import (
         PartyDescription, RegisteredObject, SiteDescription)
-from proof_of_concept.serialization import Deserializer, ValidationError
+from proof_of_concept.serialization import (
+        deserialize_party_description, deserialize_site_description)
 from proof_of_concept.registry import Registry
-from proof_of_concept.replication import ReplicationHandler
+from proof_of_concept.replication_rest import ReplicationHandler
+from proof_of_concept.validation import Validator, ValidationError
 
 
 class PartyRegistration:
     """A handler for the /parties endpoint."""
-    def __init__(self, registry: Registry, deserializer: Deserializer) -> None:
+    def __init__(
+            self,
+            registry: Registry,
+            validator: Validator) -> None:
         """Create a PartyRegistration handler.
 
         Args:
             registry: The registry to send requests to.
-            deserializer: A Deserializer to (de)serialise objects with.
+            validator: A validator to validate input with.
         """
         self._registry = registry
-        self._deserializer = deserializer
+        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle a party registration request.
@@ -33,8 +38,9 @@ class PartyRegistration:
 
         """
         try:
-            self._registry.register_party(self._deserializer(
-                PartyDescription, request.media))
+            self._validator.validate('Party', request.media)
+            self._registry.register_party(
+                    deserialize_party_description(request.media))
             response.status = HTTP_201
             response.body = 'Created'
         except ValidationError:
@@ -47,15 +53,15 @@ class PartyRegistration:
 
 class SiteRegistration:
     """A handler for the /sites endpoint."""
-    def __init__(self, registry: Registry, deserializer: Deserializer) -> None:
+    def __init__(self, registry: Registry, validator: Validator) -> None:
         """Create a SiteRegistration handler.
 
         Args:
             registry: The registry to send requests to.
-            deserializer: A Deserializer to deserialise objects with.
+            validator: A Validator to validate objects with.
         """
         self._registry = registry
-        self._deserializer = deserializer
+        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle a site registration request.
@@ -66,8 +72,9 @@ class SiteRegistration:
 
         """
         try:
-            # self._registry.register_site(self._deserializer(
-            #     SiteDescription, request.media))
+            self._validator.validate('Site', request.media)
+            # self._registry.register_site(
+            #         deserialize_site_description(request.media))
             response.status = HTTP_201
             response.body = 'Created'
         except ValidationError:
@@ -98,12 +105,12 @@ class RegistryApi:
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
 
-        deserializer = Deserializer(registry_api_def)
+        validator = Validator(registry_api_def)
 
-        party_registration = PartyRegistration(registry, deserializer)
+        party_registration = PartyRegistration(registry, validator)
         self.app.add_route('/parties', party_registration)
 
-        site_registration = SiteRegistration(registry, deserializer)
+        site_registration = SiteRegistration(registry, validator)
         self.app.add_route('/sites', site_registration)
 
         registry_replication = ReplicationHandler[RegisteredObject](

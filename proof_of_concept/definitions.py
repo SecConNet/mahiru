@@ -1,11 +1,14 @@
 """Some global definitions."""
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from typing import Dict, Generic, Optional, Set, TypeVar, Union
+from typing import Any, Dict, Generic, Optional, Set, TypeVar, Union
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
 from proof_of_concept.workflow import Job, WorkflowStep
+
+
+JSON = Dict[str, Any]
 
 
 class Plan:

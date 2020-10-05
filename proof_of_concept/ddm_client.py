@@ -12,7 +12,9 @@ from proof_of_concept.definitions import (
         Plan, SiteDescription)
 from proof_of_concept.serialization import serialize
 from proof_of_concept.registry import global_registry, RegisteredObject
-from proof_of_concept.replication import Replica, ReplicationClient
+from proof_of_concept.replication import Replica
+from proof_of_concept.replication_rest import ReplicationClient
+from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job, Workflow
 
 
@@ -33,9 +35,11 @@ class DDMClient:
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
 
+        validator = Validator(registry_api_def)
+
         registry_client = ReplicationClient[RegisteredObject](
-                self._registry_endpoint + '/updates',
-                registry_api_def, 'RegistryUpdate', RegisteredObject)
+                self._registry_endpoint + '/updates', validator,
+                'RegistryUpdate')
 
         # TODO: enable this when we can actually serialize runners
         # and stores and policy servers.

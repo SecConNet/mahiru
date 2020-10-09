@@ -27,15 +27,15 @@ class RuleValidator(ObjectValidator[Rule]):
     def is_valid(self, rule: Rule) -> bool:
         """Return True iff the rule is properly signed."""
         if isinstance(rule, ResultOfDataIn):
-            namespace = rule.data_asset[3:].split('/')[0]
+            namespace = rule.data_asset[3:].split('.')[0]
         elif isinstance(rule, ResultOfComputeIn):
-            namespace = rule.compute_asset[3:].split('/')[0]
+            namespace = rule.compute_asset[3:].split('.')[0]
         elif isinstance(rule, MayAccess):
-            namespace = rule.asset[3:].split('/')[0]
+            namespace = rule.asset[3:].split('.')[0]
         elif isinstance(rule, InAssetCollection):
-            namespace = rule.asset[3:].split('/')[0]
+            namespace = rule.asset[3:].split('.')[0]
         elif isinstance(rule, InPartyCollection):
-            namespace = rule.collection[3:].split('/')[0]
+            namespace = rule.collection[3:].split('.')[0]
 
         if namespace != self._namespace:
             return False

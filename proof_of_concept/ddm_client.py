@@ -2,6 +2,7 @@
 from pathlib import Path
 import requests
 from typing import Any, List, Optional, Tuple
+from urllib.parse import quote
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 import ruamel.yaml as yaml
@@ -10,7 +11,8 @@ from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
         Plan, SiteDescription)
-from proof_of_concept.serialization import serialize
+from proof_of_concept.serialization import (
+        deserialize_asset, serialize, serialize_job, serialize_plan)
 from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import Replica
 from proof_of_concept.replication_rest import ReplicationClient
@@ -35,11 +37,17 @@ class DDMClient:
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
 
-        validator = Validator(registry_api_def)
+        registry_validator = Validator(registry_api_def)
 
         registry_client = ReplicationClient[RegisteredObject](
-                self._registry_endpoint + '/updates', validator,
+                self._registry_endpoint + '/updates', registry_validator,
                 'RegistryUpdate')
+
+        site_api_file = Path(__file__).parent / 'site_api.yaml'
+        with open(site_api_file, 'r') as f:
+            site_api_def = yaml.safe_load(f.read())
+
+        self._site_validator = Validator(site_api_def)
 
         # TODO: enable this when we can actually serialize runners
         # and stores and policy servers.
@@ -134,7 +142,20 @@ class DDMClient:
         """Obtains a data item from a store."""
         site = self._get_site('name', site_name)
         if site is not None and site.store is not None:
-            return site.store.retrieve(asset_id, self._party)
+            safe_asset_id = quote(asset_id, safe='')
+            r = requests.get(
+                    f'{site.endpoint}/assets/{safe_asset_id}',
+                    params={'requester': self._party})
+            if r.status_code == 404:
+                raise KeyError('Asset not found')
+            elif not r.ok:
+                raise RuntimeError('Server error when retrieving asset')
+
+            asset_json = r.json()
+            self._site_validator.validate('Asset', asset_json)
+            return deserialize_asset(asset_json)
+            # return site.store.retrieve(asset_id, self._party)
+
         raise RuntimeError(f'Site or store at site {site_name} not found')
 
     def submit_job(self, site_name: str, job: Job, plan: Plan) -> None:
@@ -147,10 +168,13 @@ class DDMClient:
 
         """
         site = self._get_site('name', site_name)
-        if site is not None:
-            if site.runner is not None:
-                site.runner.execute_job(job, plan)
-                return
+        data = {
+                'job': serialize_job(job),
+                'plan': serialize_plan(plan)}
+        if site is not None and site.runner is not None:
+            requests.post(f'{site.endpoint}/jobs', json=data)
+            # site.runner.execute_job(job, plan)
+            return
         raise RuntimeError(f'Site or runner at site {site_name} not found')
 
     def _get_party(self, name: str) -> Optional[PartyDescription]:

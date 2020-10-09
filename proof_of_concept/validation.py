@@ -23,15 +23,10 @@ class Validator:
         """
         ref_resolver = RefResolver.from_schema(schema)
         self._validator = dict()   # type: Dict[str, OAS30Validator]
-        self._validator['Party'] = OAS30Validator(
-                schema['components']['schemas']['Party'],
-                resolver=ref_resolver)
-        self._validator['Site'] = OAS30Validator(
-                schema['components']['schemas']['Site'],
-                resolver=ref_resolver)
-        self._validator['RegistryUpdate'] = OAS30Validator(
-                schema['components']['schemas']['RegistryUpdate'],
-                resolver=ref_resolver)
+        for schema_type in schema['components']['schemas']:
+            self._validator[schema_type] = OAS30Validator(
+                    schema['components']['schemas'][schema_type],
+                    resolver=ref_resolver)
 
     def validate(self, class_: str, user_input: JSON) -> None:
         """Validates untrusted JSON against a schema class definition.

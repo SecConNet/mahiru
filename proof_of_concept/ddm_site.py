@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.ddm_site_api import SiteApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
@@ -16,6 +17,7 @@ from proof_of_concept.replication import (
     CanonicalStore, ReplicableArchive, ReplicationServer)
 from proof_of_concept.workflow import Job
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
+
 
 logger = logging.getLogger(__file__)
 
@@ -79,6 +81,10 @@ class Site:
                 name, self.administrator,
                 self._policy_evaluator, self.store)
 
+        # REST server
+        self.api = SiteApi(self.policy_server, self.store, self.runner)
+        self.server = SiteServer(self.api)
+
         # Client side
         self._workflow_engine = GlobalWorkflowRunner(
                 self._policy_evaluator, self._ddm_client)
@@ -88,7 +94,7 @@ class Site:
                 SiteDescription(
                     self.name, self.owner, self.administrator,
                     self.runner, self.store, self.namespace,
-                    self.policy_server))
+                    self.policy_server, self.server.endpoint))
 
         # Insert data
         for asset in stored_data:
@@ -98,6 +104,10 @@ class Site:
     def __repr__(self) -> str:
         """Return a string representation of this object."""
         return 'Site({})'.format(self.name)
+
+    def close(self) -> None:
+        """Shut down the site."""
+        self.server.close()
 
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""

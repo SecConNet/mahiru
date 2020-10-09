@@ -179,7 +179,7 @@ class JobRun(Thread):
                 logger.info('Metadata: {}'.format(asset.metadata))
             except KeyError:
                 logger.info(f'Job at {self._this_site} found input'
-                            f'{data_key} not yet available.')
+                            f' {data_key} not yet available.')
                 return None
 
         return step_input_data

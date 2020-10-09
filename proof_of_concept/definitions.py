@@ -187,6 +187,7 @@ class SiteDescription(RegisteredObject):
         name: Name of the site.
         owner_name: Name of the party which owns this site.
         admin_name: Name of the party which administrates this site.
+        endpoint: This site's REST endpoint.
         runner: This site's local workflow runner.
         store: This site's asset store.
         namespace: The namespace managed by this site's policy server.
@@ -201,7 +202,8 @@ class SiteDescription(RegisteredObject):
             runner: Optional[ILocalWorkflowRunner],
             store: Optional[IAssetStore],
             namespace: Optional[str],
-            policy_server: Optional[IPolicyServer]
+            policy_server: Optional[IPolicyServer],
+            endpoint: str
             ) -> None:
         """Create a SiteDescription.
 
@@ -214,6 +216,7 @@ class SiteDescription(RegisteredObject):
             namespace: The namespace managed by this site's policy
                 server.
             policy_server: This site's policy server.
+            endpoint: URL of the REST endpoint of this site.
 
         """
         self.name = name
@@ -223,6 +226,7 @@ class SiteDescription(RegisteredObject):
         self.store = store
         self.namespace = namespace
         self.policy_server = policy_server
+        self.endpoint = endpoint
 
         if store is None and runner is not None:
             raise RuntimeError('Site with runner needs a store')

@@ -19,6 +19,8 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
                 f'{indent(str(scenario["job"]), " "*4)}')
 
     result = scenario['user_site'].run_job(scenario['job'])
+    for site in scenario['sites']:
+        site.close()
 
     logger.info(f'Result: {result}')
     return result

@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import (
 
 class Signable:
     """An abstract base class for signable classes."""
-    __signature = None      # type: bytes
+    signature = None      # type: bytes
 
     def sign(self, key: RSAPrivateKey) -> None:
         """Sign the object.
@@ -19,7 +19,7 @@ class Signable:
             key: The private key to use.
         """
         message = self.signing_representation()
-        self.__signature = key.sign(
+        self.signature = key.sign(
                 message,
                 padding.PSS(
                     mgf=padding.MGF1(hashes.SHA256()),
@@ -35,13 +35,13 @@ class Signable:
         Return:
             True iff there is a valid signature.
         """
-        if self.__signature is None:
+        if self.signature is None:
             return False
 
         message = self.signing_representation()
         try:
             key.verify(
-                    self.__signature, message,
+                    self.signature, message,
                     padding.PSS(
                         mgf=padding.MGF1(hashes.SHA256()),
                         salt_length=padding.PSS.MAX_LENGTH),

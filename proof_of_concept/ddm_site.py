@@ -79,7 +79,7 @@ class Site:
 
         self.runner = LocalWorkflowRunner(
                 name, self.administrator,
-                self._policy_evaluator, self.store)
+                self._ddm_client, self._policy_evaluator, self.store)
 
         # REST server
         self.api = SiteApi(self.policy_server, self.store, self.runner)

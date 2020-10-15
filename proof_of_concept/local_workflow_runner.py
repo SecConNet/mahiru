@@ -23,6 +23,7 @@ class JobRun(Thread):
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
             this_site: str, administrator: str,
+            ddm_client: DDMClient,
             job: Job, plan: Plan,
             target_store: AssetStore
             ) -> None:
@@ -35,6 +36,7 @@ class JobRun(Thread):
             policy_evaluator: A policy evaluator to use to check policy.
             this_site: The site we're running at.
             administrator: Name of the party administrating this site.
+            ddm_client: A DDMClient to use.
             job: The job to execute.
             plan: The plan for how to execute the job.
             target_store: The asset store to put results into.
@@ -45,6 +47,7 @@ class JobRun(Thread):
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._this_site = this_site
         self._administrator = administrator
+        self._ddm_client = ddm_client
         self._job = job
         self._workflow = job.workflow
         self._inputs = job.inputs
@@ -53,7 +56,6 @@ class JobRun(Thread):
                 step.name: site
                 for step, site in plan.step_sites.items()}
         self._target_store = target_store
-        self._ddm_client = DDMClient(administrator)
 
     def run(self) -> None:
         """Runs the job.
@@ -221,6 +223,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site."""
     def __init__(
             self, site: str, administrator: str,
+            ddm_client: DDMClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
@@ -228,12 +231,14 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         Args:
             site: Name of the site this runner is located at.
             administrator: Party administrating this runner.
+            ddm_client: A DDMClient to use.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
         self._site = site
         self._administrator = administrator
+        self._ddm_client = ddm_client
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
@@ -248,6 +253,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         """
         run = JobRun(
                 self._policy_evaluator, self._site, self._administrator,
+                self._ddm_client,
                 job, plan,
                 self._target_store)
         run.start()

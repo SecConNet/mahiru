@@ -140,6 +140,10 @@ components:
         - name
         - owner_name
         - admin_name
+        - endpoint
+        - runner
+        - store
+        - namespace
       properties:
         name:
           description: Name of the site
@@ -150,27 +154,23 @@ components:
         admin_name:
           description: Name of the party which administrates this site
           type: string
-        runner_endpoint:
+        endpoint:
           description: >-
-            REST endpoint at which the runner may be contacted. If present,
-            store_endpoint must also be specified.
+            REST endpoint at which the site may be contacted.
           type: string
           format: uri
-        store_endpoint:
-          description: REST endpoint at which the asset store may be contacted
-          type: string
-          format: uri
+        runner:
+          description: Whether the site has a runner
+          type: boolean
+        store:
+          description: Whether the site has a store
+          type: boolean
         namespace:
           description: >-
-            Namespace for which the policy server serves policy. If present,
-            policy_server_endpoint must also be given.
+            Namespace for which the policy server serves policy, if there
+            is a policy server at this site, otherwise null.
           type: string
-        policy_server_endpoint:
-          description: >-
-            REST endpoint at which the policy server may be contacted. If
-            present, namespace must also be given.
-          type: string
-          format: uri
+          nullable: true
 
     RegistryUpdate:
       type: object

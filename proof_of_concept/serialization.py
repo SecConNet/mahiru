@@ -2,8 +2,8 @@
 import base64
 from datetime import datetime
 from typing import (
-        Any, Callable, cast, Dict, Generic, Mapping, Tuple, Type, TypeVar,
-        Union)
+        Any, Callable, cast, Dict, Generic, Mapping, Optional, Tuple, Type,
+        TypeVar, Union)
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import (
@@ -44,17 +44,10 @@ def serialize_site_description(site_desc: SiteDescription) -> JSON:
     result['name'] = site_desc.name
     result['owner_name'] = site_desc.owner_name
     result['admin_name'] = site_desc.admin_name
-    # TODO: enable these when those things have endpoints
-    # if site_desc.runner is not None:
-    #     result['runner_endpoint'] = site_desc.runner_endpoint
-    # if site_desc.store is not None:
-    #     result['store_endpoint'] = site_desc.store_endpoint
-    if site_desc.namespace is not None:
-        result['namespace'] = site_desc.namespace
-    # if site_desc.policy_server_endpoint is not None:
-    #     result['policy_server_endpoint'] = \
-    #         site_desc.policy_server_endpoint
     result['endpoint'] = site_desc.endpoint
+    result['store'] = site_desc.store
+    result['runner'] = site_desc.runner
+    result['namespace'] = site_desc.namespace
     return result
 
 
@@ -74,7 +67,7 @@ def serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
     """Serializes an InAssetCollection object to JSON."""
     return {
             'type': 'InAssetCollection',
-            'signature': base64.urlsafe_b64encode(rule.signature),
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'asset': rule.asset,
             'collection': rule.collection}
 
@@ -83,7 +76,7 @@ def serialize_in_party_collection(rule: InPartyCollection) -> JSON:
     """Serializes an InPartyCollection object to JSON."""
     return {
             'type': 'InPartyCollection',
-            'signature': base64.urlsafe_b64encode(rule.signature),
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'party': rule.party,
             'collection': rule.collection}
 
@@ -92,7 +85,7 @@ def serialize_may_access(rule: MayAccess) -> JSON:
     """Serializes a MayAccess object to JSON."""
     return {
             'type': 'MayAccess',
-            'signature': base64.urlsafe_b64encode(rule.signature),
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'party': rule.party,
             'asset': rule.asset}
 
@@ -101,7 +94,7 @@ def serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
     """Serializes a ResultOfDataIn object to JSON."""
     return {
             'type': 'ResultOfDataIn',
-            'signature': base64.urlsafe_b64encode(rule.signature),
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'data_asset': rule.data_asset,
             'compute_asset': rule.compute_asset,
             'collection': rule.collection}
@@ -111,7 +104,7 @@ def serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
     """Serializes a ResultOfComputeIn object to JSON."""
     return {
             'type': 'ResultOfComputeIn',
-            'signature': base64.urlsafe_b64encode(rule.signature),
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'data_asset': rule.data_asset,
             'compute_asset': rule.compute_asset,
             'collection': rule.collection}
@@ -205,16 +198,10 @@ def deserialize_site_description(user_input: JSON) -> SiteDescription:
             user_input['name'],
             user_input['owner_name'],
             user_input['admin_name'],
-            None,
-            # user_input.get('runner_endpoint'),
-            None,
-            # user_input.get('store_endpoint'),
-            None,
-            # user_input.get('namespace'),
-            None,
-            # user_input.get('policy_server_endpoint')
-            user_input['endpoint']
-            )
+            user_input['endpoint'],
+            user_input['runner'],
+            user_input['store'],
+            user_input['namespace'])
 
 
 def deserialize_registered_object(user_input: JSON) -> RegisteredObject:
@@ -226,21 +213,26 @@ def deserialize_registered_object(user_input: JSON) -> RegisteredObject:
 
 def deserialize_rule(user_input: JSON) -> Rule:
     """Deserialize a Rule."""
+    rule = None     # type: Optional[Rule]
     if user_input['type'] == 'InAssetCollection':
-        return InAssetCollection(user_input['asset'], user_input['collection'])
+        rule = InAssetCollection(user_input['asset'], user_input['collection'])
     elif user_input['type'] == 'InPartyCollection':
-        return InPartyCollection(user_input['party'], user_input['collection'])
+        rule = InPartyCollection(user_input['party'], user_input['collection'])
     elif user_input['type'] == 'MayAccess':
-        return MayAccess(user_input['party'], user_input['asset'])
+        rule = MayAccess(user_input['party'], user_input['asset'])
     elif user_input['type'] == 'ResultOfDataIn':
-        return ResultOfDataIn(
+        rule = ResultOfDataIn(
                 user_input['data_asset'], user_input['compute_asset'],
                 user_input['collection'])
     elif user_input['type'] == 'ResultOfComputeIn':
-        return ResultOfComputeIn(
+        rule = ResultOfComputeIn(
                 user_input['data_asset'], user_input['compute_asset'],
                 user_input['collection'])
-    raise RuntimeError('Invalid rule type when deserialising')
+    else:
+        raise RuntimeError('Invalid rule type when deserialising')
+
+    rule.signature = base64.urlsafe_b64decode(user_input['signature'])
+    return rule
 
 
 def deserialize_workflow_step(user_input: JSON) -> WorkflowStep:

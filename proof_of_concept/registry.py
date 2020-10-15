@@ -27,7 +27,7 @@ class Registry:
         archive = ReplicableArchive[RegisteredObject]()
         self._store = CanonicalStore[RegisteredObject](archive)
         self.replication_server = ReplicationServer[RegisteredObject](
-                archive, 1.0)
+                archive, 0.1)
 
     def register_party(
             self, description: PartyDescription) -> None:

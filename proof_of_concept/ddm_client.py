@@ -1,7 +1,8 @@
 """Functionality for connecting to other DDM sites."""
+import logging
 from pathlib import Path
 import requests
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -11,13 +12,55 @@ from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
         Plan, SiteDescription)
+from proof_of_concept.policy import (
+        InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
+        ResultOfDataIn, Rule)
 from proof_of_concept.serialization import (
         deserialize_asset, serialize, serialize_job, serialize_plan)
 from proof_of_concept.registry import global_registry, RegisteredObject
-from proof_of_concept.replication import Replica
+from proof_of_concept.replication import ObjectValidator, Replica
 from proof_of_concept.replication_rest import ReplicationClient
 from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job, Workflow
+
+
+logger = logging.getLogger(__name__)
+
+
+_PolicyClient = ReplicationClient[Rule]
+
+
+class RuleValidator(ObjectValidator[Rule]):
+    """Validates incoming policy rules by checking signatures."""
+    def __init__(self, ddm_client: 'DDMClient', namespace: str) -> None:
+        """Create a RuleValidator.
+
+        Checks that rules apply to the given namespace, and that they
+        have been signed by the owner of that namespace.
+
+        Args:
+            ddm_client: A DDMClient to use.
+            namespace: The namespace to expect rules for.
+        """
+        self._key = ddm_client.get_public_key_for_ns(namespace)
+        self._namespace = namespace
+
+    def is_valid(self, rule: Rule) -> bool:
+        """Return True iff the rule is properly signed."""
+        if isinstance(rule, ResultOfDataIn):
+            namespace = rule.data_asset[3:].split('.')[0]
+        elif isinstance(rule, ResultOfComputeIn):
+            namespace = rule.compute_asset[3:].split('.')[0]
+        elif isinstance(rule, MayAccess):
+            namespace = rule.asset[3:].split('.')[0]
+        elif isinstance(rule, InAssetCollection):
+            namespace = rule.asset[3:].split('.')[0]
+        elif isinstance(rule, InPartyCollection):
+            namespace = rule.collection[3:].split('.')[0]
+
+        if namespace != self._namespace:
+            return False
+        return rule.has_valid_signature(self._key)
 
 
 class DDMClient:
@@ -33,6 +76,7 @@ class DDMClient:
         # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
 
+        # Set up connection to registry
         registry_api_file = Path(__file__).parent / 'registry_api.yaml'
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
@@ -41,20 +85,22 @@ class DDMClient:
 
         registry_client = ReplicationClient[RegisteredObject](
                 self._registry_endpoint + '/updates', registry_validator,
-                'RegistryUpdate')
+                'RegistryUpdate', 'RegisteredObject')
 
+        self._registry_replica = Replica[RegisteredObject](
+                registry_client, on_update=self._on_registry_update)
+
+        # Set up connections to sites
         site_api_file = Path(__file__).parent / 'site_api.yaml'
         with open(site_api_file, 'r') as f:
             site_api_def = yaml.safe_load(f.read())
 
         self._site_validator = Validator(site_api_def)
 
-        # TODO: enable this when we can actually serialize runners
-        # and stores and policy servers.
-        # self._registry_replica = Replica[RegisteredObject](
-        #         registry_client)
-        self._registry_replica = Replica[RegisteredObject](
-                global_registry.replication_server)
+        self._policy_replicas = dict()  # type: Dict[str, Replica[Rule]]
+
+        # Get initial data
+        self._registry_replica.update()
 
     def register_party(self, description: PartyDescription) -> None:
         """Register a party with the Registry.
@@ -99,13 +145,28 @@ class DDMClient:
             return owner.public_key
         raise RuntimeError(f'No site with namespace {namespace} found')
 
+    def get_rules(self) -> Dict[str, Set[Rule]]:
+        """List all known rules in all namespaces.
+
+        Return:
+            A dict mapping namespaces to their governing rules.
+
+        """
+        self._registry_replica.update()
+        for replica in self._policy_replicas.values():
+            replica.update()
+        result = {
+                namespace: replica.objects
+                for namespace, replica in self._policy_replicas.items()}
+        return result
+
     def list_sites_with_runners(self) -> List[str]:
         """Returns a list of id's of sites with runners."""
         self._registry_replica.update()
         sites = list()    # type: List[str]
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
-                if o.runner is not None:
+                if o.runner:
                     sites.append(o.name)
         return sites
 
@@ -115,22 +176,6 @@ class DDMClient:
         if site is not None:
             return site.admin_name
         raise RuntimeError('Site {} not found'.format(site_name))
-
-    def list_policy_servers(self) -> List[Tuple[str, IPolicyServer]]:
-        """List all known policy servers.
-
-        Return:
-            A list of all registered policy servers and their
-                    namespaces.
-
-        """
-        self._registry_replica.update()
-        result = list()     # type: List[Tuple[str, IPolicyServer]]
-        for o in self._registry_replica.objects:
-            if isinstance(o, SiteDescription):
-                if o.namespace is not None and o.policy_server is not None:
-                    result.append((o.namespace, o.policy_server))
-        return result
 
     @staticmethod
     def get_asset_location(asset_id: str) -> str:
@@ -154,7 +199,6 @@ class DDMClient:
             asset_json = r.json()
             self._site_validator.validate('Asset', asset_json)
             return deserialize_asset(asset_json)
-            # return site.store.retrieve(asset_id, self._party)
 
         raise RuntimeError(f'Site or store at site {site_name} not found')
 
@@ -168,14 +212,13 @@ class DDMClient:
 
         """
         site = self._get_site('name', site_name)
-        data = {
-                'job': serialize_job(job),
-                'plan': serialize_plan(plan)}
-        if site is not None and site.runner is not None:
+        if site is not None and site.runner:
+            data = {
+                    'job': serialize_job(job),
+                    'plan': serialize_plan(plan)}
             requests.post(f'{site.endpoint}/jobs', json=data)
-            # site.runner.execute_job(job, plan)
-            return
-        raise RuntimeError(f'Site or runner at site {site_name} not found')
+        else:
+            raise RuntimeError(f'Site or runner at site {site_name} not found')
 
     def _get_party(self, name: str) -> Optional[PartyDescription]:
         """Returns the party with the given name."""
@@ -196,3 +239,21 @@ class DDMClient:
                 if a is not None and a == value:
                     return o
         return None
+
+    def _on_registry_update(
+            self, created: Set[RegisteredObject],
+            deleted: Set[RegisteredObject]) -> None:
+        """Updates policy clients/replicas when sites are updated."""
+        for o in created:
+            if isinstance(o, SiteDescription) and o.namespace:
+                client = ReplicationClient[Rule](
+                        o.endpoint + '/rules/updates', self._site_validator,
+                        'PolicyUpdate', 'Rule')
+
+                validator = RuleValidator(self, o.namespace)
+                self._policy_replicas[o.namespace] = Replica[Rule](
+                        client, validator)
+
+        for o in deleted:
+            if isinstance(o, SiteDescription) and o.namespace:
+                del(self._policy_replicas[o.namespace])

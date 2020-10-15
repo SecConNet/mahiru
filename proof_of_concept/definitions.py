@@ -1,7 +1,8 @@
 """Some global definitions."""
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-
+from datetime import datetime
 from typing import Any, Dict, Generic, Optional, Set, TypeVar, Union
+
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
@@ -134,6 +135,13 @@ class ReplicaUpdate(Generic[T]):
         self.created = created
         self.deleted = deleted
 
+    def __repr__(self) -> str:
+        """Return a string representation of the object."""
+        return (
+            f'ReplicaUpdate({self.from_version} -> {self.to_version},'
+            f' {datetime.fromtimestamp(self.valid_until)},'
+            f' +{self.created}, -{self.deleted})')
+
 
 class IReplicationSource(Generic[T]):
     """Generic interface for replication sources."""
@@ -188,10 +196,10 @@ class SiteDescription(RegisteredObject):
         owner_name: Name of the party which owns this site.
         admin_name: Name of the party which administrates this site.
         endpoint: This site's REST endpoint.
-        runner: This site's local workflow runner.
-        store: This site's asset store.
-        namespace: The namespace managed by this site's policy server.
-        policy_server: This site's policy server.
+        runner: Whether the site has a runner.
+        store: Whether the site has a store.
+        namespace: The namespace managed by this site's policy server,
+            if any.
 
     """
     def __init__(
@@ -199,11 +207,10 @@ class SiteDescription(RegisteredObject):
             name: str,
             owner_name: str,
             admin_name: str,
-            runner: Optional[ILocalWorkflowRunner],
-            store: Optional[IAssetStore],
-            namespace: Optional[str],
-            policy_server: Optional[IPolicyServer],
-            endpoint: str
+            endpoint: str,
+            runner: bool,
+            store: bool,
+            namespace: Optional[str]
             ) -> None:
         """Create a SiteDescription.
 
@@ -211,31 +218,23 @@ class SiteDescription(RegisteredObject):
             name: Name of the site.
             owner_name: Name of the party which owns this site.
             admin_name: Name of the party which administrates this site.
-            runner: This site's local workflow runner.
-            store: This site's asset store.
-            namespace: The namespace managed by this site's policy
-                server.
-            policy_server: This site's policy server.
             endpoint: URL of the REST endpoint of this site.
+            runner: Whether the site has a runner.
+            store: Whether the site has a store.
+            namespace: The namespace managed by this site's policy
+                server, if any.
 
         """
         self.name = name
         self.owner_name = owner_name
         self.admin_name = admin_name
+        self.endpoint = endpoint
         self.runner = runner
         self.store = store
         self.namespace = namespace
-        self.policy_server = policy_server
-        self.endpoint = endpoint
 
-        if store is None and runner is not None:
+        if runner and not store:
             raise RuntimeError('Site with runner needs a store')
-
-        if namespace is None and policy_server is not None:
-            raise RuntimeError('Policy server specified without namespace')
-
-        if namespace is not None and policy_server is None:
-            raise RuntimeError('Namespace specified but policy server missing')
 
 
 RegistryUpdate = ReplicaUpdate[RegisteredObject]

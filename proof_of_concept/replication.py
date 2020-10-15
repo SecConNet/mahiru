@@ -11,14 +11,18 @@ policies and site and asset metadata, just enabling strict
 serialisation is probably the way to go. That's what we do here, using
 the Python GIL.
 """
+from datetime import datetime
+import logging
 import requests
 import time
 from typing import (
-        Any, Dict, Generic, Iterable, Optional, Set, Tuple, Type, TypeVar)
-
-from falcon import Request, Response
+        Any, Callable, Dict, Generic, Iterable, Optional, Set, Tuple, Type,
+        TypeVar)
 
 from proof_of_concept.definitions import IReplicationSource, ReplicaUpdate
+
+
+logger = logging.getLogger(__name__)
 
 
 T = TypeVar('T')
@@ -179,13 +183,27 @@ class Replica(Generic[T]):
     """Stores a replica of a CanonicalStore."""
     def __init__(
             self, source: IReplicationSource[T],
-            validator: Optional[ObjectValidator[T]] = None
+            validator: Optional[ObjectValidator[T]] = None,
+            on_update: Optional[Callable[[Set[T], Set[T]], None]] = None
             ) -> None:
-        """Create an empty Replica."""
+        """Create an empty Replica.
+
+        The callback function, if specified, will be called by update()
+        if there are any changes to the replica. It must be a callable
+        object taking a set of newly created T as its first argument,
+        and a set of newly deleted T as its second argument.
+
+        Args:
+            source: Source to get replica updates from.
+            validator: Validates incoming objects, if specified.
+            on_update: Called with changes when update() is called.
+        """
         self.objects = set()        # type: Set[T]
 
         self._source = source
         self._validator = validator
+        self._on_update = on_update
+
         self._version = None        # type: Optional[int]
         self._valid_until = 0.0     # type: float
 
@@ -205,9 +223,11 @@ class Replica(Generic[T]):
             if self._validator is not None:
                 for r in update.created:
                     if not self._validator.is_valid(r):
+                        logger.error(f'Object {r} failed validation.')
                         return
                 for r in update.deleted:
                     if not self._validator.is_valid(r):
+                        logger.error(f'Object {r} failed validation.')
                         return
 
             # In a database, do this in a single transaction
@@ -215,3 +235,6 @@ class Replica(Generic[T]):
             self.objects.update(update.created)
             self._version = update.to_version
             self._valid_until = update.valid_until
+
+            if self._on_update:
+                self._on_update(update.created, update.deleted)

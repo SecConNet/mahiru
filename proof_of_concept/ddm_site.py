@@ -68,7 +68,7 @@ class Site:
             rule.sign(self._private_key)
             self._policy_store.insert(rule)
         self.policy_server = ReplicationServer[Rule](
-                self._policy_archive, 10.0)
+                self._policy_archive, 0.1)
 
         self._policy_source = PolicySource(
                 self._ddm_client, self._policy_store)
@@ -93,8 +93,7 @@ class Site:
         self._ddm_client.register_site(
                 SiteDescription(
                     self.name, self.owner, self.administrator,
-                    self.runner, self.store, self.namespace,
-                    self.policy_server, self.server.endpoint))
+                    self.server.endpoint, True, True, self.namespace))
 
         # Insert data
         for asset in stored_data:

@@ -153,7 +153,7 @@ components:
         signature:
           description: BASE64url serialised signature
           type: string
-        asset:
+        party:
           description: Id of the party that is in the collection
           type: string
         collection:
@@ -205,6 +205,44 @@ components:
         collection:
           description: Id of the collection the result is in
           type: string
+
+    PolicyUpdate:
+      type: object
+      required:
+        - from_version
+        - to_version
+        - valid_until
+        - created
+        - deleted
+      properties:
+        from_version:
+          description: Version this update applies to
+          type: integer
+        to_version:
+          description: Version this update updates to
+          type: integer
+        valid_until:
+          description: Time until which the new version is valid
+          type: string
+          format: date-time
+        created:
+          description: Objects that were created since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/InAssetCollection"
+              - "$ref": "#/components/schemas/InPartyCollection"
+              - "$ref": "#/components/schemas/MayAccess"
+              - "$ref": "#/components/schemas/ResultOfIn"
+        deleted:
+          description: Objects that were deleted since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/InAssetCollection"
+              - "$ref": "#/components/schemas/InPartyCollection"
+              - "$ref": "#/components/schemas/MayAccess"
+              - "$ref": "#/components/schemas/ResultOfIn"
 
     Metadata:
       type: object

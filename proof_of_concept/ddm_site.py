@@ -106,6 +106,8 @@ class Site:
 
     def close(self) -> None:
         """Shut down the site."""
+        self._ddm_client.deregister_site(self.name)
+        self._ddm_client.deregister_party(self.administrator)
         self.server.close()
 
     def run_job(self, job: Job) -> Dict[str, Any]:

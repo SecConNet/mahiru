@@ -45,7 +45,18 @@ class Registry:
                     f'There is already a party called {description.name}')
 
         self._store.insert(description)
-        logger.info(f'{self} Registered party {description}')
+        logger.info(f'Registered party {description}')
+
+    def deregister_party(self, name: str) -> None:
+        """Deregister a party with the DDM.
+
+        Args:
+            name: Name of the party to deregister.
+        """
+        description = self._get_object(PartyDescription, 'name', name)
+        if description is None:
+            raise KeyError('Party not found')
+        self._store.delete(description)
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a Site with the Registry.
@@ -70,6 +81,17 @@ class Registry:
 
         self._store.insert(description)
         logger.info(f'{self} Registered site {description}')
+
+    def deregister_site(self, name: str) -> None:
+        """Deregister a site with the DDM.
+
+        Args:
+            name: Name of the site to deregister.
+        """
+        description = self._get_object(SiteDescription, 'name', name)
+        if description is None:
+            raise KeyError('Site not found')
+        self._store.delete(description)
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.

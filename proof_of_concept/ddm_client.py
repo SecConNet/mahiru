@@ -113,6 +113,17 @@ class DDMClient:
                 self._registry_endpoint + '/parties',
                 json=serialize(description))
 
+    def deregister_party(self, name: str) -> None:
+        """Deregister a party with the Registry.
+
+        Args:
+            name: Name of the party to deregister.
+
+        """
+        r = requests.delete(f'{self._registry_endpoint}/parties/{name}')
+        if r.status_code == 404:
+            raise KeyError('Party not found')
+
     def register_site(self, description: SiteDescription) -> None:
         """Register a site with the Registry.
 
@@ -123,6 +134,17 @@ class DDMClient:
         requests.post(
                 self._registry_endpoint + '/sites',
                 json=serialize(description))
+
+    def deregister_site(self, name: str) -> None:
+        """Deregister a site with the Registry.
+
+        Args:
+            name: Name of the site to deregister.
+
+        """
+        r = requests.delete(f'{self._registry_endpoint}/sites/{name}')
+        if r.status_code == 404:
+            raise KeyError('Site not found')
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.

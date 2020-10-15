@@ -45,6 +45,39 @@ paths:
               schema:
                 type: string
 
+  /parties/{name}:
+    delete:
+      summary: Deregister a party
+      operationId: deregisterParty
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the asset to deregister
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully deregistered the party
+          content:
+            text/plain:
+              schema:
+                description: A message signalling succes
+                type: string
+        "404":
+          description: The party was not found
+          content:
+            text/plain:
+              schema:
+                description: A message signalling failure
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
   /sites:
     post:
       summary: Register a site
@@ -77,6 +110,39 @@ paths:
             text/plain:
               schema:
                 description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /sites/{name}:
+    delete:
+      summary: Deregister a site
+      operationId: deregisterSite
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the site to deregister
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully deregistered the site
+          content:
+            text/plain:
+              schema:
+                description: A message signalling succes
+                type: string
+        "404":
+          description: The site was not found
+          content:
+            text/plain:
+              schema:
+                description: A message signalling failure
                 type: string
         default:
           description: A technical problem was encountered

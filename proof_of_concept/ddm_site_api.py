@@ -44,7 +44,6 @@ class AssetAccess:
         """
         logger.info(f'Asset access request, store = {self._store}')
         if 'requester' not in request.params:
-            print(f'Invalid asset access request')
             logger.info(f'Invalid asset access request')
             response.status = HTTP_400
             response.body = 'Invalid request'
@@ -58,7 +57,6 @@ class AssetAccess:
                 response.status = HTTP_200
                 response.media = serialize_asset(asset)
             except KeyError:
-                print(f'Asset {asset_id} not found')
                 logger.info(f'Asset {asset_id} not found')
                 response.status = HTTP_404
                 response.body = 'Asset not found'
@@ -66,9 +64,6 @@ class AssetAccess:
                 # This is permission denied, but we return a 404 to
                 # avoid information-leaking the existence of any
                 # particular assets.
-                print(
-                        f'Asset {asset_id} not available for user'
-                        f' {request.params["requester"]}')
                 logger.info(
                         f'Asset {asset_id} not available for user'
                         f' {request.params["requester"]}')

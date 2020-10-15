@@ -1,4 +1,5 @@
 """REST-style API for central registry."""
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,9 @@ from proof_of_concept.serialization import (
 from proof_of_concept.registry import Registry
 from proof_of_concept.replication_rest import ReplicationHandler
 from proof_of_concept.validation import Validator, ValidationError
+
+
+logger = logging.getLogger(__name__)
 
 
 class PartyRegistration:
@@ -73,14 +77,16 @@ class SiteRegistration:
         """
         try:
             self._validator.validate('Site', request.media)
-            # self._registry.register_site(
-            #         deserialize_site_description(request.media))
+            self._registry.register_site(
+                    deserialize_site_description(request.media))
             response.status = HTTP_201
             response.body = 'Created'
-        except ValidationError:
+        except ValidationError as e:
+            logger.error(f'Invalid site description {e}')
             response.status = HTTP_400
             response.body = 'Invalid request'
-        except RuntimeError:
+        except RuntimeError as e:
+            logger.error(f'Tried to reregister site {e}')
             response.status = HTTP_409
             response.body = 'Site already exists'
 

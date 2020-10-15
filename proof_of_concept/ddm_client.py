@@ -111,7 +111,7 @@ class DDMClient:
         """
         requests.post(
                 self._registry_endpoint + '/parties',
-                data=serialize(description))
+                json=serialize(description))
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a site with the Registry.
@@ -120,10 +120,9 @@ class DDMClient:
             description: Description of the site.
 
         """
-        global_registry.register_site(description)
         requests.post(
                 self._registry_endpoint + '/sites',
-                data=serialize(description))
+                json=serialize(description))
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.

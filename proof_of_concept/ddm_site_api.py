@@ -2,11 +2,12 @@
 import logging
 from pathlib import Path
 from threading import Thread
+from socketserver import ThreadingMixIn
 from typing import Any
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
 import ruamel.yaml as yaml
-from wsgiref.simple_server import make_server
 
 from proof_of_concept.definitions import IAssetStore, ILocalWorkflowRunner
 from proof_of_concept.policy import Rule
@@ -48,9 +49,6 @@ class AssetAccess:
             response.status = HTTP_400
             response.body = 'Invalid request'
         else:
-            print(
-                    f'Received request for asset {asset_id} from'
-                    f' {request.params["requester"]}')
             logger.info(
                     f'Received request for asset {asset_id} from'
                     f' {request.params["requester"]}')
@@ -149,6 +147,11 @@ class SiteApi:
         self.app.add_route('/jobs', workflow_execution)
 
 
+class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):
+    """Threading version of a simple WSGI server."""
+    pass
+
+
 class SiteServer:
     """An HTTP server serving a SiteApi.
 
@@ -168,7 +171,9 @@ class SiteServer:
             api: The API to serve.
 
         """
-        self._server = make_server('0.0.0.0', 0, api.app)
+        self._server = ThreadingWSGIServer(('0.0.0.0', 0), WSGIRequestHandler)
+        self._server.set_app(api.app)
+
         self._thread = Thread(
                 target=self._server.serve_forever,
                 name='RegistryServer')
@@ -182,4 +187,5 @@ class SiteServer:
     def close(self) -> None:
         """Stop the server thread."""
         self._server.shutdown()
+        self._server.server_close()
         self._thread.join()

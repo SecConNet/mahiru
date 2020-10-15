@@ -187,6 +187,10 @@ class PartyDescription(RegisteredObject):
         self.name = name
         self.public_key = public_key
 
+    def __repr__(self) -> str:
+        """Returns a string representation of the object."""
+        return f'PartyDescription({self.name})'
+
 
 class SiteDescription(RegisteredObject):
     """Describes a site to the rest of the DDM.
@@ -235,6 +239,10 @@ class SiteDescription(RegisteredObject):
 
         if runner and not store:
             raise RuntimeError('Site with runner needs a store')
+
+    def __repr__(self) -> str:
+        """Returns a string representation of the object."""
+        return f'SiteDescription({self.name})'
 
 
 RegistryUpdate = ReplicaUpdate[RegisteredObject]

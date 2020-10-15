@@ -47,10 +47,12 @@ class PartyRegistration:
                     deserialize_party_description(request.media))
             response.status = HTTP_201
             response.body = 'Created'
-        except ValidationError:
+        except ValidationError as e:
+            logger.error(f'Invalid party description {e}')
             response.status = HTTP_400
             response.body = 'Invalid request'
-        except RuntimeError:
+        except RuntimeError as e:
+            logger.error(f'Tried to reregister party {e}')
             response.status = HTTP_409
             response.body = 'Party already exists'
 

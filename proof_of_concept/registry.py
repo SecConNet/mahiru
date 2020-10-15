@@ -1,4 +1,5 @@
 """Central registry of remote-accessible things."""
+import logging
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -8,6 +9,9 @@ from proof_of_concept.definitions import (
         RegisteredObject, RegistryUpdate, SiteDescription)
 from proof_of_concept.replication import (
         CanonicalStore, ReplicableArchive, ReplicationServer, ReplicaUpdate)
+
+
+logger = logging.getLogger(__name__)
 
 
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
@@ -41,6 +45,7 @@ class Registry:
                     f'There is already a party called {description.name}')
 
         self._store.insert(description)
+        logger.info(f'{self} Registered party {description}')
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a Site with the Registry.
@@ -64,6 +69,7 @@ class Registry:
             raise RuntimeError(f'Party {description.admin_name} not found')
 
         self._store.insert(description)
+        logger.info(f'{self} Registered site {description}')
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.

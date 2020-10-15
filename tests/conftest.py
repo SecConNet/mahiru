@@ -5,7 +5,7 @@ This is a PyTest special file, see its documentation.
 import logging
 from threading import Thread
 from unittest.mock import patch
-from wsgiref.simple_server import make_server
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
@@ -29,6 +29,17 @@ def clean_global_registry():
         yield None
 
 
+class ReusingWSGIServer(WSGIServer):
+    """A simple WSGI server which allows reusing the port.
+
+    There is of course a good reason for the existence of TIME_WAIT,
+    but this is only used in testing, where we get in trouble when we
+    try to create and destroy several registry servers in quick
+    succession.
+    """
+    allow_reuse_address = True
+
+
 @pytest.fixture
 def registry_server():
     """Create a REST server instance for the global registry."""
@@ -36,7 +47,8 @@ def registry_server():
     # Will disappear, see above
     from proof_of_concept.ddm_client import global_registry
     api = RegistryApi(global_registry)
-    server = make_server('0.0.0.0', 4413, api.app)
+    server = ReusingWSGIServer(('0.0.0.0', 4413), WSGIRequestHandler)
+    server.set_app(api.app)
     thread = Thread(
             target=server.serve_forever,
             name='RegistryServer')
@@ -45,6 +57,7 @@ def registry_server():
     yield
 
     server.shutdown()
+    server.server_close()
     thread.join()
 
 

@@ -13,9 +13,8 @@ paths:
         - name: from_version
           in: query
           description: >-
-            Current version of the replica the update is for. If omitted,
+            Current version of the replica the update is for. If zero,
             returns an update from the beginning.
-          required: false
           schema:
             type: integer
       responses:

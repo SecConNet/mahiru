@@ -144,14 +144,12 @@ class ReplicaUpdate(Generic[T]):
 
 class IReplicationSource(Generic[T]):
     """Generic interface for replication sources."""
-    def get_updates_since(
-            self, from_version: Optional[int]
-            ) -> ReplicaUpdate[T]:
+    def get_updates_since(self, from_version: int) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
 
         Args:
             from_version: A version received from a previous call to
-                    this function, or None to get an update for a
+                    this function, or 0 to get an update for a
                     fresh replica.
 
         Return:

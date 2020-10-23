@@ -133,14 +133,12 @@ class ReplicationServer(IReplicationSource[T]):
         self._archive = archive
         self._max_lag = max_lag
 
-    def get_updates_since(
-            self, from_version: Optional[int]
-            ) -> ReplicaUpdate[T]:
+    def get_updates_since(self, from_version: int) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
 
         Args:
             from_version: A version received from a previous call to
-                    this function, or None to get an update for a
+                    this function, or 0 to get an update for a
                     fresh replica.
 
         Return:
@@ -158,8 +156,6 @@ class ReplicationServer(IReplicationSource[T]):
 
         cur_time = datetime.now()
         to_version = self._archive.version
-        if from_version is None:
-            from_version = -1
 
         new_objects = {
                 rec.object for rec in self._archive.records
@@ -204,7 +200,7 @@ class Replica(Generic[T]):
         self._validator = validator
         self._on_update = on_update
 
-        self._version = None        # type: Optional[int]
+        self._version = 0
         self._valid_until = datetime.fromtimestamp(0.0)
 
     def is_valid(self) -> bool:

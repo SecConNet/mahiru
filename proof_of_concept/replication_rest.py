@@ -36,11 +36,8 @@ class ReplicationHandler(Generic[T]):
             request: The submitted request.
             response: A response object to configure.
         """
-        if 'from_version' not in request.params:
-            from_version = None     # type: Optional[int]
-        else:
-            from_version = request.get_param_as_int(
-                    'from_version', required=True)
+        from_version = request.get_param_as_int(
+                'from_version', required=True)
 
         updates = self._server.get_updates_since(from_version)
         response.media = serialize(updates)

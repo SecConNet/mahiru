@@ -117,15 +117,15 @@ class ReplicaUpdate(Generic[T]):
         deleted: Set of objects that were deleted.
     """
     def __init__(
-            self, from_version: int, to_version: int, valid_until: float,
+            self, from_version: int, to_version: int, valid_until: datetime,
             created: Set[T], deleted: Set[T]) -> None:
         """Create a replica update.
 
         Args:
             from_version: Version to apply this update to.
             to_version: Version this update updates to.
-            valid_until: Time (in seconds since the UNIX epoch) until
-                    which the new version is valid.
+            valid_until: Point in time until which the new version is
+                valid.
             created: Set of objects that were created.
             deleted: Set of objects that were deleted.
         """
@@ -139,8 +139,7 @@ class ReplicaUpdate(Generic[T]):
         """Return a string representation of the object."""
         return (
             f'ReplicaUpdate({self.from_version} -> {self.to_version},'
-            f' {datetime.fromtimestamp(self.valid_until)},'
-            f' +{self.created}, -{self.deleted})')
+            f' {self.valid_until}, +{self.created}, -{self.deleted})')
 
 
 class IReplicationSource(Generic[T]):

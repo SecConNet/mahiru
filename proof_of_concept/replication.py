@@ -11,7 +11,7 @@ policies and site and asset metadata, just enabling strict
 serialisation is probably the way to go. That's what we do here, using
 the Python GIL.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import requests
 import time
@@ -156,7 +156,7 @@ class ReplicationServer(IReplicationSource[T]):
                 return False
             return deleted <= version
 
-        cur_time = time.time()
+        cur_time = datetime.now()
         to_version = self._archive.version
         if from_version is None:
             from_version = -1
@@ -173,7 +173,7 @@ class ReplicationServer(IReplicationSource[T]):
                     deleted_after(from_version, rec.deleted) and
                     deleted_before(rec.deleted, to_version))}
 
-        valid_until = cur_time + self._max_lag
+        valid_until = cur_time + timedelta(seconds=self._max_lag)
         return ReplicaUpdate(
                 from_version, to_version, valid_until,
                 new_objects, deleted_objects)
@@ -205,7 +205,7 @@ class Replica(Generic[T]):
         self._on_update = on_update
 
         self._version = None        # type: Optional[int]
-        self._valid_until = 0.0     # type: float
+        self._valid_until = datetime.fromtimestamp(0.0)
 
     def is_valid(self) -> bool:
         """Whether the replica is valid or outdated.
@@ -214,7 +214,7 @@ class Replica(Generic[T]):
             True iff the replica is now up-to-date enough according to
             the server.
         """
-        return time.time() < self._valid_until
+        return datetime.now() < self._valid_until
 
     def update(self) -> None:
         """Updates the replica, if necessary."""

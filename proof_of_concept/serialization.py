@@ -56,8 +56,7 @@ def serialize_replica_update(update: ReplicaUpdate[_SerializableT]) -> JSON:
     result = dict()     # type: JSON
     result['from_version'] = update.from_version
     result['to_version'] = update.to_version
-    dt = datetime.fromtimestamp(update.valid_until)
-    result['valid_until'] = dt.isoformat()
+    result['valid_until'] = update.valid_until.isoformat()
     result['created'] = [serialize(o) for o in update.created]
     result['deleted'] = [serialize(o) for o in update.deleted]
     return result
@@ -334,7 +333,7 @@ def deserialize_replica_update(
     return ReplicaUpdate[T](
             user_input['from_version'],
             user_input['to_version'],
-            dateparser.isoparse(user_input['valid_until']).timestamp(),
+            dateparser.isoparse(user_input['valid_until']),
             {_deserialize[content_type_tag](o)
                 for o in user_input['created']},
             {_deserialize[content_type_tag](o)

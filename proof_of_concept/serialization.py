@@ -35,7 +35,7 @@ _SerializableT = TypeVar('_SerializableT', bound=Serializable)
 
 
 def _serialize_party_description(party_desc: PartyDescription) -> JSON:
-    """Serializes a PartyDescription object to JSON."""
+    """Serialize a PartyDescription object to JSON."""
     public_key = party_desc.public_key.public_bytes(
             encoding=Encoding.PEM,
             format=PublicFormat.SubjectPublicKeyInfo
@@ -47,7 +47,7 @@ def _serialize_party_description(party_desc: PartyDescription) -> JSON:
 
 
 def _deserialize_party_description(user_input: JSON) -> PartyDescription:
-    """Deserializes a PartyDescription."""
+    """Deserialize a PartyDescription object from JSON."""
     name = user_input['name']
     public_key = load_pem_public_key(
             user_input['public_key'].encode('ascii'), default_backend())
@@ -55,7 +55,7 @@ def _deserialize_party_description(user_input: JSON) -> PartyDescription:
 
 
 def _serialize_site_description(site_desc: SiteDescription) -> JSON:
-    """Serializes a SiteDescription object to JSON."""
+    """Serialize a SiteDescription object to JSON."""
     result = dict()     # type: JSON
     result['name'] = site_desc.name
     result['owner_name'] = site_desc.owner_name
@@ -68,7 +68,7 @@ def _serialize_site_description(site_desc: SiteDescription) -> JSON:
 
 
 def _deserialize_site_description(user_input: JSON) -> SiteDescription:
-    """Deserializes a SiteDescription."""
+    """Deserialize a SiteDescription object from JSON."""
     return SiteDescription(
             user_input['name'],
             user_input['owner_name'],
@@ -80,7 +80,7 @@ def _deserialize_site_description(user_input: JSON) -> SiteDescription:
 
 
 def _deserialize_registered_object(user_input: JSON) -> RegisteredObject:
-    """Deserialize a RegisteredObject."""
+    """Deserialize a RegisteredObject object from JSON."""
     if 'public_key' in user_input:
         return _deserialize_party_description(user_input)
     return _deserialize_site_description(user_input)
@@ -90,7 +90,7 @@ def _deserialize_registered_object(user_input: JSON) -> RegisteredObject:
 
 
 def _serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
-    """Serializes an InAssetCollection object to JSON."""
+    """Serialize an InAssetCollection object to JSON."""
     return {
             'type': 'InAssetCollection',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
@@ -99,7 +99,7 @@ def _serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
 
 
 def _serialize_in_party_collection(rule: InPartyCollection) -> JSON:
-    """Serializes an InPartyCollection object to JSON."""
+    """Serialize an InPartyCollection object to JSON."""
     return {
             'type': 'InPartyCollection',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
@@ -108,7 +108,7 @@ def _serialize_in_party_collection(rule: InPartyCollection) -> JSON:
 
 
 def _serialize_may_access(rule: MayAccess) -> JSON:
-    """Serializes a MayAccess object to JSON."""
+    """Serialize a MayAccess object to JSON."""
     return {
             'type': 'MayAccess',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
@@ -117,7 +117,7 @@ def _serialize_may_access(rule: MayAccess) -> JSON:
 
 
 def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
-    """Serializes a ResultOfDataIn object to JSON."""
+    """Serialize a ResultOfDataIn object to JSON."""
     return {
             'type': 'ResultOfDataIn',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
@@ -127,7 +127,7 @@ def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
 
 
 def _serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
-    """Serializes a ResultOfComputeIn object to JSON."""
+    """Serialize a ResultOfComputeIn object to JSON."""
     return {
             'type': 'ResultOfComputeIn',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
@@ -137,7 +137,7 @@ def _serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
 
 
 def _deserialize_rule(user_input: JSON) -> Rule:
-    """Deserialize a Rule."""
+    """Deserialize a Rule from JSON."""
     rule = None     # type: Optional[Rule]
     if user_input['type'] == 'InAssetCollection':
         rule = InAssetCollection(user_input['asset'], user_input['collection'])
@@ -173,7 +173,7 @@ def _serialize_workflow_step(step: WorkflowStep) -> JSON:
 
 
 def _deserialize_workflow_step(user_input: JSON) -> WorkflowStep:
-    """Deserialize a WorkflowStep."""
+    """Deserialize a WorkflowStep from JSON."""
     return WorkflowStep(
             user_input['name'], user_input['inputs'],
             user_input['outputs'], user_input['compute_asset_id'])
@@ -189,26 +189,26 @@ def _serialize_workflow(workflow: Workflow) -> JSON:
 
 
 def _deserialize_workflow(user_input: JSON) -> Workflow:
-    """Deserialize a Workflow."""
+    """Deserialize a Workflow from JSON."""
     steps = [_deserialize_workflow_step(s) for s in user_input['steps']]
     return Workflow(user_input['inputs'], user_input['outputs'], steps)
 
 
 def _serialize_job(job: Job) -> JSON:
-    """Serialize a plan to JSON."""
+    """Serialize a Job to JSON."""
     return {
            'workflow': _serialize_workflow(job.workflow),
            'inputs': job.inputs}
 
 
 def _deserialize_job(user_input: JSON) -> Job:
-    """Deserialize a Job."""
+    """Deserialize a Job from JSON."""
     workflow = _deserialize_workflow(user_input['workflow'])
     return Job(workflow, user_input['inputs'])
 
 
 def _serialize_plan(plan: Plan) -> JSON:
-    """Serialize a plan to JSON."""
+    """Serialize a Plan to JSON."""
     step_sites = {
             step.name: site_id for step, site_id in plan.step_sites.items()}
     return {
@@ -217,7 +217,7 @@ def _serialize_plan(plan: Plan) -> JSON:
 
 
 def _deserialize_plan(user_input: JSON, workflow: Workflow) -> Plan:
-    """Deserialize a Plan.
+    """Deserialize a Plan from JSON.
 
     Note: this one is a bit special, as it has an extra argument. It's
     not in the _deserialize dispatcher for that reason.
@@ -236,18 +236,7 @@ def _serialize_job_submission(submission: JobSubmission) -> JSON:
 
 
 def _deserialize_job_submission(user_input: JSON) -> JobSubmission:
-    """Deserialize a JobSubmission.
-
-    Be sure to validate first if the input is untrusted. Note that
-    this is slightly different, because there is no corresponding
-    Python class, instead we deserialize to a tuple.
-
-    Args:
-        user_input: Trusted user input in JSON.
-
-    Returns:
-        A tuple (job, plan).
-    """
+    """Deserialize a JobSubmission from JSON."""
     job = _deserialize_job(user_input['job'])
     plan = _deserialize_plan(user_input['plan'], job.workflow)
     return JobSubmission(job, plan)
@@ -257,20 +246,20 @@ def _deserialize_job_submission(user_input: JSON) -> JobSubmission:
 
 
 def _serialize_metadata(metadata: Metadata) -> JSON:
-    """Serialize asset metadata to JSON."""
+    """Serialize a Metadata to JSON."""
     return {
             'job': _serialize_job(metadata.job),
             'item': metadata.item}
 
 
 def _deserialize_metadata(user_input: JSON) -> Metadata:
-    """Deserialize Metadata."""
+    """Deserialize a Metadata from JSON."""
     job = _deserialize_job(user_input['job'])
     return Metadata(job, user_input['item'])
 
 
 def _serialize_asset(asset: Asset) -> JSON:
-    """Serialize asset to JSON."""
+    """Serialize an Asset to JSON."""
     return {
             'id': asset.id,
             'data': asset.data,
@@ -278,7 +267,7 @@ def _serialize_asset(asset: Asset) -> JSON:
 
 
 def _deserialize_asset(user_input: JSON) -> Asset:
-    """Deserialize an Asset."""
+    """Deserialize an Asset from JSON."""
     if user_input['data'] is None:
         return ComputeAsset(
                 user_input['id'], user_input['data'], user_input['metadata'])
@@ -287,12 +276,12 @@ def _deserialize_asset(user_input: JSON) -> Asset:
 
 
 def _serialize_compute_asset(asset: ComputeAsset) -> JSON:
-    """Serialize compute asset to JSON."""
+    """Serialize a ComputeAsset to JSON."""
     return _serialize_asset(asset)
 
 
 def _serialize_data_asset(asset: DataAsset) -> JSON:
-    """Serialize data asset to JSON."""
+    """Serialize a DataAsset to JSON."""
     return _serialize_asset(asset)
 
 
@@ -300,7 +289,7 @@ def _serialize_data_asset(asset: DataAsset) -> JSON:
 
 
 def _serialize_replica_update(update: ReplicaUpdate[_SerializableT]) -> JSON:
-    """Serialize a replica update to JSON."""
+    """Serialize a ReplicaUpdate to JSON."""
     result = dict()     # type: JSON
     result['from_version'] = update.from_version
     result['to_version'] = update.to_version
@@ -316,7 +305,7 @@ AnyReplicaUpdate = TypeVar('AnyReplicaUpdate', bound=ReplicaUpdate)
 def _deserialize_replica_update(
         update_type: Type[AnyReplicaUpdate], user_input: JSON
         ) -> AnyReplicaUpdate:
-    """Deserialize a ReplicaUpdate."""
+    """Deserialize a ReplicaUpdate from JSON."""
     return update_type(
             user_input['from_version'],
             user_input['to_version'],
@@ -328,12 +317,12 @@ def _deserialize_replica_update(
 
 
 def _deserialize_policy_update(user_input: JSON) -> PolicyUpdate:
-    """Deserialize a PolicyUpdate."""
+    """Deserialize a PolicyUpdate from JSON."""
     return _deserialize_replica_update(PolicyUpdate, user_input)
 
 
 def _deserialize_registry_update(user_input: JSON) -> RegistryUpdate:
-    """Deserialize a RegistryUpdate..."""
+    """Deserialize a RegistryUpdate from JSON."""
     return _deserialize_replica_update(RegistryUpdate, user_input)
 
 
@@ -360,7 +349,14 @@ _serializers = {
 
 
 def serialize(obj: Serializable) -> JSON:
-    """Serializes objects to JSON dicts."""
+    """Serialize object to JSON.
+
+    Args:
+        obj: An object to serialize.
+
+    Returns:
+        Its JSON representation.
+    """
     return _serializers[type(obj)](obj)
 
 

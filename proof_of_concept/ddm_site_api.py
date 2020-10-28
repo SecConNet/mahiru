@@ -97,7 +97,7 @@ class WorkflowExecution:
             logger.info(f'Received execution request: {request.media}')
             self._validator.validate('JobSubmission', request.media)
             submission = deserialize(JobSubmission, request.media)
-            self._runner.execute_job(submission.job, submission.plan)
+            self._runner.execute_job(submission)
         except ValidationError:
             logger.warning(f'Invalid execution request: {request.media}')
             response.status = HTTP_400

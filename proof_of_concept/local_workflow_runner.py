@@ -7,10 +7,10 @@ from typing import Any, Dict, Optional, Tuple
 from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
-from proof_of_concept.definitions import ILocalWorkflowRunner, Plan
+from proof_of_concept.definitions import ILocalWorkflowRunner, JobSubmission
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
-from proof_of_concept.workflow import Job, WorkflowStep
+from proof_of_concept.workflow import WorkflowStep
 
 logger = logging.getLogger(__file__)
 
@@ -24,7 +24,7 @@ class JobRun(Thread):
             self, policy_evaluator: PolicyEvaluator,
             this_site: str, administrator: str,
             ddm_client: DDMClient,
-            job: Job, plan: Plan,
+            submission: JobSubmission,
             target_store: AssetStore
             ) -> None:
         """Creates a JobRun object.
@@ -37,8 +37,7 @@ class JobRun(Thread):
             this_site: The site we're running at.
             administrator: Name of the party administrating this site.
             ddm_client: A DDMClient to use.
-            job: The job to execute.
-            plan: The plan for how to execute the job.
+            submission: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
         """
@@ -48,13 +47,13 @@ class JobRun(Thread):
         self._this_site = this_site
         self._administrator = administrator
         self._ddm_client = ddm_client
-        self._job = job
-        self._workflow = job.workflow
-        self._inputs = job.inputs
-        self._plan = plan
+        self._job = submission.job
+        self._workflow = submission.job.workflow
+        self._inputs = submission.job.inputs
+        self._plan = submission.plan
         self._sites = {
                 step.name: site
-                for step, site in plan.step_sites.items()}
+                for step, site in submission.plan.step_sites.items()}
         self._target_store = target_store
 
     def run(self) -> None:
@@ -242,18 +241,16 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
-    def execute_job(
-            self, job: Job, plan: Plan) -> None:
+    def execute_job(self, submission: JobSubmission) -> None:
         """Start a job in a separate thread.
 
         Args:
-            job: The job to execute.
-            plan: The plan to execute to.
+            submission: The job to execute and plan to do it.
 
         """
         run = JobRun(
                 self._policy_evaluator, self._site, self._administrator,
                 self._ddm_client,
-                job, plan,
+                submission,
                 self._target_store)
         run.start()

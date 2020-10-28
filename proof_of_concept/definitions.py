@@ -50,6 +50,25 @@ class Plan:
         return result
 
 
+class JobSubmission:
+    """A submission of a job and execution plan to a site.
+
+    Attributes:
+        job: The job we're executing.
+        plan: The plan according to which it should be executed.
+
+    """
+    def __init__(self, job: Job, plan: Plan) -> None:
+        """Create a JobSubmission.
+
+        Args:
+            job: The job we're executing.
+            plan: The plan according to which it should be executed.
+        """
+        self.job = job
+        self.plan = plan
+
+
 class IAssetStore:
     """An interface for asset stores."""
 
@@ -88,7 +107,7 @@ class ILocalWorkflowRunner:
 
     def execute_job(
             self,
-            job: Job, plan: Plan
+            submission: JobSubmission
             ) -> None:
         """Executes the local part of a plan.
 
@@ -96,8 +115,7 @@ class ILocalWorkflowRunner:
         executed by this runner according to the given plan.
 
         Args:
-            job: The job to execute part of.
-            plan: The plan according to which to execute.
+            submission: the job to execute and plan to do it.
 
         """
         raise NotImplementedError()
@@ -252,22 +270,3 @@ class PolicyUpdate(ReplicaUpdate[Rule]):
 class RegistryUpdate(ReplicaUpdate[RegisteredObject]):
     """An update for registry replicas."""
     ReplicatedType = RegisteredObject
-
-
-class JobSubmission:
-    """A submission of a job and execution plan to a site.
-
-    Attributes:
-        job: The job we're executing.
-        plan: The plan according to which it should be executed.
-
-    """
-    def __init__(self, job: Job, plan: Plan) -> None:
-        """Create a JobSubmission.
-
-        Args:
-            job: The job we're executing.
-            plan: The plan according to which it should be executed.
-        """
-        self.job = job
-        self.plan = plan

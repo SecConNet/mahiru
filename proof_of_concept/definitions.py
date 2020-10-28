@@ -243,3 +243,22 @@ class SiteDescription(RegisteredObject):
 
 
 RegistryUpdate = ReplicaUpdate[RegisteredObject]
+
+
+class JobSubmission:
+    """A submission of a job and execution plan to a site.
+
+    Attributes:
+        job: The job we're executing.
+        plan: The plan according to which it should be executed.
+
+    """
+    def __init__(self, job: Job, plan: Plan) -> None:
+        """Create a JobSubmission.
+
+        Args:
+            job: The job we're executing.
+            plan: The plan according to which it should be executed.
+        """
+        self.job = job
+        self.plan = plan

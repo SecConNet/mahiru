@@ -5,7 +5,7 @@ from time import sleep
 from typing import Any, Dict, Generator, List, Set
 
 from proof_of_concept.ddm_client import DDMClient
-from proof_of_concept.definitions import Plan
+from proof_of_concept.definitions import JobSubmission, Plan
 from proof_of_concept.policy import Permissions, PolicyEvaluator
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
@@ -145,31 +145,29 @@ class WorkflowExecutor:
         """
         self._ddm_client = ddm_client
 
-    def execute_workflow(
-            self, job: Job, plan: Plan
-            ) -> Dict[str, Any]:
+    def execute_workflow(self, submission: JobSubmission) -> Dict[str, Any]:
         """Executes the given workflow execution plan.
 
         Args:
-            job: The job to execute.
-            plan: The plan according to which to execute the workflow.
+            submission: The job and plan to execute.
 
         Returns:
             A dictionary of results, indexed by workflow output name.
         """
         # launch all the runners
-        for site_name in set(plan.step_sites.values()):
-            self._ddm_client.submit_job(site_name, job, plan)
+        for site_name in set(submission.plan.step_sites.values()):
+            self._ddm_client.submit_job(site_name, submission)
 
         # get workflow outputs whenever they're available
-        wf = job.workflow
-        keys = job.keys()
+        wf = submission.job.workflow
+        keys = submission.job.keys()
         results = dict()    # type: Dict[str, Any]
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
-                    src_site = plan.step_sites[wf.steps[src_step_name]]
+                    src_site = submission.plan.step_sites[
+                            wf.steps[src_step_name]]
                     outp_key = keys[wf_outp_name]
                     try:
                         asset = self._ddm_client.retrieve_asset(
@@ -213,5 +211,6 @@ class GlobalWorkflowRunner:
         for i, plan in enumerate(plans):
             logger.info(f'Plan {i}: {plan}')
         selected_plan = plans[-1]
-        results = self._executor.execute_workflow(job, selected_plan)
+        submission = JobSubmission(job, selected_plan)
+        results = self._executor.execute_workflow(submission)
         return results

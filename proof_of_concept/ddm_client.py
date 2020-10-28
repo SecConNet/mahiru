@@ -10,13 +10,13 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
-        Plan, SiteDescription)
+        IAssetStore, ILocalWorkflowRunner, IPolicyServer, JobSubmission,
+        PartyDescription, Plan, SiteDescription)
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
         ResultOfDataIn, Rule)
 from proof_of_concept.serialization import (
-        deserialize_asset, serialize, serialize_job, serialize_plan)
+        deserialize_asset, serialize, serialize_job_submission)
 from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import ObjectValidator, Replica
 from proof_of_concept.replication_rest import ReplicationClient
@@ -223,20 +223,17 @@ class DDMClient:
 
         raise RuntimeError(f'Site or store at site {site_name} not found')
 
-    def submit_job(self, site_name: str, job: Job, plan: Plan) -> None:
+    def submit_job(self, site_name: str, submission: JobSubmission) -> None:
         """Submits a job for execution to a local runner.
 
         Args:
             site_name: The site to submit to.
-            job: The job to submit.
-            plan: The plan to execute the workflow to.
+            submission: The job submision to send.
 
         """
         site = self._get_site('name', site_name)
         if site is not None and site.runner:
-            data = {
-                    'job': serialize_job(job),
-                    'plan': serialize_plan(plan)}
+            data = serialize_job_submission(submission)
             requests.post(f'{site.endpoint}/jobs', json=data)
         else:
             raise RuntimeError(f'Site or runner at site {site_name} not found')

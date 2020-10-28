@@ -12,8 +12,8 @@ from dateutil import parser as dateparser
 
 from proof_of_concept.asset import Asset, ComputeAsset, DataAsset, Metadata
 from proof_of_concept.definitions import (
-        JSON, PartyDescription, Plan, RegisteredObject, RegistryUpdate,
-        ReplicaUpdate, SiteDescription)
+        JobSubmission, JSON, PartyDescription, Plan, RegisteredObject,
+        RegistryUpdate, ReplicaUpdate, SiteDescription)
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
         ResultOfDataIn, Rule)
@@ -143,11 +143,11 @@ def serialize_plan(plan: Plan) -> JSON:
             'step_sites': step_sites}
 
 
-def serialize_job_submission(job: Job, plan: Plan) -> JSON:
+def serialize_job_submission(submission: JobSubmission) -> JSON:
     """Serialize a job submission to JSON."""
     return {
-            'job': serialize_job(job),
-            'plan': serialize_plan(plan)}
+            'job': serialize_job(submission.job),
+            'plan': serialize_plan(submission.plan)}
 
 
 def serialize_metadata(metadata: Metadata) -> JSON:

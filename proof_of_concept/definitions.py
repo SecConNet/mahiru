@@ -1,6 +1,6 @@
 """Some global definitions."""
 from datetime import datetime
-from typing import Any, Dict, Generic, Optional, Set, TypeVar, Union
+from typing import Any, Dict, Generic, Optional, Set, Type, TypeVar, Union
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
@@ -116,6 +116,7 @@ class ReplicaUpdate(Generic[T]):
         created: Set of objects that were created.
         deleted: Set of objects that were deleted.
     """
+    ReplicatedType = None      # type: Type[T]
 
     def __init__(
             self, from_version: int, to_version: int, valid_until: datetime,
@@ -243,7 +244,14 @@ class SiteDescription(RegisteredObject):
         return f'SiteDescription({self.name})'
 
 
-RegistryUpdate = ReplicaUpdate[RegisteredObject]
+class PolicyUpdate(ReplicaUpdate[Rule]):
+    """An update for policy replicas."""
+    ReplicatedType = Rule
+
+
+class RegistryUpdate(ReplicaUpdate[RegisteredObject]):
+    """An update for registry replicas."""
+    ReplicatedType = RegisteredObject
 
 
 class JobSubmission:

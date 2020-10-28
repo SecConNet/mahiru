@@ -8,13 +8,18 @@ from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
         RegisteredObject, RegistryUpdate, SiteDescription)
 from proof_of_concept.replication import (
-        CanonicalStore, ReplicableArchive, ReplicationServer, ReplicaUpdate)
+        CanonicalStore, ReplicableArchive, ReplicationServer)
 
 
 logger = logging.getLogger(__name__)
 
 
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
+
+
+class RegistryServer(ReplicationServer[RegisteredObject]):
+    """A replication server for the registry."""
+    UpdateType = RegistryUpdate
 
 
 class Registry:
@@ -30,8 +35,7 @@ class Registry:
 
         archive = ReplicableArchive[RegisteredObject]()
         self._store = CanonicalStore[RegisteredObject](archive)
-        self.replication_server = ReplicationServer[RegisteredObject](
-                archive, 0.1)
+        self.replication_server = RegistryServer(archive, 0.1)
 
     def register_party(
             self, description: PartyDescription) -> None:

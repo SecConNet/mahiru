@@ -9,12 +9,12 @@ from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
 import ruamel.yaml as yaml
 
-from proof_of_concept.definitions import IAssetStore, ILocalWorkflowRunner
+from proof_of_concept.definitions import (
+        IAssetStore, ILocalWorkflowRunner, JobSubmission)
 from proof_of_concept.policy import Rule
-from proof_of_concept.replication import ReplicationServer
+from proof_of_concept.policy_replication import PolicyServer
 from proof_of_concept.replication_rest import ReplicationHandler
-from proof_of_concept.serialization import (
-        deserialize_job_submission, serialize)
+from proof_of_concept.serialization import deserialize, serialize
 from proof_of_concept.validation import Validator, ValidationError
 
 
@@ -96,8 +96,8 @@ class WorkflowExecution:
         try:
             logger.info(f'Received execution request: {request.media}')
             self._validator.validate('JobSubmission', request.media)
-            job, plan = deserialize_job_submission(request.media)
-            self._runner.execute_job(job, plan)
+            submission = deserialize(JobSubmission, request.media)
+            self._runner.execute_job(submission.job, submission.plan)
         except ValidationError:
             logger.warning(f'Invalid execution request: {request.media}')
             response.status = HTTP_400
@@ -113,7 +113,7 @@ class SiteApi:
     """
     def __init__(
             self,
-            policy_server: ReplicationServer[Rule],
+            policy_server: PolicyServer,
             asset_store: IAssetStore,
             runner: ILocalWorkflowRunner) -> None:
         """Create a RegistryApi instance.

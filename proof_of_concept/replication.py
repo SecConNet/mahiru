@@ -122,6 +122,7 @@ class ObjectValidator(Generic[T]):
 
 class ReplicationServer(IReplicationSource[T]):
     """Serves Replicables from a set of them."""
+    UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
     def __init__(self, archive: ReplicableArchive, max_lag: float) -> None:
         """Create a ReplicationServer for the given archive.
@@ -170,7 +171,7 @@ class ReplicationServer(IReplicationSource[T]):
                     deleted_before(rec.deleted, to_version))}
 
         valid_until = cur_time + timedelta(seconds=self._max_lag)
-        return ReplicaUpdate(
+        return self.UpdateType(
                 from_version, to_version, valid_until,
                 new_objects, deleted_objects)
 

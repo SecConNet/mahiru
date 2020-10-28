@@ -11,11 +11,11 @@ import ruamel.yaml as yaml
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, JobSubmission,
-        PartyDescription, Plan, SiteDescription)
+        PartyDescription, Plan, PolicyUpdate, RegistryUpdate, SiteDescription)
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
         ResultOfDataIn, Rule)
-from proof_of_concept.serialization import deserialize_asset, serialize
+from proof_of_concept.serialization import deserialize, serialize
 from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import ObjectValidator, Replica
 from proof_of_concept.replication_rest import ReplicationClient
@@ -26,7 +26,14 @@ from proof_of_concept.workflow import Job, Workflow
 logger = logging.getLogger(__name__)
 
 
-_PolicyClient = ReplicationClient[Rule]
+class RegistryClient(ReplicationClient[RegisteredObject]):
+    """A client for the registry."""
+    UpdateType = RegistryUpdate
+
+
+class PolicyClient(ReplicationClient[Rule]):
+    """A client for policy servers."""
+    UpdateType = PolicyUpdate
 
 
 class RuleValidator(ObjectValidator[Rule]):
@@ -82,9 +89,8 @@ class DDMClient:
 
         registry_validator = Validator(registry_api_def)
 
-        registry_client = ReplicationClient[RegisteredObject](
-                self._registry_endpoint + '/updates', registry_validator,
-                'RegistryUpdate', 'RegisteredObject')
+        registry_client = RegistryClient(
+                self._registry_endpoint + '/updates', registry_validator)
 
         self._registry_replica = Replica[RegisteredObject](
                 registry_client, on_update=self._on_registry_update)
@@ -218,7 +224,7 @@ class DDMClient:
 
             asset_json = r.json()
             self._site_validator.validate('Asset', asset_json)
-            return deserialize_asset(asset_json)
+            return deserialize(Asset, asset_json)
 
         raise RuntimeError(f'Site or store at site {site_name} not found')
 
@@ -262,9 +268,8 @@ class DDMClient:
         """Updates policy clients/replicas when sites are updated."""
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
-                client = ReplicationClient[Rule](
-                        o.endpoint + '/rules/updates', self._site_validator,
-                        'PolicyUpdate', 'Rule')
+                client = PolicyClient(
+                        o.endpoint + '/rules/updates', self._site_validator)
 
                 validator = RuleValidator(self, o.namespace)
                 self._policy_replicas[o.namespace] = Replica[Rule](

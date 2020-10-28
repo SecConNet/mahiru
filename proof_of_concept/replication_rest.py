@@ -8,8 +8,7 @@ from falcon import Request, Response
 from proof_of_concept.definitions import (
         IReplicationSource, ReplicaUpdate)
 from proof_of_concept.replication import ReplicableArchive, ReplicationServer
-from proof_of_concept.serialization import (
-        serialize, deserialize_replica_update)
+from proof_of_concept.serialization import serialize, deserialize
 from proof_of_concept.validation import Validator
 
 
@@ -45,10 +44,9 @@ class ReplicationHandler(Generic[T]):
 
 class ReplicationClient(IReplicationSource[T]):
     """Client for a ReplicationHandler REST endpoint."""
-    def __init__(
-            self, endpoint: str,
-            validator: Validator, update_type_tag: str, content_type_tag: str
-            ) -> None:
+    UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
+
+    def __init__(self, endpoint: str, validator: Validator) -> None:
         """Create a ReplicationClient.
 
         Note that replicated_type must match T, one is used by the
@@ -58,15 +56,9 @@ class ReplicationClient(IReplicationSource[T]):
         Args:
             endpoint: URL of the endpoint to connect to.
             validator: Validator to use to validate incoming updates.
-            update_type_tag: Name of schema type to use to validate
-                update messages.
-            content_type_tag: Tag of type to deserialize replicated
-                objects with.
         """
         self._endpoint = endpoint
         self._validator = validator
-        self._update_type_tag = update_type_tag
-        self._content_type_tag = content_type_tag
 
     def get_updates_since(
             self, from_version: Optional[int]) -> ReplicaUpdate[T]:
@@ -81,6 +73,6 @@ class ReplicationClient(IReplicationSource[T]):
         r = requests.get(self._endpoint, params=params)
         update_json = r.json()
         logger.info(f'Replication update: {update_json}')
-        self._validator.validate(self._update_type_tag, update_json)
-        logger.info(f'Validated against {self._update_type_tag}')
-        return deserialize_replica_update(self._content_type_tag, update_json)
+        self._validator.validate(self.UpdateType.__name__, update_json)
+        logger.info(f'Validated against {self.UpdateType.__name__}')
+        return deserialize(self.UpdateType, update_json)

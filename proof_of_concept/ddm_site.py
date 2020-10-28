@@ -12,9 +12,8 @@ from proof_of_concept.ddm_site_api import SiteApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
-from proof_of_concept.policy_replication import PolicySource
-from proof_of_concept.replication import (
-    CanonicalStore, ReplicableArchive, ReplicationServer)
+from proof_of_concept.policy_replication import PolicyServer, PolicySource
+from proof_of_concept.replication import CanonicalStore, ReplicableArchive
 from proof_of_concept.workflow import Job
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
 
@@ -67,8 +66,7 @@ class Site:
         for rule in rules:
             rule.sign(self._private_key)
             self._policy_store.insert(rule)
-        self.policy_server = ReplicationServer[Rule](
-                self._policy_archive, 0.1)
+        self.policy_server = PolicyServer(self._policy_archive, 0.1)
 
         self._policy_source = PolicySource(
                 self._ddm_client, self._policy_store)

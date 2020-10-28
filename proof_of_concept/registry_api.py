@@ -10,8 +10,7 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.definitions import (
         PartyDescription, RegisteredObject, SiteDescription)
-from proof_of_concept.serialization import (
-        deserialize_party_description, deserialize_site_description)
+from proof_of_concept.serialization import deserialize
 from proof_of_concept.registry import Registry
 from proof_of_concept.replication_rest import ReplicationHandler
 from proof_of_concept.validation import Validator, ValidationError
@@ -46,7 +45,7 @@ class PartyRegistration:
         try:
             self._validator.validate('Party', request.media)
             self._registry.register_party(
-                    deserialize_party_description(request.media))
+                    deserialize(PartyDescription, request.media))
             response.status = HTTP_201
             response.body = 'Created'
         except ValidationError as e:
@@ -101,7 +100,7 @@ class SiteRegistration:
         try:
             self._validator.validate('Site', request.media)
             self._registry.register_site(
-                    deserialize_site_description(request.media))
+                    deserialize(SiteDescription, request.media))
             response.status = HTTP_201
             response.body = 'Created'
         except ValidationError as e:

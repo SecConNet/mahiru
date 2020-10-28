@@ -32,10 +32,11 @@ def clean_global_registry():
 class ReusingWSGIServer(WSGIServer):
     """A simple WSGI server which allows reusing the port.
 
-    There is of course a good reason for the existence of TIME_WAIT,
-    but this is only used in testing, where we get in trouble when we
-    try to create and destroy several registry servers in quick
-    succession.
+    This disables the usual timeout the kernel imposes before you can
+    reuse a server port (TIME_WAIT). We accept the reduced security
+    here because this is only used in the test suite, and we don't want
+    to wait several minutes in between tests for the port to free up.
+
     """
     allow_reuse_address = True
 

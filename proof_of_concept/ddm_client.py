@@ -15,8 +15,7 @@ from proof_of_concept.definitions import (
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
         ResultOfDataIn, Rule)
-from proof_of_concept.serialization import (
-        deserialize_asset, serialize, serialize_job_submission)
+from proof_of_concept.serialization import deserialize_asset, serialize
 from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import ObjectValidator, Replica
 from proof_of_concept.replication_rest import ReplicationClient
@@ -233,8 +232,7 @@ class DDMClient:
         """
         site = self._get_site('name', site_name)
         if site is not None and site.runner:
-            data = serialize_job_submission(submission)
-            requests.post(f'{site.endpoint}/jobs', json=data)
+            requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
         else:
             raise RuntimeError(f'Site or runner at site {site_name} not found')
 

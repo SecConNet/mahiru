@@ -116,6 +116,7 @@ class ReplicaUpdate(Generic[T]):
         created: Set of objects that were created.
         deleted: Set of objects that were deleted.
     """
+
     def __init__(
             self, from_version: int, to_version: int, valid_until: datetime,
             created: Set[T], deleted: Set[T]) -> None:

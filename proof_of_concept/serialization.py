@@ -20,13 +20,15 @@ from proof_of_concept.policy import (
 from proof_of_concept.workflow import Job, Workflow, WorkflowStep
 
 
-Serializable = Union[RegisteredObject, ReplicaUpdate, Rule]
+Serializable = Union[
+        Asset, Job, JobSubmission, Metadata, Plan, RegisteredObject,
+        ReplicaUpdate, Rule, Workflow, WorkflowStep]
 
 
 _SerializableT = TypeVar('_SerializableT', bound=Serializable)
 
 
-def serialize_party_description(party_desc: PartyDescription) -> JSON:
+def _serialize_party_description(party_desc: PartyDescription) -> JSON:
     """Serializes a PartyDescription object to JSON."""
     public_key = party_desc.public_key.public_bytes(
             encoding=Encoding.PEM,
@@ -38,7 +40,7 @@ def serialize_party_description(party_desc: PartyDescription) -> JSON:
             'public_key': public_key}
 
 
-def serialize_site_description(site_desc: SiteDescription) -> JSON:
+def _serialize_site_description(site_desc: SiteDescription) -> JSON:
     """Serializes a SiteDescription object to JSON."""
     result = dict()     # type: JSON
     result['name'] = site_desc.name
@@ -51,7 +53,7 @@ def serialize_site_description(site_desc: SiteDescription) -> JSON:
     return result
 
 
-def serialize_replica_update(update: ReplicaUpdate[_SerializableT]) -> JSON:
+def _serialize_replica_update(update: ReplicaUpdate[_SerializableT]) -> JSON:
     """Serialize a replica update to JSON."""
     result = dict()     # type: JSON
     result['from_version'] = update.from_version
@@ -62,7 +64,7 @@ def serialize_replica_update(update: ReplicaUpdate[_SerializableT]) -> JSON:
     return result
 
 
-def serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
+def _serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
     """Serializes an InAssetCollection object to JSON."""
     return {
             'type': 'InAssetCollection',
@@ -71,7 +73,7 @@ def serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
             'collection': rule.collection}
 
 
-def serialize_in_party_collection(rule: InPartyCollection) -> JSON:
+def _serialize_in_party_collection(rule: InPartyCollection) -> JSON:
     """Serializes an InPartyCollection object to JSON."""
     return {
             'type': 'InPartyCollection',
@@ -80,7 +82,7 @@ def serialize_in_party_collection(rule: InPartyCollection) -> JSON:
             'collection': rule.collection}
 
 
-def serialize_may_access(rule: MayAccess) -> JSON:
+def _serialize_may_access(rule: MayAccess) -> JSON:
     """Serializes a MayAccess object to JSON."""
     return {
             'type': 'MayAccess',
@@ -89,7 +91,7 @@ def serialize_may_access(rule: MayAccess) -> JSON:
             'asset': rule.asset}
 
 
-def serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
+def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
     """Serializes a ResultOfDataIn object to JSON."""
     return {
             'type': 'ResultOfDataIn',
@@ -99,7 +101,7 @@ def serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
             'collection': rule.collection}
 
 
-def serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
+def _serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
     """Serializes a ResultOfComputeIn object to JSON."""
     return {
             'type': 'ResultOfComputeIn',
@@ -109,7 +111,7 @@ def serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
             'collection': rule.collection}
 
 
-def serialize_workflow_step(step: WorkflowStep) -> JSON:
+def _serialize_workflow_step(step: WorkflowStep) -> JSON:
     """Serialize a workflow step to JSON."""
     return {
             'name': step.name,
@@ -118,23 +120,23 @@ def serialize_workflow_step(step: WorkflowStep) -> JSON:
             'compute_asset_id': step.compute_asset_id}
 
 
-def serialize_workflow(workflow: Workflow) -> JSON:
+def _serialize_workflow(workflow: Workflow) -> JSON:
     """Serialize a workflow to JSON."""
     return {
             'inputs': workflow.inputs,
             'outputs': workflow.outputs,
             'steps': [
-                serialize_workflow_step(s) for s in workflow.steps.values()]}
+                _serialize_workflow_step(s) for s in workflow.steps.values()]}
 
 
-def serialize_job(job: Job) -> JSON:
+def _serialize_job(job: Job) -> JSON:
     """Serialize a plan to JSON."""
     return {
-           'workflow': serialize_workflow(job.workflow),
+           'workflow': _serialize_workflow(job.workflow),
            'inputs': job.inputs}
 
 
-def serialize_plan(plan: Plan) -> JSON:
+def _serialize_plan(plan: Plan) -> JSON:
     """Serialize a plan to JSON."""
     step_sites = {
             step.name: site_id for step, site_id in plan.step_sites.items()}
@@ -143,38 +145,56 @@ def serialize_plan(plan: Plan) -> JSON:
             'step_sites': step_sites}
 
 
-def serialize_job_submission(submission: JobSubmission) -> JSON:
+def _serialize_job_submission(submission: JobSubmission) -> JSON:
     """Serialize a job submission to JSON."""
     return {
-            'job': serialize_job(submission.job),
-            'plan': serialize_plan(submission.plan)}
+            'job': _serialize_job(submission.job),
+            'plan': _serialize_plan(submission.plan)}
 
 
-def serialize_metadata(metadata: Metadata) -> JSON:
+def _serialize_metadata(metadata: Metadata) -> JSON:
     """Serialize asset metadata to JSON."""
     return {
-            'job': serialize_job(metadata.job),
+            'job': _serialize_job(metadata.job),
             'item': metadata.item}
 
 
-def serialize_asset(asset: Asset) -> JSON:
+def _serialize_asset(asset: Asset) -> JSON:
     """Serialize asset to JSON."""
     return {
             'id': asset.id,
             'data': asset.data,
-            'metadata': serialize_metadata(asset.metadata)}
+            'metadata': _serialize_metadata(asset.metadata)}
+
+
+def _serialize_compute_asset(asset: ComputeAsset) -> JSON:
+    """Serialize compute asset to JSON."""
+    return _serialize_asset(asset)
+
+
+def _serialize_data_asset(asset: DataAsset) -> JSON:
+    """Serialize data asset to JSON."""
+    return _serialize_asset(asset)
 
 
 _serializers = dict()   # type: Dict[Type, Callable[[Any], JSON]]
 _serializers = {
-        PartyDescription: serialize_party_description,
-        SiteDescription: serialize_site_description,
-        ReplicaUpdate: serialize_replica_update,
-        InAssetCollection: serialize_in_asset_collection,
-        InPartyCollection: serialize_in_party_collection,
-        MayAccess: serialize_may_access,
-        ResultOfDataIn: serialize_result_of_data_in,
-        ResultOfComputeIn: serialize_result_of_compute_in
+        PartyDescription: _serialize_party_description,
+        SiteDescription: _serialize_site_description,
+        ReplicaUpdate: _serialize_replica_update,
+        InAssetCollection: _serialize_in_asset_collection,
+        InPartyCollection: _serialize_in_party_collection,
+        MayAccess: _serialize_may_access,
+        ResultOfDataIn: _serialize_result_of_data_in,
+        ResultOfComputeIn: _serialize_result_of_compute_in,
+        WorkflowStep: _serialize_workflow_step,
+        Workflow: _serialize_workflow,
+        Job: _serialize_job,
+        Plan: _serialize_plan,
+        JobSubmission: _serialize_job_submission,
+        Metadata: _serialize_metadata,
+        ComputeAsset: _serialize_compute_asset,
+        DataAsset: _serialize_data_asset
         }
 
 

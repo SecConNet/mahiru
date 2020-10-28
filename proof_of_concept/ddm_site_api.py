@@ -14,7 +14,7 @@ from proof_of_concept.policy import Rule
 from proof_of_concept.replication import ReplicationServer
 from proof_of_concept.replication_rest import ReplicationHandler
 from proof_of_concept.serialization import (
-        deserialize_job_submission, serialize_asset)
+        deserialize_job_submission, serialize)
 from proof_of_concept.validation import Validator, ValidationError
 
 
@@ -55,7 +55,7 @@ class AssetAccess:
                 asset = self._store.retrieve(
                         asset_id, request.params['requester'])
                 response.status = HTTP_200
-                response.media = serialize_asset(asset)
+                response.media = serialize(asset)
             except KeyError:
                 logger.info(f'Asset {asset_id} not found')
                 response.status = HTTP_404

@@ -1,12 +1,15 @@
 """Some global definitions."""
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+from datetime import datetime
+from typing import Any, Dict, Generic, Optional, Set, Type, TypeVar, Union
 
-from typing import Dict, Optional
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.policy import Rule
-from proof_of_concept.replication import IReplicationServer
 from proof_of_concept.workflow import Job, WorkflowStep
+
+
+JSON = Dict[str, Any]
 
 
 class Plan:
@@ -47,6 +50,25 @@ class Plan:
         return result
 
 
+class JobSubmission:
+    """A submission of a job and execution plan to a site.
+
+    Attributes:
+        job: The job we're executing.
+        plan: The plan according to which it should be executed.
+
+    """
+    def __init__(self, job: Job, plan: Plan) -> None:
+        """Create a JobSubmission.
+
+        Args:
+            job: The job we're executing.
+            plan: The plan according to which it should be executed.
+        """
+        self.job = job
+        self.plan = plan
+
+
 class IAssetStore:
     """An interface for asset stores."""
 
@@ -85,7 +107,7 @@ class ILocalWorkflowRunner:
 
     def execute_job(
             self,
-            job: Job, plan: Plan
+            submission: JobSubmission
             ) -> None:
         """Executes the local part of a plan.
 
@@ -93,17 +115,78 @@ class ILocalWorkflowRunner:
         executed by this runner according to the given plan.
 
         Args:
-            job: The job to execute part of.
-            plan: The plan according to which to execute.
+            submission: the job to execute and plan to do it.
 
         """
         raise NotImplementedError()
 
 
-IPolicyServer = IReplicationServer[Rule]
+T = TypeVar('T')
 
 
-class PartyDescription:
+class ReplicaUpdate(Generic[T]):
+    """Contains an update for a Replica.
+
+    Attributes:
+        from_version: Version to apply this update to.
+        to_version: Version this update updates to.
+        valid_until: Time until which the new version is valid.
+        created: Set of objects that were created.
+        deleted: Set of objects that were deleted.
+    """
+    ReplicatedType = None      # type: Type[T]
+
+    def __init__(
+            self, from_version: int, to_version: int, valid_until: datetime,
+            created: Set[T], deleted: Set[T]) -> None:
+        """Create a replica update.
+
+        Args:
+            from_version: Version to apply this update to.
+            to_version: Version this update updates to.
+            valid_until: Point in time until which the new version is
+                valid.
+            created: Set of objects that were created.
+            deleted: Set of objects that were deleted.
+        """
+        self.from_version = from_version
+        self.to_version = to_version
+        self.valid_until = valid_until
+        self.created = created
+        self.deleted = deleted
+
+    def __repr__(self) -> str:
+        """Return a string representation of the object."""
+        return (
+            f'ReplicaUpdate({self.from_version} -> {self.to_version},'
+            f' {self.valid_until}, +{self.created}, -{self.deleted})')
+
+
+class IReplicationSource(Generic[T]):
+    """Generic interface for replication sources."""
+    def get_updates_since(self, from_version: int) -> ReplicaUpdate[T]:
+        """Return a set of objects modified since the given version.
+
+        Args:
+            from_version: A version received from a previous call to
+                    this function, or 0 to get an update for a
+                    fresh replica.
+
+        Return:
+            An update from the given version to a newer version.
+        """
+        raise NotImplementedError()
+
+
+IPolicyServer = IReplicationSource[Rule]
+
+
+class RegisteredObject:
+    """Base class for objects in the registry."""
+    pass
+
+
+class PartyDescription(RegisteredObject):
     """Describes a Party to the rest of the DDM.
 
     Attributes:
@@ -121,18 +204,23 @@ class PartyDescription:
         self.name = name
         self.public_key = public_key
 
+    def __repr__(self) -> str:
+        """Returns a string representation of the object."""
+        return f'PartyDescription({self.name})'
 
-class SiteDescription:
+
+class SiteDescription(RegisteredObject):
     """Describes a site to the rest of the DDM.
 
     Attributes:
         name: Name of the site.
         owner_name: Name of the party which owns this site.
         admin_name: Name of the party which administrates this site.
-        runner: This site's local workflow runner.
-        store: This site's asset store.
-        namespace: The namespace managed by this site's policy server.
-        policy_server: This site's policy server.
+        endpoint: This site's REST endpoint.
+        runner: Whether the site has a runner.
+        store: Whether the site has a store.
+        namespace: The namespace managed by this site's policy server,
+            if any.
 
     """
     def __init__(
@@ -140,10 +228,10 @@ class SiteDescription:
             name: str,
             owner_name: str,
             admin_name: str,
-            runner: Optional[ILocalWorkflowRunner],
-            store: Optional[IAssetStore],
-            namespace: Optional[str],
-            policy_server: Optional[IPolicyServer]
+            endpoint: str,
+            runner: bool,
+            store: bool,
+            namespace: Optional[str]
             ) -> None:
         """Create a SiteDescription.
 
@@ -151,26 +239,34 @@ class SiteDescription:
             name: Name of the site.
             owner_name: Name of the party which owns this site.
             admin_name: Name of the party which administrates this site.
-            runner: This site's local workflow runner.
-            store: This site's asset store.
+            endpoint: URL of the REST endpoint of this site.
+            runner: Whether the site has a runner.
+            store: Whether the site has a store.
             namespace: The namespace managed by this site's policy
-                server.
-            policy_server: This site's policy server.
+                server, if any.
 
         """
         self.name = name
         self.owner_name = owner_name
         self.admin_name = admin_name
+        self.endpoint = endpoint
         self.runner = runner
         self.store = store
         self.namespace = namespace
-        self.policy_server = policy_server
 
-        if store is None and runner is not None:
+        if runner and not store:
             raise RuntimeError('Site with runner needs a store')
 
-        if namespace is None and policy_server is not None:
-            raise RuntimeError('Policy server specified without namespace')
+    def __repr__(self) -> str:
+        """Returns a string representation of the object."""
+        return f'SiteDescription({self.name})'
 
-        if namespace is not None and policy_server is None:
-            raise RuntimeError('Namespace specified but policy server missing')
+
+class PolicyUpdate(ReplicaUpdate[Rule]):
+    """An update for policy replicas."""
+    ReplicatedType = Rule
+
+
+class RegistryUpdate(ReplicaUpdate[RegisteredObject]):
+    """An update for registry replicas."""
+    ReplicatedType = RegisteredObject

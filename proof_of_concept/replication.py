@@ -11,8 +11,18 @@ policies and site and asset metadata, just enabling strict
 serialisation is probably the way to go. That's what we do here, using
 the Python GIL.
 """
+from datetime import datetime, timedelta
+import logging
+import requests
 import time
-from typing import Generic, Iterable, Optional, Set, Tuple, TypeVar
+from typing import (
+        Any, Callable, Dict, Generic, Iterable, Optional, Set, Tuple, Type,
+        TypeVar)
+
+from proof_of_concept.definitions import IReplicationSource, ReplicaUpdate
+
+
+logger = logging.getLogger(__name__)
 
 
 T = TypeVar('T')
@@ -103,36 +113,6 @@ class CanonicalStore(Generic[T]):
         self._archive.version = new_version
 
 
-class ReplicaUpdate(Generic[T]):
-    """Contains an update for a Replica.
-
-    Attributes:
-        from_version: Version to apply this update to.
-        to_version: Version this update updates to.
-        valid_until: Time until which the new version is valid.
-        created: Set of objects that were created.
-        deleted: Set of objects that were deleted.
-    """
-    def __init__(
-            self, from_version: int, to_version: int, valid_until: float,
-            created: Set[T], deleted: Set[T]) -> None:
-        """Create a replica update.
-
-        Args:
-            from_version: Version to apply this update to.
-            to_version: Version this update updates to.
-            valid_until: Time (in seconds since the UNIX epoch) until
-                    which the new version is valid.
-            created: Set of objects that were created.
-            deleted: Set of objects that were deleted.
-        """
-        self.from_version = from_version
-        self.to_version = to_version
-        self.valid_until = valid_until
-        self.created = created
-        self.deleted = deleted
-
-
 class ObjectValidator(Generic[T]):
     """Validates incoming replica updates."""
     def is_valid(self, received_object: T) -> bool:
@@ -140,26 +120,9 @@ class ObjectValidator(Generic[T]):
         raise NotImplementedError()
 
 
-class IReplicationServer(Generic[T]):
-    """Generic interface for replication servers."""
-    def get_updates_since(
-            self, from_version: Optional[int]
-            ) -> ReplicaUpdate[T]:
-        """Return a set of objects modified since the given version.
-
-        Args:
-            from_version: A version received from a previous call to
-                    this function, or None to get an update for a
-                    fresh replica.
-
-        Return:
-            An update from the given version to a newer version.
-        """
-        raise NotImplementedError()
-
-
-class ReplicationServer(IReplicationServer[T]):
+class ReplicationServer(IReplicationSource[T]):
     """Serves Replicables from a set of them."""
+    UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
     def __init__(self, archive: ReplicableArchive, max_lag: float) -> None:
         """Create a ReplicationServer for the given archive.
@@ -171,14 +134,12 @@ class ReplicationServer(IReplicationServer[T]):
         self._archive = archive
         self._max_lag = max_lag
 
-    def get_updates_since(
-            self, from_version: Optional[int]
-            ) -> ReplicaUpdate[T]:
+    def get_updates_since(self, from_version: int) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
 
         Args:
             from_version: A version received from a previous call to
-                    this function, or None to get an update for a
+                    this function, or 0 to get an update for a
                     fresh replica.
 
         Return:
@@ -194,10 +155,8 @@ class ReplicationServer(IReplicationServer[T]):
                 return False
             return deleted <= version
 
-        cur_time = time.time()
+        cur_time = datetime.now()
         to_version = self._archive.version
-        if from_version is None:
-            from_version = -1
 
         new_objects = {
                 rec.object for rec in self._archive.records
@@ -211,8 +170,8 @@ class ReplicationServer(IReplicationServer[T]):
                     deleted_after(from_version, rec.deleted) and
                     deleted_before(rec.deleted, to_version))}
 
-        valid_until = cur_time + self._max_lag
-        return ReplicaUpdate(
+        valid_until = cur_time + timedelta(seconds=self._max_lag)
+        return self.UpdateType(
                 from_version, to_version, valid_until,
                 new_objects, deleted_objects)
 
@@ -220,16 +179,30 @@ class ReplicationServer(IReplicationServer[T]):
 class Replica(Generic[T]):
     """Stores a replica of a CanonicalStore."""
     def __init__(
-            self, server: IReplicationServer[T],
-            validator: Optional[ObjectValidator[T]] = None
+            self, source: IReplicationSource[T],
+            validator: Optional[ObjectValidator[T]] = None,
+            on_update: Optional[Callable[[Set[T], Set[T]], None]] = None
             ) -> None:
-        """Create an empty Replica."""
+        """Create an empty Replica.
+
+        The callback function, if specified, will be called by update()
+        if there are any changes to the replica. It must be a callable
+        object taking a set of newly created T as its first argument,
+        and a set of newly deleted T as its second argument.
+
+        Args:
+            source: Source to get replica updates from.
+            validator: Validates incoming objects, if specified.
+            on_update: Called with changes when update() is called.
+        """
         self.objects = set()        # type: Set[T]
 
-        self._server = server
+        self._source = source
         self._validator = validator
-        self._version = None        # type: Optional[int]
-        self._valid_until = 0.0     # type: float
+        self._on_update = on_update
+
+        self._version = 0
+        self._valid_until = datetime.fromtimestamp(0.0)
 
     def is_valid(self) -> bool:
         """Whether the replica is valid or outdated.
@@ -238,18 +211,20 @@ class Replica(Generic[T]):
             True iff the replica is now up-to-date enough according to
             the server.
         """
-        return time.time() < self._valid_until
+        return datetime.now() < self._valid_until
 
     def update(self) -> None:
         """Updates the replica, if necessary."""
         if not self.is_valid():
-            update = self._server.get_updates_since(self._version)
+            update = self._source.get_updates_since(self._version)
             if self._validator is not None:
                 for r in update.created:
                     if not self._validator.is_valid(r):
+                        logger.error(f'Object {r} failed validation.')
                         return
                 for r in update.deleted:
                     if not self._validator.is_valid(r):
+                        logger.error(f'Object {r} failed validation.')
                         return
 
             # In a database, do this in a single transaction
@@ -257,3 +232,6 @@ class Replica(Generic[T]):
             self.objects.update(update.created)
             self._version = update.to_version
             self._valid_until = update.valid_until
+
+            if self._on_update:
+                self._on_update(update.created, update.deleted)

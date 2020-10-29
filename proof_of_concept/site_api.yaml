@@ -1,0 +1,395 @@
+openapi: "3.0.0"
+
+info:
+    version: 0.1.0
+    title: EFDDM Site
+
+paths:
+  /rules/updates:
+    get:
+      summary: Get rule updates
+      operationId: getUpdates
+      parameters:
+        - name: from_version
+          in: query
+          description: >-
+            Current version of the replica the update is for. If zero,
+            returns an update from the beginning.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A replica update starting from the given version
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RulesUpdate"
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /assets/{assetId}:
+    get:
+      summary: Download an asset
+      operationId: downloadAsset
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The id of the asset to retrieve
+          schema:
+            type: string
+        # TODO: The below will be replaced with an HTTPS client-side
+        # certificate eventually, but we'll just pass it insecurely for now.
+        - name: requester
+          in: query
+          description: Name of the requesting party
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested asset
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Asset"
+        "404":
+          description: The asset does not exist or is not available to you.
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /jobs:
+    post:
+      summary: Submit a job for the site to run
+      operatiorId: submitJob
+      requestBody:
+        description: Description of the site to register
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/JobSubmission"
+        required: true
+      responses:
+        "201":
+          description: Successfully submitted the job
+          # TODO: return job id and let submitter check status/progress
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    # Decided not to use OpenAPI polymorphism support, this is simpler
+    # and only marginally more typing, and we're doing serialisation by
+    # hand anyway.
+    InAssetCollection:
+      type: object
+      required:
+        - type
+        - signature
+        - asset
+        - collection
+      properties:
+        type:
+          description: Type of rule, always 'InAssetCollection'
+          type: string
+        signature:
+          description: BASE64url serialised signature
+          type: string
+        asset:
+          description: Id of the asset that is in the collection
+          type: string
+        collection:
+          description: Collection the asset is in
+          type: string
+
+    InPartyCollection:
+      type: object
+      required:
+        - type
+        - signature
+        - party
+        - collection
+      properties:
+        type:
+          description: Type of rule, always 'InPartyCollection'
+          type: string
+        signature:
+          description: BASE64url serialised signature
+          type: string
+        party:
+          description: Id of the party that is in the collection
+          type: string
+        collection:
+          description: Collection the party is in
+          type: string
+
+    MayAccess:
+      type: object
+      required:
+        - type
+        - signature
+        - party
+        - asset
+      properties:
+        type:
+          description: Type of rule, always 'MayAccess'
+          type: string
+        signature:
+          description: BASE64url serialised signature
+          type: string
+        party:
+          description: Id of the party that may access the asset
+          type: string
+        asset:
+          description: Asset that may be accessed
+          type: string
+
+    ResultOfIn:
+      type: object
+      required:
+        - type
+        - signature
+        - data_asset
+        - compute_asset
+        - collection
+      properties:
+        type:
+          description: >-
+            Type of rule, always 'ResultOfDataIn' or 'ResultOfComputeIn'
+        signature:
+          description: BASE64url serialised signature
+          type: string
+        data_asset:
+          description: Id of the data asset used as input
+          type: string
+        compute_asset:
+          description: Id of the compute asset used to processs it
+          type: string
+        collection:
+          description: Id of the collection the result is in
+          type: string
+
+    PolicyUpdate:
+      type: object
+      required:
+        - from_version
+        - to_version
+        - valid_until
+        - created
+        - deleted
+      properties:
+        from_version:
+          description: Version this update applies to
+          type: integer
+        to_version:
+          description: Version this update updates to
+          type: integer
+        valid_until:
+          description: Time until which the new version is valid
+          type: string
+          format: date-time
+        created:
+          description: Objects that were created since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/InAssetCollection"
+              - "$ref": "#/components/schemas/InPartyCollection"
+              - "$ref": "#/components/schemas/MayAccess"
+              - "$ref": "#/components/schemas/ResultOfIn"
+        deleted:
+          description: Objects that were deleted since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/InAssetCollection"
+              - "$ref": "#/components/schemas/InPartyCollection"
+              - "$ref": "#/components/schemas/MayAccess"
+              - "$ref": "#/components/schemas/ResultOfIn"
+
+    Metadata:
+      type: object
+      required:
+        - job
+        - item
+      properties:
+        job:
+          description: A minimal job that will generate this asset
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Job"
+        item:
+          description: >-
+            An item in the job's workflow corresponding to this asset
+          type: string
+
+    Asset:
+      type: object
+      required:
+        - id
+        - data
+        - metadata
+      properties:
+        id:
+          description: Identifier for this asset
+          type: string
+        data:
+          description: Data related to the asset
+          # TODO: replace this with a URL for a binary image
+          # TODO: probably /assets/{id}/image
+          # TODO: and/or an endpoint for remote access
+          # This is currently null for compute objects, and the only way I
+          # could get it to match was with this double nullable
+          # declaration...
+          anyOf:
+            - type: "number"
+            - type: array
+              items:
+                type: number
+              nullable: true
+          nullable: true
+        metadata:
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Metadata"
+
+    JobSubmission:
+      type: object
+      required:
+        - job
+        - plan
+      properties:
+        job:
+          description: Job to run a part of
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Job"
+        plan:
+          description: Execution plan for the job.
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Plan"
+
+    Job:
+      type: object
+      required:
+        - workflow
+        - inputs
+      properties:
+        workflow:
+          description: Workflow to run a part of
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Workflow"
+        inputs:
+          description: Map of workflow inputs to asset ids
+          type: object
+          additionalProperties:
+            type: string
+
+    Workflow:
+      type: object
+      required:
+        - inputs
+        - outputs
+        - steps
+      properties:
+        inputs:
+          description: Names of the workflow's inputs
+          type: array
+          items:
+            type: string
+        outputs:
+          description: >-
+            Map of workflow output names to corresponding step output names
+            of the form step.output
+          type: object
+          additionalProperties:
+            type: string
+        steps:
+          description: The steps making up the workflow
+          type: array
+          items:
+            type: object
+            schema:
+              "$ref": "#/components/schemas/WorkflowStep"
+
+    WorkflowStep:
+      type: object
+      required:
+        - name
+        - inputs
+        - outputs
+        - compute_asset_id
+      properties:
+        name:
+          description: Name of the step, so it can be referred to
+          type: string
+        inputs:
+          description: >-
+            Map of step parameter names to references to their sources
+          type: object
+          additionalProperties:
+            type: string
+        outputs:
+          description: List of names of outputs produced
+          type: array
+          items:
+            type: string
+        compute_asset_id:
+          description: Id of the compute asset used by this step
+          type: string
+
+    Plan:
+      type: object
+      required:
+        - input_sites
+        - step_sites
+      properties:
+        input_sites:
+          # TODO: remove once we have intrinsic ids
+          description: Maps inputs to the site to obtain them from
+          type: object
+          additionalProperties:
+            type: string
+        step_sites:
+          description: Maps step names to the site to run them at
+          type: object
+          additionalProperties:
+            type: string

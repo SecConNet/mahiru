@@ -1,0 +1,273 @@
+openapi: "3.0.0"
+
+info:
+    version: 0.1.0
+    title: EFDDM Registry
+
+paths:
+  /parties:
+    post:
+      summary: Register a party
+      operationId: registerParty
+      requestBody:
+        description: Description of the party to register
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Party"
+        required: true
+      responses:
+        "201":
+          description: Successfully registered the party
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "409":
+          description: A party with this name was already registered
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /parties/{name}:
+    delete:
+      summary: Deregister a party
+      operationId: deregisterParty
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the asset to deregister
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully deregistered the party
+          content:
+            text/plain:
+              schema:
+                description: A message signalling succes
+                type: string
+        "404":
+          description: The party was not found
+          content:
+            text/plain:
+              schema:
+                description: A message signalling failure
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /sites:
+    post:
+      summary: Register a site
+      operationId: registerSite
+      requestBody:
+        description: Description of the site to register
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Site"
+        required: true
+      responses:
+        "201":
+          description: Successfully registered the site
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "409":
+          description: A site with this name was already registered
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /sites/{name}:
+    delete:
+      summary: Deregister a site
+      operationId: deregisterSite
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the site to deregister
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully deregistered the site
+          content:
+            text/plain:
+              schema:
+                description: A message signalling succes
+                type: string
+        "404":
+          description: The site was not found
+          content:
+            text/plain:
+              schema:
+                description: A message signalling failure
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /updates:
+    get:
+      summary: Get registry updates
+      operationId: getUpdates
+      parameters:
+        - name: from_version
+          in: query
+          description: >-
+            Current version of the replica the update is for. If omitted,
+            returns an update from the beginning.
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A replica update starting from the given version.
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RegistryUpdate"
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    Party:
+      type: object
+      required:
+        - name
+        - public_key
+      properties:
+        name:
+          description: Name of the party
+          type: string
+        public_key:
+          description: The party's PEM-encoded RSA public key
+          type: string
+
+    Site:
+      type: object
+      required:
+        - name
+        - owner_name
+        - admin_name
+        - endpoint
+        - runner
+        - store
+        - namespace
+      properties:
+        name:
+          description: Name of the site
+          type: string
+        owner_name:
+          description: Name of the party which owns this site
+          type: string
+        admin_name:
+          description: Name of the party which administrates this site
+          type: string
+        endpoint:
+          description: >-
+            REST endpoint at which the site may be contacted.
+          type: string
+          format: uri
+        runner:
+          description: Whether the site has a runner
+          type: boolean
+        store:
+          description: Whether the site has a store
+          type: boolean
+        namespace:
+          description: >-
+            Namespace for which the policy server serves policy, if there
+            is a policy server at this site, otherwise null.
+          type: string
+          nullable: true
+
+    RegistryUpdate:
+      type: object
+      required:
+        - from_version
+        - to_version
+        - valid_until
+        - created
+        - deleted
+      properties:
+        from_version:
+          description: Version this update applies to
+          type: integer
+        to_version:
+          description: Version this update updates to
+          type: integer
+        valid_until:
+          description: Time until which the new version is valid
+          type: string
+          format: date-time
+        created:
+          description: Objects that were created since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/Party"
+              - "$ref": "#/components/schemas/Site"
+        deleted:
+          description: Objects that were deleted since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/Party"
+              - "$ref": "#/components/schemas/Site"

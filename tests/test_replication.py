@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 import time
 
@@ -68,7 +69,7 @@ def test_validation():
 
     server = MagicMock()
     server.get_updates_since.return_value = ReplicaUpdate(
-            0, 2, time.time() + 0.01, {a1, a2}, {})
+            0, 2, datetime.now() + timedelta(seconds=0.01), {a1, a2}, {})
     replica = Replica(server, Validator())
     assert not replica.is_valid()
     replica.update()

@@ -7,10 +7,10 @@ from typing import Any, Dict, Optional, Tuple
 from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import DDMClient
-from proof_of_concept.definitions import ILocalWorkflowRunner, Plan
+from proof_of_concept.definitions import ILocalWorkflowRunner, JobSubmission
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
-from proof_of_concept.workflow import Job, WorkflowStep
+from proof_of_concept.workflow import WorkflowStep
 
 logger = logging.getLogger(__file__)
 
@@ -23,7 +23,8 @@ class JobRun(Thread):
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
             this_site: str, administrator: str,
-            job: Job, plan: Plan,
+            ddm_client: DDMClient,
+            submission: JobSubmission,
             target_store: AssetStore
             ) -> None:
         """Creates a JobRun object.
@@ -35,8 +36,8 @@ class JobRun(Thread):
             policy_evaluator: A policy evaluator to use to check policy.
             this_site: The site we're running at.
             administrator: Name of the party administrating this site.
-            job: The job to execute.
-            plan: The plan for how to execute the job.
+            ddm_client: A DDMClient to use.
+            submission: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
         """
@@ -45,15 +46,15 @@ class JobRun(Thread):
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._this_site = this_site
         self._administrator = administrator
-        self._job = job
-        self._workflow = job.workflow
-        self._inputs = job.inputs
-        self._plan = plan
+        self._ddm_client = ddm_client
+        self._job = submission.job
+        self._workflow = submission.job.workflow
+        self._inputs = submission.job.inputs
+        self._plan = submission.plan
         self._sites = {
                 step.name: site
-                for step, site in plan.step_sites.items()}
+                for step, site in submission.plan.step_sites.items()}
         self._target_store = target_store
-        self._ddm_client = DDMClient(administrator)
 
     def run(self) -> None:
         """Runs the job.
@@ -179,7 +180,7 @@ class JobRun(Thread):
                 logger.info('Metadata: {}'.format(asset.metadata))
             except KeyError:
                 logger.info(f'Job at {self._this_site} found input'
-                            f'{data_key} not yet available.')
+                            f' {data_key} not yet available.')
                 return None
 
         return step_input_data
@@ -221,6 +222,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site."""
     def __init__(
             self, site: str, administrator: str,
+            ddm_client: DDMClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
@@ -228,26 +230,27 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         Args:
             site: Name of the site this runner is located at.
             administrator: Party administrating this runner.
+            ddm_client: A DDMClient to use.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
         self._site = site
         self._administrator = administrator
+        self._ddm_client = ddm_client
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
-    def execute_job(
-            self, job: Job, plan: Plan) -> None:
+    def execute_job(self, submission: JobSubmission) -> None:
         """Start a job in a separate thread.
 
         Args:
-            job: The job to execute.
-            plan: The plan to execute to.
+            submission: The job to execute and plan to do it.
 
         """
         run = JobRun(
                 self._policy_evaluator, self._site, self._administrator,
-                job, plan,
+                self._ddm_client,
+                submission,
                 self._target_store)
         run.start()

@@ -22,7 +22,7 @@ class JobRun(Thread):
     """
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
-            this_site: str, administrator: str,
+            this_site: str,
             ddm_client: DDMClient,
             submission: JobSubmission,
             target_store: AssetStore
@@ -35,7 +35,6 @@ class JobRun(Thread):
         Args:
             policy_evaluator: A policy evaluator to use to check policy.
             this_site: The site we're running at.
-            administrator: Name of the party administrating this site.
             ddm_client: A DDMClient to use.
             submission: The job to execute and plan to do it.
             target_store: The asset store to put results into.
@@ -45,7 +44,6 @@ class JobRun(Thread):
         self._policy_evaluator = policy_evaluator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._this_site = this_site
-        self._administrator = administrator
         self._ddm_client = ddm_client
         self._job = submission.job
         self._workflow = submission.job.workflow
@@ -117,26 +115,24 @@ class JobRun(Thread):
                     inp_id = '{}.{}'.format(step.name, inp_name)
                     inp_perms = perms[inp_id]
                     if not self._policy_evaluator.may_access(
-                            inp_perms, self._administrator):
+                            inp_perms, self._this_site):
                         return False
                     # check that the site we'll download this input
                     # from may access it
                     if '.' in inp_src:
                         src_step, _ = inp_src.split('.')
-                        src_party = self._ddm_client.get_site_administrator(
-                                self._sites[src_step])
+                        src_site = self._sites[src_step]
                     else:
                         inp_asset_id = self._job.inputs[inp_src]
-                        src_party = self._ddm_client.get_site_administrator(
-                                self._plan.input_sites[inp_asset_id])
+                        src_site = self._plan.input_sites[inp_asset_id]
 
                     if not self._policy_evaluator.may_access(
-                            perms[inp_src], src_party):
+                            perms[inp_src], src_site):
                         return False
 
                 # check that we can access the compute asset
                 if not self._policy_evaluator.may_access(
-                        perms[step.name], self._administrator):
+                        perms[step.name], self._this_site):
                     return False
 
                 # check that we can access the step's outputs
@@ -144,7 +140,7 @@ class JobRun(Thread):
                     outp_id = '{}.{}'.format(step.name, outp_name)
                     outp_perms = perms[outp_id]
                     if not self._policy_evaluator.may_access(
-                            outp_perms, self._administrator):
+                            outp_perms, self._this_site):
                         return False
 
         return True
@@ -221,7 +217,7 @@ class JobRun(Thread):
 class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site."""
     def __init__(
-            self, site: str, administrator: str,
+            self, site: str,
             ddm_client: DDMClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
@@ -229,14 +225,12 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
 
         Args:
             site: Name of the site this runner is located at.
-            administrator: Party administrating this runner.
             ddm_client: A DDMClient to use.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
         self._site = site
-        self._administrator = administrator
         self._ddm_client = ddm_client
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
@@ -249,7 +243,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
 
         """
         run = JobRun(
-                self._policy_evaluator, self._site, self._administrator,
+                self._policy_evaluator, self._site,
                 self._ddm_client,
                 submission,
                 self._target_store)

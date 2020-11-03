@@ -32,7 +32,7 @@ def test_pii(clean_global_registry, registry_server):
     scenario['rules-party1'] = [
             InAssetCollection(
                 'id:party1_ns.dataset.pii1', 'id:party1_ns.collection.PII1'),
-            MayAccess('party1', 'id:party1_ns.collection.PII1'),
+            MayAccess('site1', 'id:party1_ns.collection.PII1'),
             ResultOfDataIn(
                 'id:party1_ns.collection.PII1', '*',
                 'id:party1_ns.collection.PII1'),
@@ -53,8 +53,8 @@ def test_pii(clean_global_registry, registry_server):
     scenario['rules-party2'] = [
             InAssetCollection(
                 'id:party2_ns.dataset.pii2', 'id:party2_ns.collection.PII2'),
-            MayAccess('party2', 'id:party2_ns.collection.PII2'),
-            MayAccess('party1', 'id:party2_ns.collection.PII2'),
+            MayAccess('site2', 'id:party2_ns.collection.PII2'),
+            MayAccess('site1', 'id:party2_ns.collection.PII2'),
             ResultOfDataIn(
                 'id:party2_ns.collection.PII2', '*',
                 'id:party2_ns.collection.PII2'),
@@ -97,8 +97,8 @@ def test_pii(clean_global_registry, registry_server):
                 'id:ddm_ns.collection.Public'),
 
             MayAccess('ddm', 'id:ddm_ns.collection.ScienceOnly'),
-            MayAccess('party1', 'id:ddm_ns.collection.Public'),
-            MayAccess('party2', 'id:ddm_ns.collection.Public'),
+            MayAccess('site1', 'id:ddm_ns.collection.Public'),
+            MayAccess('site2', 'id:ddm_ns.collection.Public'),
             MayAccess('ddm', 'id:ddm_ns.collection.Public'),
             ]
 
@@ -148,18 +148,18 @@ def test_saas_with_data(clean_global_registry, registry_server):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [
-            MayAccess('party1', 'id:party1_ns.dataset.data1'),
-            MayAccess('party2', 'id:party1_ns.dataset.data1'),
+            MayAccess('site1', 'id:party1_ns.dataset.data1'),
+            MayAccess('site2', 'id:party1_ns.dataset.data1'),
             ResultOfDataIn(
                 'id:party1_ns.dataset.data1', 'id:party2_ns.software.addition',
                 'id:party1_ns.collection.result1'),
-            MayAccess('party1', 'id:party1_ns.collection.result1'),
-            MayAccess('party2', 'id:party1_ns.collection.result1'),
+            MayAccess('site1', 'id:party1_ns.collection.result1'),
+            MayAccess('site2', 'id:party1_ns.collection.result1'),
             ]
 
     scenario['rules-party2'] = [
-            MayAccess('party2', 'id:party2_ns.dataset.data2'),
-            MayAccess('party2', 'id:party2_ns.software.addition'),
+            MayAccess('site2', 'id:party2_ns.dataset.data2'),
+            MayAccess('site2', 'id:party2_ns.software.addition'),
             ResultOfDataIn(
                 'id:party2_ns.dataset.data2', 'id:party2_ns.software.addition',
                 'id:party2_ns.collection.result2'),
@@ -169,9 +169,9 @@ def test_saas_with_data(clean_global_registry, registry_server):
             ResultOfComputeIn(
                 'id:party1_ns.dataset.data1', 'id:party2_ns.software.addition',
                 'id:party2_ns.collection.result2'),
-            MayAccess('party1', 'id:party2_ns.collection.result2'),
-            MayAccess('party2', 'id:party2_ns.collection.result2'),
-            MayAccess('party2', 'id:party2_ns.software.addition'),
+            MayAccess('site1', 'id:party2_ns.collection.result2'),
+            MayAccess('site2', 'id:party2_ns.collection.result2'),
+            MayAccess('site2', 'id:party2_ns.software.addition'),
             ]
 
     scenario['sites'] = [

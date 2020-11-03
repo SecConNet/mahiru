@@ -36,7 +36,7 @@ class WorkflowPlanner:
         be executed.
 
         Args:
-            submitter: Name of the party which submitted this, and to
+            submitter: Name of the site which submitted this, and to
                     which results should be returned.
             job: The job to plan.
 
@@ -48,25 +48,23 @@ class WorkflowPlanner:
                 step: WorkflowStep, site: str
                 ) -> bool:
             """Check whether the given site may run the given step."""
-            party = self._ddm_client.get_site_administrator(site)
-
             # check each input
             for inp_name in step.inputs:
                 inp_key = '{}.{}'.format(step.name, inp_name)
                 inp_perms = permissions[inp_key]
-                if not self._policy_evaluator.may_access(inp_perms, party):
+                if not self._policy_evaluator.may_access(inp_perms, site):
                     return False
 
             # check step itself (i.e. compute asset)
             step_perms = permissions[step.name]
-            if not self._policy_evaluator.may_access(step_perms, party):
+            if not self._policy_evaluator.may_access(step_perms, site):
                 return False
 
             # check each output
             for outp_name in step.outputs:
                 outp_key = '{}.{}'.format(step.name, outp_name)
                 outp_perms = permissions[outp_key]
-                if not self._policy_evaluator.may_access(outp_perms, party):
+                if not self._policy_evaluator.may_access(outp_perms, site):
                     return False
 
             return True
@@ -200,7 +198,7 @@ class GlobalWorkflowRunner:
         """Plans and executes the given workflow.
 
         Args:
-            submitter: Name of the party to submit this job.
+            submitter: Name of the site to submit this job.
             job: The job to execute.
         """
         plans = self._planner.make_plans(submitter, job)

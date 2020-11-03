@@ -48,7 +48,7 @@ class Site:
         self.administrator = owner
         self.namespace = namespace
 
-        self._ddm_client = DDMClient(self.administrator)
+        self._ddm_client = DDMClient(self.name)
 
         # Register party with DDM
         self._private_key = rsa.generate_private_key(
@@ -76,8 +76,7 @@ class Site:
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = LocalWorkflowRunner(
-                name, self.administrator,
-                self._ddm_client, self._policy_evaluator, self.store)
+                name, self._ddm_client, self._policy_evaluator, self.store)
 
         # REST server
         self.api = SiteApi(self.policy_server, self.store, self.runner)
@@ -111,4 +110,4 @@ class Site:
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""
         logger.info('Starting job execution')
-        return self._workflow_engine.execute(self.administrator, job)
+        return self._workflow_engine.execute(self.name, job)

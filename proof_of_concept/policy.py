@@ -62,27 +62,27 @@ class InPartyCollection(Rule):
 
 
 class MayAccess(Rule):
-    """Says that Party party may access Asset asset."""
-    def __init__(self, party: str, asset: str) -> None:
+    """Says that Site site may access Asset asset."""
+    def __init__(self, site: str, asset: str) -> None:
         """Create a MayAccess rule.
 
         Args:
-            party: The party that may access.
+            site: The site that may access.
             asset: The asset that may be accessed.
         """
-        self.party = party
+        self.site = site
         self.asset = asset
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
-        return '("{}" may access "{}")'.format(self.party, self.asset)
+        return f'("{self.site}" may access "{self.asset}")'
 
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.party, self.asset).encode('utf-8')
+        return f'{self.site}|{self.asset}'.encode('utf-8')
 
 
 class ResultOfIn(Rule):
@@ -214,7 +214,7 @@ class PolicyEvaluator:
                         for asset in self._equivalent_assets(rule.collection)})
         return result
 
-    def may_access(self, permissions: Permissions, party: str) -> bool:
+    def may_access(self, permissions: Permissions, site: str) -> bool:
         """Checks whether an asset can be at a site.
 
         This function checks whether the given site has access rights
@@ -222,19 +222,19 @@ class PolicyEvaluator:
 
         Args:
             permissions: Permissions for the asset to check.
-            party: A party which needs access.
+            site: A site which needs access.
         """
-        def matches_one(asset_set: Set[str], party: str) -> bool:
+        def matches_one(asset_set: Set[str], site: str) -> bool:
             for asset in asset_set:
                 for rule in self._policy_source.policies():
                     if isinstance(rule, MayAccess):
-                        if rule.asset == asset and rule.party == party:
+                        if rule.asset == asset and rule.site == site:
                             return True
-                        if rule.asset == asset and rule.party == '*':
+                        if rule.asset == asset and rule.site == '*':
                             return True
             return False
 
-        return all([matches_one(asset_set, party)
+        return all([matches_one(asset_set, site)
                     for asset_set in permissions._sets])
 
     def _equivalent_parties(self, party: str) -> List[str]:

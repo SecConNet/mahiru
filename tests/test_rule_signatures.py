@@ -31,13 +31,13 @@ def test_in_party_collection_signatures(private_key):
 
 
 def test_may_access_signatures(private_key):
-    rule = MayAccess('id:party1', 'id:party2/dataset/asset1')
+    rule = MayAccess('id:site1', 'id:party2/dataset/asset1')
     assert not rule.has_valid_signature(private_key.public_key())
     rule.sign(private_key)
     assert rule.has_valid_signature(private_key.public_key())
-    rule.party = 'id:party'
+    rule.site = 'id:site'
     assert not rule.has_valid_signature(private_key.public_key())
-    rule.party = 'id:party1'
+    rule.site = 'id:site1'
     assert rule.has_valid_signature(private_key.public_key())
     rule.asset = 'id:party1/dataset/asset2'
     assert not rule.has_valid_signature(private_key.public_key())

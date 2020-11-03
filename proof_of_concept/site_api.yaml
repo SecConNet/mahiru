@@ -53,7 +53,7 @@ paths:
         # certificate eventually, but we'll just pass it insecurely for now.
         - name: requester
           in: query
-          description: Name of the requesting party
+          description: Name of the requesting site
           required: true
           schema:
             type: string
@@ -164,7 +164,7 @@ components:
       required:
         - type
         - signature
-        - party
+        - site
         - asset
       properties:
         type:
@@ -173,8 +173,8 @@ components:
         signature:
           description: BASE64url serialised signature
           type: string
-        party:
-          description: Id of the party that may access the asset
+        site:
+          description: Id of the site that may access the asset
           type: string
         asset:
           description: Asset that may be accessed

@@ -112,7 +112,7 @@ def _serialize_may_access(rule: MayAccess) -> JSON:
     return {
             'type': 'MayAccess',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
-            'party': rule.party,
+            'site': rule.site,
             'asset': rule.asset}
 
 
@@ -144,7 +144,7 @@ def _deserialize_rule(user_input: JSON) -> Rule:
     elif user_input['type'] == 'InPartyCollection':
         rule = InPartyCollection(user_input['party'], user_input['collection'])
     elif user_input['type'] == 'MayAccess':
-        rule = MayAccess(user_input['party'], user_input['asset'])
+        rule = MayAccess(user_input['site'], user_input['asset'])
     elif user_input['type'] == 'ResultOfDataIn':
         rule = ResultOfDataIn(
                 user_input['data_asset'], user_input['compute_asset'],

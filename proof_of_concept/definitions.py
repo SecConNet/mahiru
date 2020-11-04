@@ -90,7 +90,7 @@ class IAssetStore:
 
         Args:
             asset_id: ID of the asset to retrieve.
-            requester: Name of the party making the request.
+            requester: Name of the site making the request.
 
         Return:
             The asset object with asset_id.

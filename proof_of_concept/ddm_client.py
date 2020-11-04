@@ -71,14 +71,14 @@ class RuleValidator(ObjectValidator[Rule]):
 
 class DDMClient:
     """Handles connecting to global registry, runners and stores."""
-    def __init__(self, party: str) -> None:
+    def __init__(self, site: str) -> None:
         """Create a DDMClient.
 
         Args:
-            party: The party on whose behalf this client acts.
+            site: The site at which this client acts.
 
         """
-        self._party = party
+        self._site = site
         # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
 
@@ -196,13 +196,6 @@ class DDMClient:
                     sites.append(o.name)
         return sites
 
-    def get_site_administrator(self, site_name: str) -> str:
-        """Returns the name of the party administrating a site."""
-        site = self._get_site('name', site_name)
-        if site is not None:
-            return site.admin_name
-        raise RuntimeError('Site {} not found'.format(site_name))
-
     @staticmethod
     def get_asset_location(asset_id: str) -> str:
         """Returns the name of the site which stores this asset."""
@@ -216,7 +209,7 @@ class DDMClient:
             safe_asset_id = quote(asset_id, safe='')
             r = requests.get(
                     f'{site.endpoint}/assets/{safe_asset_id}',
-                    params={'requester': self._party})
+                    params={'requester': self._site})
             if r.status_code == 404:
                 raise KeyError('Asset not found')
             elif not r.ok:

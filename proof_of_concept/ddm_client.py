@@ -71,14 +71,17 @@ class RuleValidator(ObjectValidator[Rule]):
 
 class DDMClient:
     """Handles connecting to global registry, runners and stores."""
-    def __init__(self, site: str) -> None:
+    def __init__(self, site: str, site_validator: Validator) -> None:
         """Create a DDMClient.
 
         Args:
             site: The site at which this client acts.
+            site_validator: A validator for the Site REST API.
 
         """
         self._site = site
+        self._site_validator = site_validator
+
         # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
 
@@ -96,12 +99,6 @@ class DDMClient:
                 registry_client, on_update=self._on_registry_update)
 
         # Set up connections to sites
-        site_api_file = Path(__file__).parent / 'site_api.yaml'
-        with open(site_api_file, 'r') as f:
-            site_api_def = yaml.safe_load(f.read())
-
-        self._site_validator = Validator(site_api_def)
-
         self._policy_replicas = dict()  # type: Dict[str, Replica[Rule]]
 
         # Get initial data

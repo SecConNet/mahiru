@@ -79,7 +79,8 @@ class Site:
             self._policy_store.insert(rule)
         self.policy_server = PolicyServer(self._policy_archive, 0.1)
 
-        self._policy_source = PolicySource(self._ddm_client)
+        self._policy_source = PolicySource(
+                self._ddm_client, self._site_validator)
         self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side

@@ -126,6 +126,15 @@ class DDMClient:
         self._callbacks.append(callback)
         callback(self._registry_replica.objects, set())
 
+    def update(self) -> None:
+        """Ensures the local registry information is up-to-date.
+
+        If the registry is updated, this will call any registered
+        callback functions with the changes.
+
+        """
+        self._registry_replica.update()
+
     def register_party(self, description: PartyDescription) -> None:
         """Register a party with the Registry.
 
@@ -197,7 +206,7 @@ class DDMClient:
             A dict mapping namespaces to their governing rules.
 
         """
-        self._registry_replica.update()
+        self.update()
         for replica in self._policy_replicas.values():
             replica.update()
         result = {
@@ -207,7 +216,7 @@ class DDMClient:
 
     def list_sites_with_runners(self) -> List[str]:
         """Returns a list of id's of sites with runners."""
-        self._registry_replica.update()
+        self.update()
         sites = list()    # type: List[str]
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
@@ -256,7 +265,7 @@ class DDMClient:
 
     def _get_party(self, name: str) -> Optional[PartyDescription]:
         """Returns the party with the given name."""
-        self._registry_replica.update()
+        self.update()
         for o in self._registry_replica.objects:
             if isinstance(o, PartyDescription):
                 if o.name == name:
@@ -266,7 +275,7 @@ class DDMClient:
     def _get_site(
             self, attr_name: str, value: Any) -> Optional[SiteDescription]:
         """Returns a site with a given attribute value."""
-        self._registry_replica.update()
+        self.update()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
                 a = getattr(o, attr_name)

@@ -75,7 +75,7 @@ class DDMClient:
         """Create a DDMClient.
 
         Args:
-            site: The party at which this client acts.
+            site: The site at which this client acts.
 
         """
         self._site = site

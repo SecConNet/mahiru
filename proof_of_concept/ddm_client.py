@@ -2,7 +2,7 @@
 import logging
 from pathlib import Path
 import requests
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -69,6 +69,10 @@ class RuleValidator(ObjectValidator[Rule]):
         return rule.has_valid_signature(self._key)
 
 
+RegistryCallback = Callable[
+        [Set[RegisteredObject], Set[RegisteredObject]], None]
+
+
 class DDMClient:
     """Handles connecting to global registry, runners and stores."""
     def __init__(self, site: str, site_validator: Validator) -> None:
@@ -84,6 +88,8 @@ class DDMClient:
 
         # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
+
+        self._callbacks = list()    # type: List[RegistryCallback]
 
         # Set up connection to registry
         registry_api_file = Path(__file__).parent / 'registry_api.yaml'
@@ -103,6 +109,22 @@ class DDMClient:
 
         # Get initial data
         self._registry_replica.update()
+
+    def register_callback(self, callback: RegistryCallback) -> None:
+        """Register a callback for registry updates.
+
+        The callback will be called immediately with a set of all
+        current records as the first argument. After that, it will
+        be called with newly created records as the first argument
+        and newly deleted records as the second argument whenever
+        the registry replica is updated.
+
+        Args:
+            callback: The function to call.
+
+        """
+        self._callbacks.append(callback)
+        callback(self._registry_replica.objects, set())
 
     def register_party(self, description: PartyDescription) -> None:
         """Register a party with the Registry.
@@ -255,7 +277,7 @@ class DDMClient:
     def _on_registry_update(
             self, created: Set[RegisteredObject],
             deleted: Set[RegisteredObject]) -> None:
-        """Updates policy clients/replicas when sites are updated."""
+        """Updates related objects when sites are updated."""
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
                 client = PolicyClient(
@@ -268,3 +290,6 @@ class DDMClient:
         for o in deleted:
             if isinstance(o, SiteDescription) and o.namespace:
                 del(self._policy_replicas[o.namespace])
+
+        for callback in self._callbacks:
+            callback(created, deleted)

@@ -31,6 +31,11 @@ RegistryCallback = Callable[
         [Set[RegisteredObject], Set[RegisteredObject]], None]
 
 
+class RegistryReplica(Replica[RegisteredObject]):
+    """Local replica of the global registry."""
+    pass
+
+
 class DDMClient:
     """Handles connecting to global registry, runners and stores."""
     def __init__(self, site: str, site_validator: Validator) -> None:
@@ -59,7 +64,7 @@ class DDMClient:
         registry_client = RegistryRestClient(
                 self._registry_endpoint + '/updates', registry_validator)
 
-        self._registry_replica = Replica[RegisteredObject](
+        self._registry_replica = RegistryReplica(
                 registry_client, on_update=self._on_registry_update)
 
         # Get initial data

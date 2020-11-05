@@ -22,7 +22,7 @@ from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job, Workflow
 
 
-class RegistryClient(ReplicationClient[RegisteredObject]):
+class RegistryRestClient(ReplicationClient[RegisteredObject]):
     """A client for the registry."""
     UpdateType = RegistryUpdate
 
@@ -56,7 +56,7 @@ class DDMClient:
 
         registry_validator = Validator(registry_api_def)
 
-        registry_client = RegistryClient(
+        registry_client = RegistryRestClient(
                 self._registry_endpoint + '/updates', registry_validator)
 
         self._registry_replica = Replica[RegisteredObject](

@@ -36,19 +36,10 @@ class RegistryReplica(Replica[RegisteredObject]):
     pass
 
 
-class DDMClient:
-    """Handles connecting to global registry, runners and stores."""
-    def __init__(self, site: str, site_validator: Validator) -> None:
-        """Create a DDMClient.
-
-        Args:
-            site: The site at which this client acts.
-            site_validator: A validator for the Site REST API.
-
-        """
-        self._site = site
-        self._site_validator = site_validator
-
+class RegistryClient:
+    """Local interface to the global registry."""
+    def __init__(self) -> None:
+        """Create a RegistryClient."""
         # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
 
@@ -171,46 +162,28 @@ class DDMClient:
                     sites.append(o.name)
         return sites
 
+    def get_site_by_name(self, site_name: str) -> SiteDescription:
+        """Gets a site's description by name.
+
+        Args:
+            site_name: Name of the site to look up.
+
+        Returns:
+            The description of the corresponding site.
+
+        Raises:
+            KeyError: If no site with that name exists.
+
+        """
+        site = self._get_site('name', site_name)
+        if not site:
+            raise KeyError(f'Site named {site_name} not found')
+        return site
+
     @staticmethod
     def get_asset_location(asset_id: str) -> str:
         """Returns the name of the site which stores this asset."""
         return global_registry.get_asset_location(asset_id)
-
-    def retrieve_asset(self, site_name: str, asset_id: str
-                       ) -> Asset:
-        """Obtains a data item from a store."""
-        self.update()
-        site = self._get_site('name', site_name)
-        if site is not None and site.store is not None:
-            safe_asset_id = quote(asset_id, safe='')
-            r = requests.get(
-                    f'{site.endpoint}/assets/{safe_asset_id}',
-                    params={'requester': self._site})
-            if r.status_code == 404:
-                raise KeyError('Asset not found')
-            elif not r.ok:
-                raise RuntimeError('Server error when retrieving asset')
-
-            asset_json = r.json()
-            self._site_validator.validate('Asset', asset_json)
-            return deserialize(Asset, asset_json)
-
-        raise RuntimeError(f'Site or store at site {site_name} not found')
-
-    def submit_job(self, site_name: str, submission: JobSubmission) -> None:
-        """Submits a job for execution to a local runner.
-
-        Args:
-            site_name: The site to submit to.
-            submission: The job submision to send.
-
-        """
-        self.update()
-        site = self._get_site('name', site_name)
-        if site is not None and site.runner:
-            requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
-        else:
-            raise RuntimeError(f'Site or runner at site {site_name} not found')
 
     def _get_party(self, name: str) -> Optional[PartyDescription]:
         """Returns the party with the given name."""
@@ -236,3 +209,64 @@ class DDMClient:
         """Calls callbacks when sites are updated."""
         for callback in self._callbacks:
             callback(created, deleted)
+
+
+class PeerClient:
+    """Handles connecting to other sites' runners and stores."""
+    def __init__(
+            self, site: str, site_validator: Validator,
+            registry_client: RegistryClient
+            ) -> None:
+        """Create a DDMClient.
+
+        Args:
+            site: The site at which this client acts.
+            site_validator: A validator for the Site REST API.
+            registry_client: A registry client to get sites from.
+
+        """
+        self._site = site
+        self._site_validator = site_validator
+        self._registry_client = registry_client
+
+    def retrieve_asset(self, site_name: str, asset_id: str
+                       ) -> Asset:
+        """Obtains a data item from a store."""
+        try:
+            site = self._registry_client.get_site_by_name(site_name)
+        except KeyError:
+            raise RuntimeError(f'Site or store at site {site_name} not found')
+
+        if site.store is not None:
+            safe_asset_id = quote(asset_id, safe='')
+            r = requests.get(
+                    f'{site.endpoint}/assets/{safe_asset_id}',
+                    params={'requester': self._site})
+            if r.status_code == 404:
+                raise KeyError('Asset not found')
+            elif not r.ok:
+                raise RuntimeError('Server error when retrieving asset')
+
+            asset_json = r.json()
+            self._site_validator.validate('Asset', asset_json)
+            return deserialize(Asset, asset_json)
+
+        raise ValueError(f'Site {site_name} does not have a store')
+
+    def submit_job(self, site_name: str, submission: JobSubmission) -> None:
+        """Submits a job for execution to a local runner.
+
+        Args:
+            site_name: The site to submit to.
+            submission: The job submision to send.
+
+        """
+        try:
+            site = self._registry_client.get_site_by_name(site_name)
+        except KeyError:
+            raise RuntimeError(f'Site or runner at site {site_name} not found')
+
+        if site.runner:
+            requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
+        else:
+            raise ValueError(f'Site {site_name} does not have a runner')

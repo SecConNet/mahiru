@@ -4,7 +4,7 @@ from copy import copy
 from time import sleep
 from typing import Any, Dict, Generator, List, Set
 
-from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.ddm_client import PeerClient, RegistryClient
 from proof_of_concept.definitions import JobSubmission, Plan
 from proof_of_concept.policy import Permissions, PolicyEvaluator
 from proof_of_concept.permission_calculator import PermissionCalculator
@@ -16,15 +16,16 @@ logger = logging.getLogger(__file__)
 class WorkflowPlanner:
     """Plans workflow execution across sites in a DDM."""
     def __init__(
-            self, ddm_client: DDMClient, policy_evaluator: PolicyEvaluator
+            self, registry_client: RegistryClient,
+            policy_evaluator: PolicyEvaluator
             ) -> None:
         """Create a GlobalWorkflowRunner.
 
         Args:
-            ddm_client: Component that communicates with the DDM.
-            policy_evaluator: Component that knows about policies.
+            registry_client: RegistryClient to get sites from.
+            policy_evaluator: PolicyEvaluator to use for permissions.
         """
-        self._ddm_client = ddm_client
+        self._registry_client = registry_client
         self._policy_evaluator = policy_evaluator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
 
@@ -86,7 +87,7 @@ class WorkflowPlanner:
             """
             cur_step = sorted_steps[cur_step_idx]
             step_perms = permissions[cur_step.name]
-            for site in self._ddm_client.list_sites_with_runners():
+            for site in self._registry_client.list_sites_with_runners():
                 if may_run(permissions, cur_step, site):
                     plan[cur_step_idx] = site
                     if cur_step_idx == len(plan) - 1:
@@ -98,7 +99,7 @@ class WorkflowPlanner:
                 dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
         # We'll have some other kind of resolver here later
         input_sites = {
-                inp: self._ddm_client.get_asset_location(inp)
+                inp: self._registry_client.get_asset_location(inp)
                 for inp in job.inputs.values()}
 
         return [
@@ -135,13 +136,13 @@ class WorkflowPlanner:
 
 class WorkflowExecutor:
     """Executes workflows across sites in a DDM."""
-    def __init__(self, ddm_client: DDMClient) -> None:
+    def __init__(self, peer_client: PeerClient) -> None:
         """Create a WorkflowExecutor.
 
         Args:
-            ddm_client: A client for connecting to other sites.
+            peer_client: A client for connecting to other sites.
         """
-        self._ddm_client = ddm_client
+        self._peer_client = peer_client
 
     def execute_workflow(self, submission: JobSubmission) -> Dict[str, Any]:
         """Executes the given workflow execution plan.
@@ -154,7 +155,7 @@ class WorkflowExecutor:
         """
         # launch all the runners
         for site_name in set(submission.plan.step_sites.values()):
-            self._ddm_client.submit_job(site_name, submission)
+            self._peer_client.submit_job(site_name, submission)
 
         # get workflow outputs whenever they're available
         wf = submission.job.workflow
@@ -168,7 +169,7 @@ class WorkflowExecutor:
                             wf.steps[src_step_name]]
                     outp_key = keys[wf_outp_name]
                     try:
-                        asset = self._ddm_client.retrieve_asset(
+                        asset = self._peer_client.retrieve_asset(
                                     src_site, outp_key)
                         results[wf_outp_name] = asset.data
                     except KeyError:
@@ -181,17 +182,18 @@ class WorkflowExecutor:
 class GlobalWorkflowRunner:
     """Plans and runs workflows across sites in DDM."""
     def __init__(
-            self, policy_evaluator: PolicyEvaluator, ddm_client: DDMClient
+            self, policy_evaluator: PolicyEvaluator,
+            registry_client: RegistryClient, peer_client: PeerClient
             ) -> None:
         """Create a GlobalWorkflowRunner.
 
         Args:
             policy_evaluator: Component that knows about policies.
-            ddm_client: Client for accessing other sites.
+            registry_client: Client for accessing the registry.
+            peer_client: Client for accessing other sites.
         """
-        self._planner = WorkflowPlanner(ddm_client, policy_evaluator)
-        self._executor = WorkflowExecutor(ddm_client)
-        self._ddm_client = ddm_client
+        self._planner = WorkflowPlanner(registry_client, policy_evaluator)
+        self._executor = WorkflowExecutor(peer_client)
 
     def execute(
             self, submitter: str, job: Job) -> Dict[str, Any]:

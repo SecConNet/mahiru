@@ -19,7 +19,7 @@ class WorkflowPlanner:
             self, registry_client: RegistryClient,
             policy_evaluator: PolicyEvaluator
             ) -> None:
-        """Create a GlobalWorkflowRunner.
+        """Create a WorkflowOrchestrator.
 
         Args:
             registry_client: RegistryClient to get sites from.
@@ -180,13 +180,13 @@ class WorkflowExecutor:
         return results
 
 
-class GlobalWorkflowRunner:
+class WorkflowOrchestrator:
     """Plans and runs workflows across sites in DDM."""
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
             registry_client: RegistryClient, peer_client: PeerClient
             ) -> None:
-        """Create a GlobalWorkflowRunner.
+        """Create a WorkflowOrchestrator.
 
         Args:
             policy_evaluator: Component that knows about policies.

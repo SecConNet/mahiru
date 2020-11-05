@@ -18,7 +18,7 @@ from proof_of_concept.policy_replication import PolicyServer, PolicySource
 from proof_of_concept.replication import CanonicalStore, ReplicableArchive
 from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job
-from proof_of_concept.workflow_engine import GlobalWorkflowRunner
+from proof_of_concept.workflow_engine import WorkflowOrchestrator
 
 
 logger = logging.getLogger(__file__)
@@ -97,7 +97,7 @@ class Site:
         self.server = SiteServer(self.api)
 
         # Client side
-        self._workflow_engine = GlobalWorkflowRunner(
+        self._workflow_engine = WorkflowOrchestrator(
                 self._policy_evaluator, self._registry_client,
                 self._peer_client)
 

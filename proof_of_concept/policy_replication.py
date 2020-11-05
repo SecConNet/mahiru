@@ -8,7 +8,7 @@ from proof_of_concept.policy import (
         IPolicySource, InPartyCollection, InAssetCollection, MayAccess,
         ResultOfDataIn, ResultOfComputeIn, Rule)
 from proof_of_concept.replication import (
-        ObjectValidator, Replica, ReplicationServer)
+        CanonicalStore, ObjectValidator, Replica)
 from proof_of_concept.replication_rest import ReplicationClient
 from proof_of_concept.validation import Validator
 
@@ -118,6 +118,6 @@ class PolicySource(IPolicySource):
             replica.update()
 
 
-class PolicyServer(ReplicationServer[Rule]):
-    """A replication server for policy rules."""
+class PolicyStore(CanonicalStore[Rule]):
+    """A canonical store for policy rules."""
     UpdateType = PolicyUpdate

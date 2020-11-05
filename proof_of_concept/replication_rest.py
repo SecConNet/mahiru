@@ -7,7 +7,7 @@ from falcon import Request, Response
 
 from proof_of_concept.definitions import (
         IReplicationSource, ReplicaUpdate)
-from proof_of_concept.replication import ReplicableArchive, ReplicationServer
+from proof_of_concept.replication import ReplicableArchive
 from proof_of_concept.serialization import serialize, deserialize
 from proof_of_concept.validation import Validator
 
@@ -20,13 +20,13 @@ T = TypeVar('T')
 
 class ReplicationHandler(Generic[T]):
     """A handler for a /updates REST API endpoint."""
-    def __init__(self, server: ReplicationServer[T]) -> None:
+    def __init__(self, source: IReplicationSource[T]) -> None:
         """Create a Replication handler.
 
         Args:
-            server: The server to send requests to.
+            source: The source to get updates from.
         """
-        self._server = server
+        self._source = source
 
     def on_get(self, request: Request, response: Response) -> None:
         """Handle a registry update request.
@@ -38,7 +38,7 @@ class ReplicationHandler(Generic[T]):
         from_version = request.get_param_as_int(
                 'from_version', required=True)
 
-        updates = self._server.get_updates_since(from_version)
+        updates = self._source.get_updates_since(from_version)
         response.media = serialize(updates)
 
 

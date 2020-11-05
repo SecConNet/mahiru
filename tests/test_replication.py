@@ -3,8 +3,7 @@ from unittest.mock import MagicMock
 import time
 
 from proof_of_concept.replication import (
-        CanonicalStore, Replica, Replicable, ReplicableArchive,
-        ReplicationServer, ReplicaUpdate)
+        CanonicalStore, Replica, Replicable, ReplicableArchive, ReplicaUpdate)
 
 
 class A:
@@ -16,9 +15,8 @@ def test_replication():
     REPLICA_LAG = 0.01
 
     archive = ReplicableArchive()
-    store = CanonicalStore(archive)
-    server = ReplicationServer(archive, REPLICA_LAG)
-    replica = Replica(server)
+    store = CanonicalStore(archive, REPLICA_LAG)
+    replica = Replica(store)
 
     a1 = A('a1')
     store.insert(a1)
@@ -67,10 +65,10 @@ def test_validation():
     a3 = A('a3')
     b1 = A('b1')
 
-    server = MagicMock()
-    server.get_updates_since.return_value = ReplicaUpdate(
+    store = MagicMock()
+    store.get_updates_since.return_value = ReplicaUpdate(
             0, 2, datetime.now() + timedelta(seconds=0.01), {a1, a2}, {})
-    replica = Replica(server, Validator())
+    replica = Replica(store, Validator())
     assert not replica.is_valid()
     replica.update()
     assert replica.is_valid()
@@ -78,7 +76,7 @@ def test_validation():
 
     time.sleep(0.01)
     assert not replica.is_valid()
-    server.get_updates_since.return_value = ReplicaUpdate(
+    store.get_updates_since.return_value = ReplicaUpdate(
             2, 3, time.time() + 1.0, {b1}, {})
     replica.update()
     assert not replica.is_valid()

@@ -71,12 +71,19 @@ class ReplicableArchive(Generic[T]):
         self.version = 0            # type: int
 
 
-class CanonicalStore(Generic[T]):
+class CanonicalStore(IReplicationSource[T]):
     """Stores Replicables and can be replicated."""
+    UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
-    def __init__(self, archive: ReplicableArchive) -> None:
-        """Create a CanonicalStore."""
+    def __init__(self, archive: ReplicableArchive, max_lag: float) -> None:
+        """Create a CanonicalStore.
+
+        Args:
+            archive: The archive to use to store objects.
+            max_lag: Maximum time (s) replicas may be out of date.
+        """
         self._archive = archive
+        self._max_lag = max_lag
 
     def objects(self) -> Iterable[T]:
         """Iterate through currently extant objects."""
@@ -111,28 +118,6 @@ class CanonicalStore(Generic[T]):
         else:
             raise ValueError('Object not found')
         self._archive.version = new_version
-
-
-class ObjectValidator(Generic[T]):
-    """Validates incoming replica updates."""
-    def is_valid(self, received_object: T) -> bool:
-        """Returns True iff the object is valid."""
-        raise NotImplementedError()
-
-
-class ReplicationServer(IReplicationSource[T]):
-    """Serves Replicables from a set of them."""
-    UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
-
-    def __init__(self, archive: ReplicableArchive, max_lag: float) -> None:
-        """Create a ReplicationServer for the given archive.
-
-        Args:
-            archive: An archive to serve updates from.
-            max_lag: Maximum time (s) replicas may be out of date.
-        """
-        self._archive = archive
-        self._max_lag = max_lag
 
     def get_updates_since(self, from_version: int) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
@@ -174,6 +159,13 @@ class ReplicationServer(IReplicationSource[T]):
         return self.UpdateType(
                 from_version, to_version, valid_until,
                 new_objects, deleted_objects)
+
+
+class ObjectValidator(Generic[T]):
+    """Validates incoming replica updates."""
+    def is_valid(self, received_object: T) -> bool:
+        """Returns True iff the object is valid."""
+        raise NotImplementedError()
 
 
 class Replica(Generic[T]):

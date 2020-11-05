@@ -7,8 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from proof_of_concept.definitions import (
         IAssetStore, IPolicyServer, PartyDescription,
         RegisteredObject, RegistryUpdate, SiteDescription)
-from proof_of_concept.replication import (
-        CanonicalStore, ReplicableArchive, ReplicationServer)
+from proof_of_concept.replication import CanonicalStore, ReplicableArchive
 
 
 logger = logging.getLogger(__name__)
@@ -17,8 +16,8 @@ logger = logging.getLogger(__name__)
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
 
 
-class RegistryServer(ReplicationServer[RegisteredObject]):
-    """A replication server for the registry."""
+class RegistryStore(CanonicalStore[RegisteredObject]):
+    """A canonical store for the registry."""
     UpdateType = RegistryUpdate
 
 
@@ -34,8 +33,7 @@ class Registry:
         self._asset_locations = dict()           # type: Dict[str, str]
 
         archive = ReplicableArchive[RegisteredObject]()
-        self._store = CanonicalStore[RegisteredObject](archive)
-        self.replication_server = RegistryServer(archive, 0.1)
+        self.store = RegistryStore(archive, 0.1)
 
     def register_party(
             self, description: PartyDescription) -> None:
@@ -48,7 +46,7 @@ class Registry:
             raise RuntimeError(
                     f'There is already a party called {description.name}')
 
-        self._store.insert(description)
+        self.store.insert(description)
         logger.info(f'Registered party {description}')
 
     def deregister_party(self, name: str) -> None:
@@ -60,7 +58,7 @@ class Registry:
         description = self._get_object(PartyDescription, 'name', name)
         if description is None:
             raise KeyError('Party not found')
-        self._store.delete(description)
+        self.store.delete(description)
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a Site with the Registry.
@@ -83,7 +81,7 @@ class Registry:
         if admin is None:
             raise RuntimeError(f'Party {description.admin_name} not found')
 
-        self._store.insert(description)
+        self.store.insert(description)
         logger.info(f'{self} Registered site {description}')
 
     def deregister_site(self, name: str) -> None:
@@ -95,7 +93,7 @@ class Registry:
         description = self._get_object(SiteDescription, 'name', name)
         if description is None:
             raise KeyError('Site not found')
-        self._store.delete(description)
+        self.store.delete(description)
 
     def register_asset(self, asset_id: str, site_name: str) -> None:
         """Register an Asset with the Registry.
@@ -145,7 +143,7 @@ class Registry:
                 in the store which does not have an attribute named
                 `attr_name`.
         """
-        for o in self._store.objects():
+        for o in self.store.objects():
             if isinstance(o, typ):
                 if getattr(o, attr_name) == value:
                     return o

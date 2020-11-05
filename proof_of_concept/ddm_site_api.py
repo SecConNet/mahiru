@@ -12,7 +12,7 @@ import ruamel.yaml as yaml
 from proof_of_concept.definitions import (
         IAssetStore, IStepRunner, JobSubmission)
 from proof_of_concept.policy import Rule
-from proof_of_concept.policy_replication import PolicyServer
+from proof_of_concept.policy_replication import PolicyStore
 from proof_of_concept.replication_rest import ReplicationHandler
 from proof_of_concept.serialization import deserialize, serialize
 from proof_of_concept.validation import Validator, ValidationError
@@ -113,13 +113,13 @@ class SiteApi:
     """
     def __init__(
             self,
-            policy_server: PolicyServer,
+            policy_store: PolicyStore,
             asset_store: IAssetStore,
             runner: IStepRunner) -> None:
         """Create a RegistryApi instance.
 
         Args:
-            policy_server: The server to offer updates from.
+            policy_store: The store to offer policy updates from.
             asset_store: The store to serve assets from.
             runner: The workflow runner to send requests to.
 
@@ -132,7 +132,7 @@ class SiteApi:
 
         validator = Validator(site_api_def)
 
-        rule_replication = ReplicationHandler[Rule](policy_server)
+        rule_replication = ReplicationHandler[Rule](policy_store)
         self.app.add_route('/rules/updates', rule_replication)
 
         asset_access = AssetAccess(asset_store)

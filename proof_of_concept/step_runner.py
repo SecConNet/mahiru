@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import PeerClient, RegistryClient
-from proof_of_concept.definitions import ILocalWorkflowRunner, JobSubmission
+from proof_of_concept.definitions import IStepRunner, JobSubmission
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
 from proof_of_concept.workflow import WorkflowStep
@@ -215,7 +215,7 @@ class JobRun(Thread):
             return self._plan.input_sites[dataset], dataset
 
 
-class LocalWorkflowRunner(ILocalWorkflowRunner):
+class StepRunner(IStepRunner):
     """A service for running workflows at a given site."""
     def __init__(
             self, site: str,
@@ -223,7 +223,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
             peer_client: PeerClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
-        """Creates a LocalWorkflowRunner.
+        """Creates a StepRunner.
 
         Args:
             site: Name of the site this runner is located at.

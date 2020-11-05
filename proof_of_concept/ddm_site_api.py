@@ -10,7 +10,7 @@ from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
 import ruamel.yaml as yaml
 
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, JobSubmission)
+        IAssetStore, IStepRunner, JobSubmission)
 from proof_of_concept.policy import Rule
 from proof_of_concept.policy_replication import PolicyServer
 from proof_of_concept.replication_rest import ReplicationHandler
@@ -74,7 +74,7 @@ class AssetAccess:
 class WorkflowExecution:
     """A handler for the /jobs endpoint."""
     def __init__(
-            self, runner: ILocalWorkflowRunner, validator: Validator
+            self, runner: IStepRunner, validator: Validator
             ) -> None:
         """Create a WorkflowExecution handler.
 
@@ -115,7 +115,7 @@ class SiteApi:
             self,
             policy_server: PolicyServer,
             asset_store: IAssetStore,
-            runner: ILocalWorkflowRunner) -> None:
+            runner: IStepRunner) -> None:
         """Create a RegistryApi instance.
 
         Args:

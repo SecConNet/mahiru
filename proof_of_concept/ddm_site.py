@@ -12,7 +12,7 @@ from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import PeerClient, RegistryClient
 from proof_of_concept.ddm_site_api import SiteApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
-from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
+from proof_of_concept.step_runner import StepRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
 from proof_of_concept.policy_replication import PolicyServer, PolicySource
 from proof_of_concept.replication import CanonicalStore, ReplicableArchive
@@ -88,7 +88,7 @@ class Site:
         # Server side
         self.store = AssetStore(self._policy_evaluator)
 
-        self.runner = LocalWorkflowRunner(
+        self.runner = StepRunner(
                 name, self._registry_client, self._peer_client,
                 self._policy_evaluator, self.store)
 

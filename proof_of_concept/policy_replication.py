@@ -12,6 +12,8 @@ from proof_of_concept.replication import (
 from proof_of_concept.replication_rest import ReplicationClient
 from proof_of_concept.validation import Validator
 
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+
 
 class PolicyClient(ReplicationClient[Rule]):
     """A client for policy servers."""
@@ -20,18 +22,18 @@ class PolicyClient(ReplicationClient[Rule]):
 
 class RuleValidator(ObjectValidator[Rule]):
     """Validates incoming policy rules by checking signatures."""
-    def __init__(self, ddm_client: DDMClient, namespace: str) -> None:
+    def __init__(self, namespace: str, key: RSAPublicKey) -> None:
         """Create a RuleValidator.
 
         Checks that rules apply to the given namespace, and that they
         have been signed by the owner of that namespace.
 
         Args:
-            ddm_client: A DDMClient to use.
             namespace: The namespace to expect rules for.
+            key: The key to validate the rules with.
         """
-        self._key = ddm_client.get_public_key_for_ns(namespace)
         self._namespace = namespace
+        self._key = key
 
     def is_valid(self, rule: Rule) -> bool:
         """Return True iff the rule is properly signed."""
@@ -96,7 +98,8 @@ class PolicySource(IPolicySource):
                 client = PolicyClient(
                         o.endpoint + '/rules/updates', self._site_validator)
 
-                validator = RuleValidator(self._ddm_client, o.namespace)
+                key = self._ddm_client.get_public_key_for_ns(o.namespace)
+                validator = RuleValidator(o.namespace, key)
                 self._policy_replicas[o.namespace] = Replica[Rule](
                         client, validator)
 

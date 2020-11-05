@@ -10,7 +10,7 @@ import ruamel.yaml as yaml
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
         IAssetStore, ILocalWorkflowRunner, IPolicyServer, JobSubmission,
-        PartyDescription, Plan, PolicyUpdate, RegistryUpdate, SiteDescription)
+        PartyDescription, PolicyUpdate, RegistryUpdate, SiteDescription)
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
         ResultOfDataIn, Rule)

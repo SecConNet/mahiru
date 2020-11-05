@@ -52,9 +52,7 @@ class JobRun(Thread):
         self._workflow = submission.job.workflow
         self._inputs = submission.job.inputs
         self._plan = submission.plan
-        self._sites = {
-                step.name: site
-                for step, site in submission.plan.step_sites.items()}
+        self._sites = submission.plan.step_sites
         self._target_store = target_store
 
     def run(self) -> None:

@@ -95,8 +95,10 @@ class WorkflowPlanner:
                     else:
                         yield from plan_from(cur_step_idx + 1)
 
+        sorted_step_names = [step.name for step in sorted_steps]
+
         step_sites_per_plan = [
-                dict(zip(sorted_steps, plan)) for plan in plan_from(0)]
+                dict(zip(sorted_step_names, plan)) for plan in plan_from(0)]
         # We'll have some other kind of resolver here later
         input_sites = {
                 inp: self._registry_client.get_asset_location(inp)
@@ -165,8 +167,7 @@ class WorkflowExecutor:
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
-                    src_site = submission.plan.step_sites[
-                            wf.steps[src_step_name]]
+                    src_site = submission.plan.step_sites[src_step_name]
                     outp_key = keys[wf_outp_name]
                     try:
                         asset = self._peer_client.retrieve_asset(

@@ -1,9 +1,11 @@
 """This module combines components into a site installation."""
 import logging
+from pathlib import Path
 from typing import Any, Dict, List
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
+import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
@@ -14,6 +16,7 @@ from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
 from proof_of_concept.policy_replication import PolicyServer, PolicySource
 from proof_of_concept.replication import CanonicalStore, ReplicableArchive
+from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job
 from proof_of_concept.workflow_engine import GlobalWorkflowRunner
 
@@ -48,7 +51,15 @@ class Site:
         self.administrator = owner
         self.namespace = namespace
 
-        self._ddm_client = DDMClient(self.name)
+        # Load API definitions
+        site_api_file = Path(__file__).parent / 'site_api.yaml'
+        with open(site_api_file, 'r') as f:
+            site_api_def = yaml.safe_load(f.read())
+
+        self._site_validator = Validator(site_api_def)
+
+        # Create client for talking to other sites
+        self._ddm_client = DDMClient(self.name, self._site_validator)
 
         # Register party with DDM
         self._private_key = rsa.generate_private_key(
@@ -69,7 +80,7 @@ class Site:
         self.policy_server = PolicyServer(self._policy_archive, 0.1)
 
         self._policy_source = PolicySource(
-                self._ddm_client, self._policy_store)
+                self._ddm_client, self._site_validator)
         self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side

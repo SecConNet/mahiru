@@ -1,8 +1,7 @@
 """Functionality for connecting to other DDM sites."""
-import logging
 from pathlib import Path
 import requests
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -23,64 +22,32 @@ from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job, Workflow
 
 
-logger = logging.getLogger(__name__)
-
-
 class RegistryClient(ReplicationClient[RegisteredObject]):
     """A client for the registry."""
     UpdateType = RegistryUpdate
 
 
-class PolicyClient(ReplicationClient[Rule]):
-    """A client for policy servers."""
-    UpdateType = PolicyUpdate
-
-
-class RuleValidator(ObjectValidator[Rule]):
-    """Validates incoming policy rules by checking signatures."""
-    def __init__(self, ddm_client: 'DDMClient', namespace: str) -> None:
-        """Create a RuleValidator.
-
-        Checks that rules apply to the given namespace, and that they
-        have been signed by the owner of that namespace.
-
-        Args:
-            ddm_client: A DDMClient to use.
-            namespace: The namespace to expect rules for.
-        """
-        self._key = ddm_client.get_public_key_for_ns(namespace)
-        self._namespace = namespace
-
-    def is_valid(self, rule: Rule) -> bool:
-        """Return True iff the rule is properly signed."""
-        if isinstance(rule, ResultOfDataIn):
-            namespace = rule.data_asset[3:].split('.')[0]
-        elif isinstance(rule, ResultOfComputeIn):
-            namespace = rule.compute_asset[3:].split('.')[0]
-        elif isinstance(rule, MayAccess):
-            namespace = rule.asset[3:].split('.')[0]
-        elif isinstance(rule, InAssetCollection):
-            namespace = rule.asset[3:].split('.')[0]
-        elif isinstance(rule, InPartyCollection):
-            namespace = rule.collection[3:].split('.')[0]
-
-        if namespace != self._namespace:
-            return False
-        return rule.has_valid_signature(self._key)
+RegistryCallback = Callable[
+        [Set[RegisteredObject], Set[RegisteredObject]], None]
 
 
 class DDMClient:
     """Handles connecting to global registry, runners and stores."""
-    def __init__(self, site: str) -> None:
+    def __init__(self, site: str, site_validator: Validator) -> None:
         """Create a DDMClient.
 
         Args:
             site: The site at which this client acts.
+            site_validator: A validator for the Site REST API.
 
         """
         self._site = site
+        self._site_validator = site_validator
+
         # TODO: This will be passed in as an argument later.
         self._registry_endpoint = 'http://localhost:4413'
+
+        self._callbacks = list()    # type: List[RegistryCallback]
 
         # Set up connection to registry
         registry_api_file = Path(__file__).parent / 'registry_api.yaml'
@@ -95,16 +62,32 @@ class DDMClient:
         self._registry_replica = Replica[RegisteredObject](
                 registry_client, on_update=self._on_registry_update)
 
-        # Set up connections to sites
-        site_api_file = Path(__file__).parent / 'site_api.yaml'
-        with open(site_api_file, 'r') as f:
-            site_api_def = yaml.safe_load(f.read())
-
-        self._site_validator = Validator(site_api_def)
-
-        self._policy_replicas = dict()  # type: Dict[str, Replica[Rule]]
-
         # Get initial data
+        self._registry_replica.update()
+
+    def register_callback(self, callback: RegistryCallback) -> None:
+        """Register a callback for registry updates.
+
+        The callback will be called immediately with a set of all
+        current records as the first argument. After that, it will
+        be called with newly created records as the first argument
+        and newly deleted records as the second argument whenever
+        the registry replica is updated.
+
+        Args:
+            callback: The function to call.
+
+        """
+        self._callbacks.append(callback)
+        callback(self._registry_replica.objects, set())
+
+    def update(self) -> None:
+        """Ensures the local registry information is up-to-date.
+
+        If the registry is updated, this will call any registered
+        callback functions with the changes.
+
+        """
         self._registry_replica.update()
 
     def register_party(self, description: PartyDescription) -> None:
@@ -163,6 +146,8 @@ class DDMClient:
 
     def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
         """Get the public key of the owner of a namespace."""
+        # Do not update here, when this is called we're processing one
+        # already.
         site = self._get_site('namespace', namespace)
         if site is not None:
             owner = self._get_party(site.owner_name)
@@ -171,24 +156,9 @@ class DDMClient:
             return owner.public_key
         raise RuntimeError(f'No site with namespace {namespace} found')
 
-    def get_rules(self) -> Dict[str, Set[Rule]]:
-        """List all known rules in all namespaces.
-
-        Return:
-            A dict mapping namespaces to their governing rules.
-
-        """
-        self._registry_replica.update()
-        for replica in self._policy_replicas.values():
-            replica.update()
-        result = {
-                namespace: replica.objects
-                for namespace, replica in self._policy_replicas.items()}
-        return result
-
     def list_sites_with_runners(self) -> List[str]:
         """Returns a list of id's of sites with runners."""
-        self._registry_replica.update()
+        self.update()
         sites = list()    # type: List[str]
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
@@ -204,6 +174,7 @@ class DDMClient:
     def retrieve_asset(self, site_name: str, asset_id: str
                        ) -> Asset:
         """Obtains a data item from a store."""
+        self.update()
         site = self._get_site('name', site_name)
         if site is not None and site.store is not None:
             safe_asset_id = quote(asset_id, safe='')
@@ -229,6 +200,7 @@ class DDMClient:
             submission: The job submision to send.
 
         """
+        self.update()
         site = self._get_site('name', site_name)
         if site is not None and site.runner:
             requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
@@ -237,7 +209,6 @@ class DDMClient:
 
     def _get_party(self, name: str) -> Optional[PartyDescription]:
         """Returns the party with the given name."""
-        self._registry_replica.update()
         for o in self._registry_replica.objects:
             if isinstance(o, PartyDescription):
                 if o.name == name:
@@ -247,7 +218,6 @@ class DDMClient:
     def _get_site(
             self, attr_name: str, value: Any) -> Optional[SiteDescription]:
         """Returns a site with a given attribute value."""
-        self._registry_replica.update()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
                 a = getattr(o, attr_name)
@@ -258,16 +228,6 @@ class DDMClient:
     def _on_registry_update(
             self, created: Set[RegisteredObject],
             deleted: Set[RegisteredObject]) -> None:
-        """Updates policy clients/replicas when sites are updated."""
-        for o in created:
-            if isinstance(o, SiteDescription) and o.namespace:
-                client = PolicyClient(
-                        o.endpoint + '/rules/updates', self._site_validator)
-
-                validator = RuleValidator(self, o.namespace)
-                self._policy_replicas[o.namespace] = Replica[Rule](
-                        client, validator)
-
-        for o in deleted:
-            if isinstance(o, SiteDescription) and o.namespace:
-                del(self._policy_replicas[o.namespace])
+        """Calls callbacks when sites are updated."""
+        for callback in self._callbacks:
+            callback(created, deleted)

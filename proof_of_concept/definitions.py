@@ -27,14 +27,14 @@ class Plan:
     """
     def __init__(
             self, input_sites: Dict[str, str],
-            step_sites: Dict[WorkflowStep, str]
+            step_sites: Dict[str, str]
             ) -> None:
         """Create a plan.
 
         Args:
             input_sites: A map from input names to a site id to get
                     them from.
-            step_sites: A map from steps to their site's id.
+            step_sites: A map from step names to their site's id.
 
         """
         self.input_sites = input_sites
@@ -45,8 +45,8 @@ class Plan:
         result = ''
         for inp_name, site_id in self.input_sites.items():
             result += '{} <- {}\n'.format(inp_name, site_id)
-        for step, site_id in self.step_sites.items():
-            result += '{} -> {}\n'.format(step.name, site_id)
+        for step_name, site_id in self.step_sites.items():
+            result += '{} -> {}\n'.format(step_name, site_id)
         return result
 
 

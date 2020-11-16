@@ -58,8 +58,8 @@ def test_wf_output_checks():
     plans = planner.make_plans('s2', job)
     assert len(plans) == 1
     assert plans[0].input_sites['id:p1/dataset/d1'] == 's1'
-    assert plans[0].step_sites[workflow.steps['anonymise']] == 's1'
-    assert plans[0].step_sites[workflow.steps['aggregate']] == 's1'
+    assert plans[0].step_sites['anonymise'] == 's1'
+    assert plans[0].step_sites['aggregate'] == 's1'
 
     # test output from intermediate step
     workflow.outputs['y'] = 'anonymise.y'

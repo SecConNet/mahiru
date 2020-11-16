@@ -209,23 +209,14 @@ def _deserialize_job(user_input: JSON) -> Job:
 
 def _serialize_plan(plan: Plan) -> JSON:
     """Serialize a Plan to JSON."""
-    step_sites = {
-            step.name: site_id for step, site_id in plan.step_sites.items()}
     return {
             'input_sites': plan.input_sites,
-            'step_sites': step_sites}
+            'step_sites': plan.step_sites}
 
 
-def _deserialize_plan(user_input: JSON, workflow: Workflow) -> Plan:
-    """Deserialize a Plan from JSON.
-
-    Note: this one is a bit special, as it has an extra argument. It's
-    not in the _deserialize dispatcher for that reason.
-    """
-    step_sites = {
-            workflow.steps[step_name]: site_id
-            for step_name, site_id in user_input['step_sites'].items()}
-    return Plan(user_input['input_sites'], step_sites)
+def _deserialize_plan(user_input: JSON) -> Plan:
+    """Deserialize a Plan from JSON."""
+    return Plan(user_input['input_sites'], user_input['step_sites'])
 
 
 def _serialize_job_submission(submission: JobSubmission) -> JSON:
@@ -238,7 +229,7 @@ def _serialize_job_submission(submission: JobSubmission) -> JSON:
 def _deserialize_job_submission(user_input: JSON) -> JobSubmission:
     """Deserialize a JobSubmission from JSON."""
     job = _deserialize_job(user_input['job'])
-    plan = _deserialize_plan(user_input['plan'], job.workflow)
+    plan = _deserialize_plan(user_input['plan'])
     return JobSubmission(job, plan)
 
 
@@ -368,6 +359,7 @@ _deserialize = {
         WorkflowStep: _deserialize_workflow_step,
         Workflow: _deserialize_workflow,
         Job: _deserialize_job,
+        Plan: _deserialize_plan,
         JobSubmission: _deserialize_job_submission,
         Metadata: _deserialize_metadata,
         Asset: _deserialize_asset,

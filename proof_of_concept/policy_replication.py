@@ -1,7 +1,7 @@
 """Classes for distributing policies around the DDM."""
 from typing import Dict, Iterable, List, Set
 
-from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.ddm_client import RegistryClient
 from proof_of_concept.definitions import (
         PolicyUpdate, RegisteredObject, SiteDescription)
 from proof_of_concept.policy import (
@@ -56,20 +56,22 @@ class RuleValidator(ObjectValidator[Rule]):
 class PolicySource(IPolicySource):
     """Ties together various sources of policies."""
     def __init__(
-            self, ddm_client: DDMClient, site_validator: Validator) -> None:
+            self, registry_client: RegistryClient, site_validator: Validator
+            ) -> None:
         """Create a PolicySource.
 
         This will automatically keep the replicas up-to-date as needed.
 
         Args:
-            ddm_client: A DDMClient to use for getting servers.
+            registry_client: A RegistryClient to use for getting
+                servers.
             site_validator: A REST Validator for the Site API.
         """
-        self._ddm_client = ddm_client
+        self._registry_client = registry_client
         self._site_validator = site_validator
 
         self._policy_replicas = dict()  # type: Dict[str, Replica[Rule]]
-        self._ddm_client.register_callback(self.on_update)
+        self._registry_client.register_callback(self.on_update)
 
     def policies(self) -> Iterable[Rule]:
         """Returns the collected rules."""
@@ -85,8 +87,8 @@ class PolicySource(IPolicySource):
             ) -> None:
         """Called when sites and/or parties appear or disappear.
 
-        This is called by the DDMClient whenever there's a change in
-        the local registry replica. In response, we update our list
+        This is called by the RegistryClient whenever there's a change
+        in the local registry replica. In response, we update our list
         of policy replicas to match the new and removed sites.
 
         Args:
@@ -98,7 +100,7 @@ class PolicySource(IPolicySource):
                 client = PolicyClient(
                         o.endpoint + '/rules/updates', self._site_validator)
 
-                key = self._ddm_client.get_public_key_for_ns(o.namespace)
+                key = self._registry_client.get_public_key_for_ns(o.namespace)
                 validator = RuleValidator(o.namespace, key)
                 self._policy_replicas[o.namespace] = Replica[Rule](
                         client, validator)
@@ -109,7 +111,7 @@ class PolicySource(IPolicySource):
 
     def _update(self) -> None:
         """Ensures policy replicas are up to date."""
-        self._ddm_client.update()
+        self._registry_client.update()
         # The above calls back on_update(), which adds and removes
         # replicas as needed, so now we just need to update them.
         for replica in self._policy_replicas.values():

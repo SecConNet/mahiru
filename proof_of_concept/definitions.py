@@ -102,8 +102,8 @@ class IAssetStore:
         raise NotImplementedError()
 
 
-class ILocalWorkflowRunner:
-    """Interface for services for running workflows at a given site."""
+class IStepRunner:
+    """Interface for services for running steps at a given site."""
 
     def execute_job(
             self,

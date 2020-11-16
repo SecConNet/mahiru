@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions import (
-        IAssetStore, ILocalWorkflowRunner, IPolicyServer, PartyDescription,
+        IAssetStore, IPolicyServer, PartyDescription,
         RegisteredObject, RegistryUpdate, SiteDescription)
 from proof_of_concept.replication import (
         CanonicalStore, ReplicableArchive, ReplicationServer)

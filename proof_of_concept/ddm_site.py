@@ -9,7 +9,7 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.ddm_client import PeerClient, RegistryClient
 from proof_of_concept.ddm_site_api import SiteApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.local_workflow_runner import LocalWorkflowRunner
@@ -58,8 +58,10 @@ class Site:
 
         self._site_validator = Validator(site_api_def)
 
-        # Create client for talking to other sites
-        self._ddm_client = DDMClient(self.name, self._site_validator)
+        # Create clients for talking to the DDM
+        self._registry_client = RegistryClient()
+        self._peer_client = PeerClient(
+                self.name, self._site_validator, self._registry_client)
 
         # Register party with DDM
         self._private_key = rsa.generate_private_key(
@@ -67,7 +69,7 @@ class Site:
                 key_size=2048,
                 backend=default_backend())
 
-        self._ddm_client.register_party(
+        self._registry_client.register_party(
                 PartyDescription(
                     self.administrator, self._private_key.public_key()))
 
@@ -80,14 +82,15 @@ class Site:
         self.policy_server = PolicyServer(self._policy_archive, 0.1)
 
         self._policy_source = PolicySource(
-                self._ddm_client, self._site_validator)
+                self._registry_client, self._site_validator)
         self._policy_evaluator = PolicyEvaluator(self._policy_source)
 
         # Server side
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = LocalWorkflowRunner(
-                name, self._ddm_client, self._policy_evaluator, self.store)
+                name, self._registry_client, self._peer_client,
+                self._policy_evaluator, self.store)
 
         # REST server
         self.api = SiteApi(self.policy_server, self.store, self.runner)
@@ -95,10 +98,11 @@ class Site:
 
         # Client side
         self._workflow_engine = GlobalWorkflowRunner(
-                self._policy_evaluator, self._ddm_client)
+                self._policy_evaluator, self._registry_client,
+                self._peer_client)
 
         # Register site with DDM
-        self._ddm_client.register_site(
+        self._registry_client.register_site(
                 SiteDescription(
                     self.name, self.owner, self.administrator,
                     self.server.endpoint, True, True, self.namespace))
@@ -106,7 +110,7 @@ class Site:
         # Insert data
         for asset in stored_data:
             self.store.store(asset)
-            self._ddm_client.register_asset(asset.id, self.name)
+            self._registry_client.register_asset(asset.id, self.name)
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""
@@ -114,8 +118,8 @@ class Site:
 
     def close(self) -> None:
         """Shut down the site."""
-        self._ddm_client.deregister_site(self.name)
-        self._ddm_client.deregister_party(self.administrator)
+        self._registry_client.deregister_site(self.name)
+        self._registry_client.deregister_party(self.administrator)
         self.server.close()
 
     def run_job(self, job: Job) -> Dict[str, Any]:

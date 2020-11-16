@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import DDMClient
+from proof_of_concept.ddm_client import PeerClient, RegistryClient
 from proof_of_concept.definitions import ILocalWorkflowRunner, JobSubmission
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
@@ -23,7 +23,8 @@ class JobRun(Thread):
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
             this_site: str,
-            ddm_client: DDMClient,
+            registry_client: RegistryClient,
+            peer_client: PeerClient,
             submission: JobSubmission,
             target_store: AssetStore
             ) -> None:
@@ -35,7 +36,8 @@ class JobRun(Thread):
         Args:
             policy_evaluator: A policy evaluator to use to check policy.
             this_site: The site we're running at.
-            ddm_client: A DDMClient to use.
+            registry_client: A RegistryClient to use.
+            peer_client: A PeerClient to use.
             submission: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
@@ -44,7 +46,8 @@ class JobRun(Thread):
         self._policy_evaluator = policy_evaluator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._this_site = this_site
-        self._ddm_client = ddm_client
+        self._registry_client = registry_client
+        self._peer_client = peer_client
         self._job = submission.job
         self._workflow = submission.job.workflow
         self._inputs = submission.job.inputs
@@ -169,7 +172,7 @@ class JobRun(Thread):
             logger.info('Job at {} getting input {} from site {}'.format(
                 self._this_site, data_key, source_site))
             try:
-                asset = self._ddm_client.retrieve_asset(source_site, data_key)
+                asset = self._peer_client.retrieve_asset(source_site, data_key)
                 step_input_data[inp_name] = asset.data
                 logger.info('Job at {} found input {} available.'.format(
                     self._this_site, data_key))
@@ -182,9 +185,9 @@ class JobRun(Thread):
         return step_input_data
 
     def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
-        site_name = self._ddm_client.get_asset_location(compute_asset_id)
-        asset = self._ddm_client.retrieve_asset(site_name=site_name,
-                                                asset_id=compute_asset_id)
+        site_name = self._registry_client.get_asset_location(compute_asset_id)
+        asset = self._peer_client.retrieve_asset(site_name=site_name,
+                                                 asset_id=compute_asset_id)
         if not isinstance(asset, ComputeAsset):
             raise TypeError('Expecting a compute asset in workflow')
         return asset
@@ -218,20 +221,23 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
     """A service for running workflows at a given site."""
     def __init__(
             self, site: str,
-            ddm_client: DDMClient,
+            registry_client: RegistryClient,
+            peer_client: PeerClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
         """Creates a LocalWorkflowRunner.
 
         Args:
             site: Name of the site this runner is located at.
-            ddm_client: A DDMClient to use.
+            registry_client: A RegistryClient to use.
+            peer_client: A PeerClient to use.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
         self._site = site
-        self._ddm_client = ddm_client
+        self._registry_client = registry_client
+        self._peer_client = peer_client
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
@@ -244,7 +250,7 @@ class LocalWorkflowRunner(ILocalWorkflowRunner):
         """
         run = JobRun(
                 self._policy_evaluator, self._site,
-                self._ddm_client,
+                self._registry_client, self._peer_client,
                 submission,
                 self._target_store)
         run.start()

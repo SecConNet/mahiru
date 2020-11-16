@@ -216,7 +216,7 @@ class JobRun(Thread):
 
 
 class StepRunner(IStepRunner):
-    """A service for running workflows at a given site."""
+    """A service for running steps of a workflow at a given site."""
     def __init__(
             self, site: str,
             registry_client: RegistryClient,

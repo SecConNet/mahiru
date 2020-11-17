@@ -146,7 +146,7 @@ class Permissions:
         return 'Permissions({})'.format(repr(self._sets))
 
 
-class IPolicySource:
+class IPolicyCollection:
     """Provides policies to a PolicyEvaluator."""
     def policies(self) -> Iterable[Rule]:
         """Returns an iterable collection of rules."""
@@ -155,13 +155,13 @@ class IPolicySource:
 
 class PolicyEvaluator:
     """Interprets policies to support planning and execution."""
-    def __init__(self, policy_source: IPolicySource) -> None:
+    def __init__(self, policy_collection: IPolicyCollection) -> None:
         """Create a PolicyEvaluator.
 
         Args:
-            policy_source: A source of policies to evaluate.
+            policy_collection: A collections of policies to evaluate.
         """
-        self._policy_source = policy_source
+        self._policy_collection = policy_collection
 
     def permissions_for_asset(self, asset: str) -> Permissions:
         """Returns permissions for the given asset.
@@ -226,7 +226,7 @@ class PolicyEvaluator:
         """
         def matches_one(asset_set: Set[str], site: str) -> bool:
             for asset in asset_set:
-                for rule in self._policy_source.policies():
+                for rule in self._policy_collection.policies():
                     if isinstance(rule, MayAccess):
                         if rule.asset == asset and rule.site == site:
                             return True
@@ -252,7 +252,7 @@ class PolicyEvaluator:
             cur_parties.extend(new_parties)
             new_parties = list()
             for party in cur_parties:
-                for rule in self._policy_source.policies():
+                for rule in self._policy_collection.policies():
                     if isinstance(rule, InPartyCollection):
                         if rule.party == party:
                             new_parties.append(rule.collection)
@@ -273,7 +273,7 @@ class PolicyEvaluator:
             cur_assets |= new_assets
             new_assets = set()
             for asset in cur_assets:
-                for rule in self._policy_source.policies():
+                for rule in self._policy_collection.policies():
                     if isinstance(rule, InAssetCollection):
                         if rule.asset == asset:
                             if rule.collection not in cur_assets:
@@ -301,7 +301,7 @@ class PolicyEvaluator:
             """Gets all matching rules for the given single asset."""
             result = list()     # type: List[ResultOfIn]
             assets = self._equivalent_assets(asset)
-            for rule in self._policy_source.policies():
+            for rule in self._policy_collection.policies():
                 if isinstance(rule, typ):
                     for asset in assets:
                         if rule.data_asset == asset:

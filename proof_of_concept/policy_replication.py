@@ -5,7 +5,7 @@ from proof_of_concept.ddm_client import RegistryClient
 from proof_of_concept.definitions import (
         PolicyUpdate, RegisteredObject, SiteDescription)
 from proof_of_concept.policy import (
-        IPolicySource, InPartyCollection, InAssetCollection, MayAccess,
+        IPolicyCollection, InPartyCollection, InAssetCollection, MayAccess,
         ResultOfDataIn, ResultOfComputeIn, Rule)
 from proof_of_concept.replication import (
         CanonicalStore, ObjectValidator, Replica)
@@ -53,7 +53,7 @@ class RuleValidator(ObjectValidator[Rule]):
         return rule.has_valid_signature(self._key)
 
 
-class PolicySource(IPolicySource):
+class PolicySource(IPolicyCollection):
     """Ties together various sources of policies."""
     def __init__(
             self, registry_client: RegistryClient, site_validator: Validator

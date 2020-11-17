@@ -9,13 +9,13 @@ from proof_of_concept.policy import (
         ResultOfDataIn, ResultOfComputeIn, Rule)
 from proof_of_concept.replication import (
         CanonicalStore, ObjectValidator, Replica)
-from proof_of_concept.replication_rest import ReplicationClient
+from proof_of_concept.replication_rest import ReplicationRestClient
 from proof_of_concept.validation import Validator
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 
-class PolicyClient(ReplicationClient[Rule]):
+class PolicyClient(ReplicationRestClient[Rule]):
     """A client for policy servers."""
     UpdateType = PolicyUpdate
 

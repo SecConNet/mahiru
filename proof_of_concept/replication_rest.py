@@ -42,16 +42,17 @@ class ReplicationHandler(Generic[T]):
         response.media = serialize(updates)
 
 
-class ReplicationClient(IReplicationService[T]):
+class ReplicationRestClient(IReplicationService[T]):
     """Client for a ReplicationHandler REST endpoint."""
     UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
     def __init__(self, endpoint: str, validator: Validator) -> None:
-        """Create a ReplicationClient.
+        """Create a ReplicationRestClient.
 
-        Note that replicated_type must match T, one is used by the
-        type checker, the other is available at runtime to help us
-        deserialize the correct type.
+        Note that UpdateType must be set to ReplicaUpdate[T] with the
+        actual T when using this, one is used by the type checker, the
+        other is available at runtime to help us deserialize the
+        correct type.
 
         Args:
             endpoint: URL of the endpoint to connect to.

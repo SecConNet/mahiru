@@ -17,12 +17,12 @@ from proof_of_concept.policy import (
 from proof_of_concept.serialization import deserialize, serialize
 from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import ObjectValidator, Replica
-from proof_of_concept.replication_rest import ReplicationClient
+from proof_of_concept.replication_rest import ReplicationRestClient
 from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job, Workflow
 
 
-class RegistryRestClient(ReplicationClient[RegisteredObject]):
+class RegistryRestClient(ReplicationRestClient[RegisteredObject]):
     """A client for the registry."""
     UpdateType = RegistryUpdate
 

@@ -217,7 +217,7 @@ class PeerClient:
             self, site: str, site_validator: Validator,
             registry_client: RegistryClient
             ) -> None:
-        """Create a DDMClient.
+        """Create a PeerClient.
 
         Args:
             site: The site at which this client acts.

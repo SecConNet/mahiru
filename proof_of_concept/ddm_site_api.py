@@ -104,7 +104,7 @@ class WorkflowExecutionHandler:
             response.body = 'Invalid request'
 
 
-class SiteApi:
+class SiteRestApi:
     """The complete Site REST API.
 
     Attributes:
@@ -116,7 +116,7 @@ class SiteApi:
             policy_store: PolicyStore,
             asset_store: IAssetStore,
             runner: IStepRunner) -> None:
-        """Create a RegistryApi instance.
+        """Create a SiteRestApi instance.
 
         Args:
             policy_store: The store to offer policy updates from.
@@ -148,7 +148,7 @@ class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):
 
 
 class SiteServer:
-    """An HTTP server serving a SiteApi.
+    """An HTTP server serving a SiteRestApi.
 
     Make sure to call `close()` when you're done, or the program will
     not shut down because the background thread will still be running.
@@ -157,7 +157,7 @@ class SiteServer:
         endpoint: The HTTP endpoint at which the server can be reached.
 
     """
-    def __init__(self, api: SiteApi) -> None:
+    def __init__(self, api: SiteRestApi) -> None:
         """Create a SiteServer serving an API.
 
         This starts a background thread with an HTTP server.

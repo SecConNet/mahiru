@@ -10,7 +10,7 @@ import ruamel.yaml as yaml
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
 from proof_of_concept.ddm_client import PeerClient, RegistryClient
-from proof_of_concept.ddm_site_api import SiteApi, SiteServer
+from proof_of_concept.ddm_site_api import SiteRestApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.step_runner import StepRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
@@ -92,7 +92,7 @@ class Site:
                 self._policy_evaluator, self.store)
 
         # REST server
-        self.api = SiteApi(self._policy_store, self.store, self.runner)
+        self.api = SiteRestApi(self._policy_store, self.store, self.runner)
         self.server = SiteServer(self.api)
 
         # Client side

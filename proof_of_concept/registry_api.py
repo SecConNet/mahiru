@@ -132,7 +132,7 @@ class SiteRegistrationHandler:
             response.body = 'Not found'
 
 
-class RegistryApi:
+class RegistryRestApi:
     """The complete Registry REST API.
 
     Attributes:
@@ -140,7 +140,7 @@ class RegistryApi:
 
     """
     def __init__(self, registry: Registry) -> None:
-        """Create a RegistryApi instance.
+        """Create a RegistryRestApi instance.
 
         Args:
             registry: The registry to serve for.

@@ -14,7 +14,7 @@ from proof_of_concept.ddm_site_api import SiteRestApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.step_runner import StepRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
-from proof_of_concept.policy_replication import PolicyStore, PolicySource
+from proof_of_concept.policy_replication import PolicyStore, PolicyClient
 from proof_of_concept.replication import CanonicalStore, ReplicableArchive
 from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job
@@ -80,9 +80,9 @@ class Site:
             rule.sign(self._private_key)
             self._policy_store.insert(rule)
 
-        self._policy_source = PolicySource(
+        self._policy_client = PolicyClient(
                 self._registry_client, self._site_validator)
-        self._policy_evaluator = PolicyEvaluator(self._policy_source)
+        self._policy_evaluator = PolicyEvaluator(self._policy_client)
 
         # Server side
         self.store = AssetStore(self._policy_evaluator)

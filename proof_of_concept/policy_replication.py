@@ -53,12 +53,12 @@ class RuleValidator(ObjectValidator[Rule]):
         return rule.has_valid_signature(self._key)
 
 
-class PolicySource(IPolicyCollection):
+class PolicyClient(IPolicyCollection):
     """Ties together various sources of policies."""
     def __init__(
             self, registry_client: RegistryClient, site_validator: Validator
             ) -> None:
-        """Create a PolicySource.
+        """Create a PolicyClient.
 
         This will automatically keep the replicas up-to-date as needed.
 

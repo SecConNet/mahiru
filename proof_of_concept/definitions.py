@@ -178,9 +178,6 @@ class IReplicationService(Generic[T]):
         raise NotImplementedError()
 
 
-IPolicyServer = IReplicationService[Rule]
-
-
 class RegisteredObject:
     """Base class for objects in the registry."""
     pass

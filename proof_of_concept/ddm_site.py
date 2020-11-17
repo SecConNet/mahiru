@@ -9,7 +9,7 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import PeerClient, RegistryClient
+from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
 from proof_of_concept.ddm_site_api import SiteRestApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.step_runner import StepRunner
@@ -60,7 +60,7 @@ class Site:
 
         # Create clients for talking to the DDM
         self._registry_client = RegistryClient()
-        self._peer_client = PeerClient(
+        self._peer_client = SiteRestClient(
                 self.name, self._site_validator, self._registry_client)
 
         # Register party with DDM

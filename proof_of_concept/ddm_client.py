@@ -211,13 +211,13 @@ class RegistryClient:
             callback(created, deleted)
 
 
-class PeerClient:
+class SiteRestClient:
     """Handles connecting to other sites' runners and stores."""
     def __init__(
             self, site: str, site_validator: Validator,
             registry_client: RegistryClient
             ) -> None:
-        """Create a PeerClient.
+        """Create a SiteRestClient.
 
         Args:
             site: The site at which this client acts.

@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
 from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import PeerClient, RegistryClient
+from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
 from proof_of_concept.definitions import IStepRunner, JobSubmission
 from proof_of_concept.permission_calculator import PermissionCalculator
 from proof_of_concept.policy import PolicyEvaluator
@@ -24,7 +24,7 @@ class JobRun(Thread):
             self, policy_evaluator: PolicyEvaluator,
             this_site: str,
             registry_client: RegistryClient,
-            peer_client: PeerClient,
+            site_rest_client: SiteRestClient,
             submission: JobSubmission,
             target_store: AssetStore
             ) -> None:
@@ -37,7 +37,7 @@ class JobRun(Thread):
             policy_evaluator: A policy evaluator to use to check policy.
             this_site: The site we're running at.
             registry_client: A RegistryClient to use.
-            peer_client: A PeerClient to use.
+            site_rest_client: A SiteRestClient to use.
             submission: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
@@ -47,7 +47,7 @@ class JobRun(Thread):
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._this_site = this_site
         self._registry_client = registry_client
-        self._peer_client = peer_client
+        self._site_rest_client = site_rest_client
         self._job = submission.job
         self._workflow = submission.job.workflow
         self._inputs = submission.job.inputs
@@ -170,7 +170,8 @@ class JobRun(Thread):
             logger.info('Job at {} getting input {} from site {}'.format(
                 self._this_site, data_key, source_site))
             try:
-                asset = self._peer_client.retrieve_asset(source_site, data_key)
+                asset = self._site_rest_client.retrieve_asset(
+                        source_site, data_key)
                 step_input_data[inp_name] = asset.data
                 logger.info('Job at {} found input {} available.'.format(
                     self._this_site, data_key))
@@ -184,8 +185,8 @@ class JobRun(Thread):
 
     def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
         site_name = self._registry_client.get_asset_location(compute_asset_id)
-        asset = self._peer_client.retrieve_asset(site_name=site_name,
-                                                 asset_id=compute_asset_id)
+        asset = self._site_rest_client.retrieve_asset(
+                site_name, compute_asset_id)
         if not isinstance(asset, ComputeAsset):
             raise TypeError('Expecting a compute asset in workflow')
         return asset
@@ -220,7 +221,7 @@ class StepRunner(IStepRunner):
     def __init__(
             self, site: str,
             registry_client: RegistryClient,
-            peer_client: PeerClient,
+            site_rest_client: SiteRestClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
         """Creates a StepRunner.
@@ -228,14 +229,14 @@ class StepRunner(IStepRunner):
         Args:
             site: Name of the site this runner is located at.
             registry_client: A RegistryClient to use.
-            peer_client: A PeerClient to use.
+            site_rest_client: A SiteRestClient to use.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
         self._site = site
         self._registry_client = registry_client
-        self._peer_client = peer_client
+        self._site_rest_client = site_rest_client
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
@@ -248,7 +249,7 @@ class StepRunner(IStepRunner):
         """
         run = JobRun(
                 self._policy_evaluator, self._site,
-                self._registry_client, self._peer_client,
+                self._registry_client, self._site_rest_client,
                 submission,
                 self._target_store)
         run.start()

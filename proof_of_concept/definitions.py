@@ -162,7 +162,7 @@ class ReplicaUpdate(Generic[T]):
             f' {self.valid_until}, +{self.created}, -{self.deleted})')
 
 
-class IReplicationSource(Generic[T]):
+class IReplicationService(Generic[T]):
     """Generic interface for replication sources."""
     def get_updates_since(self, from_version: int) -> ReplicaUpdate[T]:
         """Return a set of objects modified since the given version.
@@ -178,7 +178,7 @@ class IReplicationSource(Generic[T]):
         raise NotImplementedError()
 
 
-IPolicyServer = IReplicationSource[Rule]
+IPolicyServer = IReplicationService[Rule]
 
 
 class RegisteredObject:

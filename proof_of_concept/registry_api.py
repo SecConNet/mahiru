@@ -19,13 +19,13 @@ from proof_of_concept.validation import Validator, ValidationError
 logger = logging.getLogger(__name__)
 
 
-class PartyRegistration:
+class PartyRegistrationHandler:
     """A handler for the /parties endpoint."""
     def __init__(
             self,
             registry: Registry,
             validator: Validator) -> None:
-        """Create a PartyRegistration handler.
+        """Create a PartyRegistrationHandler handler.
 
         Args:
             registry: The registry to send requests to.
@@ -77,10 +77,10 @@ class PartyRegistration:
             response.body = 'Not found'
 
 
-class SiteRegistration:
+class SiteRegistrationHandler:
     """A handler for the /sites endpoint."""
     def __init__(self, registry: Registry, validator: Validator) -> None:
-        """Create a SiteRegistration handler.
+        """Create a SiteRegistrationHandler handler.
 
         Args:
             registry: The registry to send requests to.
@@ -154,11 +154,11 @@ class RegistryApi:
 
         validator = Validator(registry_api_def)
 
-        party_registration = PartyRegistration(registry, validator)
+        party_registration = PartyRegistrationHandler(registry, validator)
         self.app.add_route('/parties', party_registration)
         self.app.add_route('/parties/{name}', party_registration)
 
-        site_registration = SiteRegistration(registry, validator)
+        site_registration = SiteRegistrationHandler(registry, validator)
         self.app.add_route('/sites', site_registration)
         self.app.add_route('/sites/{name}', site_registration)
 

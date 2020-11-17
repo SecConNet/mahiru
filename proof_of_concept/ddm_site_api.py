@@ -21,10 +21,10 @@ from proof_of_concept.validation import Validator, ValidationError
 logger = logging.getLogger(__name__)
 
 
-class AssetAccess:
+class AssetAccessHandler:
     """A handler for the /assets endpoint."""
     def __init__(self, store: IAssetStore) -> None:
-        """Create an AssetAccess handler.
+        """Create an AssetAccessHandler handler.
 
         Args:
             store: The asset store to send requests to.
@@ -71,12 +71,12 @@ class AssetAccess:
                 response.body = 'Asset not found'
 
 
-class WorkflowExecution:
+class WorkflowExecutionHandler:
     """A handler for the /jobs endpoint."""
     def __init__(
             self, runner: IStepRunner, validator: Validator
             ) -> None:
-        """Create a WorkflowExecution handler.
+        """Create a WorkflowExecutionHandler handler.
 
         Args:
             runner: The runner to send requests to.
@@ -135,10 +135,10 @@ class SiteApi:
         rule_replication = ReplicationHandler[Rule](policy_store)
         self.app.add_route('/rules/updates', rule_replication)
 
-        asset_access = AssetAccess(asset_store)
+        asset_access = AssetAccessHandler(asset_store)
         self.app.add_route('/assets/{asset_id}', asset_access)
 
-        workflow_execution = WorkflowExecution(runner, validator)
+        workflow_execution = WorkflowExecutionHandler(runner, validator)
         self.app.add_route('/jobs', workflow_execution)
 
 

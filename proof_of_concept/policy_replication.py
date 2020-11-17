@@ -15,7 +15,7 @@ from proof_of_concept.validation import Validator
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 
-class PolicyClient(ReplicationRestClient[Rule]):
+class PolicyRestClient(ReplicationRestClient[Rule]):
     """A client for policy servers."""
     UpdateType = PolicyUpdate
 
@@ -97,7 +97,7 @@ class PolicySource(IPolicyCollection):
         """
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
-                client = PolicyClient(
+                client = PolicyRestClient(
                         o.endpoint + '/rules/updates', self._site_validator)
 
                 key = self._registry_client.get_public_key_for_ns(o.namespace)

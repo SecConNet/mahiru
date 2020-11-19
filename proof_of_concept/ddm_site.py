@@ -60,7 +60,7 @@ class Site:
 
         # Create clients for talking to the DDM
         self._registry_client = RegistryClient()
-        self._peer_client = SiteRestClient(
+        self._site_rest_client = SiteRestClient(
                 self.name, self._site_validator, self._registry_client)
 
         # Register party with DDM

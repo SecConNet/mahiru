@@ -25,7 +25,7 @@ logger = logging.getLogger(__file__)
 
 
 class Site:
-    """Represents a single DDM peer installation."""
+    """Represents a single DDM installation."""
     def __init__(
             self, name: str, owner: str,
             namespace: str, stored_data: List[Asset],
@@ -88,7 +88,7 @@ class Site:
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = StepRunner(
-                name, self._registry_client, self._peer_client,
+                name, self._registry_client, self._site_rest_client,
                 self._policy_evaluator, self.store)
 
         # REST server
@@ -98,7 +98,7 @@ class Site:
         # Client side
         self._workflow_engine = WorkflowOrchestrator(
                 self._policy_evaluator, self._registry_client,
-                self._peer_client)
+                self._site_rest_client)
 
         # Register site with DDM
         self._registry_client.register_site(

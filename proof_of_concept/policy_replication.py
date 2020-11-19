@@ -5,17 +5,17 @@ from proof_of_concept.ddm_client import RegistryClient
 from proof_of_concept.definitions import (
         PolicyUpdate, RegisteredObject, SiteDescription)
 from proof_of_concept.policy import (
-        IPolicySource, InPartyCollection, InAssetCollection, MayAccess,
+        IPolicyCollection, InPartyCollection, InAssetCollection, MayAccess,
         ResultOfDataIn, ResultOfComputeIn, Rule)
 from proof_of_concept.replication import (
         CanonicalStore, ObjectValidator, Replica)
-from proof_of_concept.replication_rest import ReplicationClient
+from proof_of_concept.replication_rest import ReplicationRestClient
 from proof_of_concept.validation import Validator
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 
-class PolicyClient(ReplicationClient[Rule]):
+class PolicyRestClient(ReplicationRestClient[Rule]):
     """A client for policy servers."""
     UpdateType = PolicyUpdate
 
@@ -53,12 +53,12 @@ class RuleValidator(ObjectValidator[Rule]):
         return rule.has_valid_signature(self._key)
 
 
-class PolicySource(IPolicySource):
+class PolicyClient(IPolicyCollection):
     """Ties together various sources of policies."""
     def __init__(
             self, registry_client: RegistryClient, site_validator: Validator
             ) -> None:
-        """Create a PolicySource.
+        """Create a PolicyClient.
 
         This will automatically keep the replicas up-to-date as needed.
 
@@ -97,7 +97,7 @@ class PolicySource(IPolicySource):
         """
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
-                client = PolicyClient(
+                client = PolicyRestClient(
                         o.endpoint + '/rules/updates', self._site_validator)
 
                 key = self._registry_client.get_public_key_for_ns(o.namespace)

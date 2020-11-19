@@ -15,7 +15,7 @@ import pytest
 # then we'll have an object inside the fixture
 from proof_of_concept.ddm_client import global_registry
 from proof_of_concept.registry import Registry
-from proof_of_concept.registry_api import RegistryApi
+from proof_of_concept.registry_api import RegistryRestApi
 
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -47,7 +47,7 @@ def registry_server():
     # Need to reimport, because we changed it in the fixture above
     # Will disappear, see above
     from proof_of_concept.ddm_client import global_registry
-    api = RegistryApi(global_registry)
+    api = RegistryRestApi(global_registry)
     server = ReusingWSGIServer(('0.0.0.0', 4413), WSGIRequestHandler)
     server.set_app(api.app)
     thread = Thread(

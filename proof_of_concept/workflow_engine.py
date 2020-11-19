@@ -4,7 +4,7 @@ from copy import copy
 from time import sleep
 from typing import Any, Dict, Generator, List, Set
 
-from proof_of_concept.ddm_client import PeerClient, RegistryClient
+from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
 from proof_of_concept.definitions import JobSubmission, Plan
 from proof_of_concept.policy import Permissions, PolicyEvaluator
 from proof_of_concept.permission_calculator import PermissionCalculator
@@ -138,13 +138,13 @@ class WorkflowPlanner:
 
 class WorkflowExecutor:
     """Executes workflows across sites in a DDM."""
-    def __init__(self, peer_client: PeerClient) -> None:
+    def __init__(self, site_rest_client: SiteRestClient) -> None:
         """Create a WorkflowExecutor.
 
         Args:
-            peer_client: A client for connecting to other sites.
+            site_rest_client: A client for connecting to other sites.
         """
-        self._peer_client = peer_client
+        self._site_rest_client = site_rest_client
 
     def execute_workflow(self, submission: JobSubmission) -> Dict[str, Any]:
         """Executes the given workflow execution plan.
@@ -157,7 +157,7 @@ class WorkflowExecutor:
         """
         # launch all the runners
         for site_name in set(submission.plan.step_sites.values()):
-            self._peer_client.submit_job(site_name, submission)
+            self._site_rest_client.submit_job(site_name, submission)
 
         # get workflow outputs whenever they're available
         wf = submission.job.workflow
@@ -170,7 +170,7 @@ class WorkflowExecutor:
                     src_site = submission.plan.step_sites[src_step_name]
                     outp_key = keys[wf_outp_name]
                     try:
-                        asset = self._peer_client.retrieve_asset(
+                        asset = self._site_rest_client.retrieve_asset(
                                     src_site, outp_key)
                         results[wf_outp_name] = asset.data
                     except KeyError:
@@ -184,17 +184,17 @@ class WorkflowOrchestrator:
     """Plans and runs workflows across sites in DDM."""
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
-            registry_client: RegistryClient, peer_client: PeerClient
+            registry_client: RegistryClient, site_rest_client: SiteRestClient
             ) -> None:
         """Create a WorkflowOrchestrator.
 
         Args:
             policy_evaluator: Component that knows about policies.
             registry_client: Client for accessing the registry.
-            peer_client: Client for accessing other sites.
+            site_rest_client: Client for accessing other sites.
         """
         self._planner = WorkflowPlanner(registry_client, policy_evaluator)
-        self._executor = WorkflowExecutor(peer_client)
+        self._executor = WorkflowExecutor(site_rest_client)
 
     def execute(
             self, submitter: str, job: Job) -> Dict[str, Any]:

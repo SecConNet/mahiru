@@ -9,7 +9,7 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.definitions import (
-        IAssetStore, IPolicyServer, JobSubmission,
+        IAssetStore, JobSubmission,
         PartyDescription, PolicyUpdate, RegistryUpdate, SiteDescription)
 from proof_of_concept.policy import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
@@ -17,12 +17,12 @@ from proof_of_concept.policy import (
 from proof_of_concept.serialization import deserialize, serialize
 from proof_of_concept.registry import global_registry, RegisteredObject
 from proof_of_concept.replication import ObjectValidator, Replica
-from proof_of_concept.replication_rest import ReplicationClient
+from proof_of_concept.replication_rest import ReplicationRestClient
 from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job, Workflow
 
 
-class RegistryRestClient(ReplicationClient[RegisteredObject]):
+class RegistryRestClient(ReplicationRestClient[RegisteredObject]):
     """A client for the registry."""
     UpdateType = RegistryUpdate
 
@@ -211,13 +211,13 @@ class RegistryClient:
             callback(created, deleted)
 
 
-class PeerClient:
+class SiteRestClient:
     """Handles connecting to other sites' runners and stores."""
     def __init__(
             self, site: str, site_validator: Validator,
             registry_client: RegistryClient
             ) -> None:
-        """Create a DDMClient.
+        """Create a SiteRestClient.
 
         Args:
             site: The site at which this client acts.

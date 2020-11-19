@@ -9,12 +9,12 @@ import ruamel.yaml as yaml
 
 from proof_of_concept.asset import Asset
 from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import PeerClient, RegistryClient
-from proof_of_concept.ddm_site_api import SiteApi, SiteServer
+from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
+from proof_of_concept.ddm_site_api import SiteRestApi, SiteServer
 from proof_of_concept.definitions import PartyDescription, SiteDescription
 from proof_of_concept.step_runner import StepRunner
 from proof_of_concept.policy import PolicyEvaluator, Rule
-from proof_of_concept.policy_replication import PolicyStore, PolicySource
+from proof_of_concept.policy_replication import PolicyStore, PolicyClient
 from proof_of_concept.replication import CanonicalStore, ReplicableArchive
 from proof_of_concept.validation import Validator
 from proof_of_concept.workflow import Job
@@ -25,7 +25,7 @@ logger = logging.getLogger(__file__)
 
 
 class Site:
-    """Represents a single DDM peer installation."""
+    """Represents a single DDM installation."""
     def __init__(
             self, name: str, owner: str,
             namespace: str, stored_data: List[Asset],
@@ -60,7 +60,7 @@ class Site:
 
         # Create clients for talking to the DDM
         self._registry_client = RegistryClient()
-        self._peer_client = PeerClient(
+        self._site_rest_client = SiteRestClient(
                 self.name, self._site_validator, self._registry_client)
 
         # Register party with DDM
@@ -80,25 +80,25 @@ class Site:
             rule.sign(self._private_key)
             self._policy_store.insert(rule)
 
-        self._policy_source = PolicySource(
+        self._policy_client = PolicyClient(
                 self._registry_client, self._site_validator)
-        self._policy_evaluator = PolicyEvaluator(self._policy_source)
+        self._policy_evaluator = PolicyEvaluator(self._policy_client)
 
         # Server side
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = StepRunner(
-                name, self._registry_client, self._peer_client,
+                name, self._registry_client, self._site_rest_client,
                 self._policy_evaluator, self.store)
 
         # REST server
-        self.api = SiteApi(self._policy_store, self.store, self.runner)
+        self.api = SiteRestApi(self._policy_store, self.store, self.runner)
         self.server = SiteServer(self.api)
 
         # Client side
         self._workflow_engine = WorkflowOrchestrator(
                 self._policy_evaluator, self._registry_client,
-                self._peer_client)
+                self._site_rest_client)
 
         # Register site with DDM
         self._registry_client.register_site(

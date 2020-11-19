@@ -6,7 +6,7 @@ from typing import Any, Dict, Generic, Optional, Type, TypeVar
 from falcon import Request, Response
 
 from proof_of_concept.definitions import (
-        IReplicationSource, ReplicaUpdate)
+        IReplicationService, ReplicaUpdate)
 from proof_of_concept.replication import ReplicableArchive
 from proof_of_concept.serialization import serialize, deserialize
 from proof_of_concept.validation import Validator
@@ -20,13 +20,13 @@ T = TypeVar('T')
 
 class ReplicationHandler(Generic[T]):
     """A handler for a /updates REST API endpoint."""
-    def __init__(self, source: IReplicationSource[T]) -> None:
+    def __init__(self, service: IReplicationService[T]) -> None:
         """Create a Replication handler.
 
         Args:
-            source: The source to get updates from.
+            service: The service to get updates from.
         """
-        self._source = source
+        self._service = service
 
     def on_get(self, request: Request, response: Response) -> None:
         """Handle a registry update request.
@@ -38,20 +38,21 @@ class ReplicationHandler(Generic[T]):
         from_version = request.get_param_as_int(
                 'from_version', required=True)
 
-        updates = self._source.get_updates_since(from_version)
+        updates = self._service.get_updates_since(from_version)
         response.media = serialize(updates)
 
 
-class ReplicationClient(IReplicationSource[T]):
+class ReplicationRestClient(IReplicationService[T]):
     """Client for a ReplicationHandler REST endpoint."""
     UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
     def __init__(self, endpoint: str, validator: Validator) -> None:
-        """Create a ReplicationClient.
+        """Create a ReplicationRestClient.
 
-        Note that replicated_type must match T, one is used by the
-        type checker, the other is available at runtime to help us
-        deserialize the correct type.
+        Note that UpdateType must be set to ReplicaUpdate[T] with the
+        actual T when using this, one is used by the type checker, the
+        other is available at runtime to help us deserialize the
+        correct type.
 
         Args:
             endpoint: URL of the endpoint to connect to.

@@ -21,10 +21,10 @@ from proof_of_concept.validation import Validator, ValidationError
 logger = logging.getLogger(__name__)
 
 
-class AssetAccess:
+class AssetAccessHandler:
     """A handler for the /assets endpoint."""
     def __init__(self, store: IAssetStore) -> None:
-        """Create an AssetAccess handler.
+        """Create an AssetAccessHandler handler.
 
         Args:
             store: The asset store to send requests to.
@@ -71,12 +71,12 @@ class AssetAccess:
                 response.body = 'Asset not found'
 
 
-class WorkflowExecution:
+class WorkflowExecutionHandler:
     """A handler for the /jobs endpoint."""
     def __init__(
             self, runner: IStepRunner, validator: Validator
             ) -> None:
-        """Create a WorkflowExecution handler.
+        """Create a WorkflowExecutionHandler handler.
 
         Args:
             runner: The runner to send requests to.
@@ -104,7 +104,7 @@ class WorkflowExecution:
             response.body = 'Invalid request'
 
 
-class SiteApi:
+class SiteRestApi:
     """The complete Site REST API.
 
     Attributes:
@@ -116,7 +116,7 @@ class SiteApi:
             policy_store: PolicyStore,
             asset_store: IAssetStore,
             runner: IStepRunner) -> None:
-        """Create a RegistryApi instance.
+        """Create a SiteRestApi instance.
 
         Args:
             policy_store: The store to offer policy updates from.
@@ -135,10 +135,10 @@ class SiteApi:
         rule_replication = ReplicationHandler[Rule](policy_store)
         self.app.add_route('/rules/updates', rule_replication)
 
-        asset_access = AssetAccess(asset_store)
+        asset_access = AssetAccessHandler(asset_store)
         self.app.add_route('/assets/{asset_id}', asset_access)
 
-        workflow_execution = WorkflowExecution(runner, validator)
+        workflow_execution = WorkflowExecutionHandler(runner, validator)
         self.app.add_route('/jobs', workflow_execution)
 
 
@@ -148,7 +148,7 @@ class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):
 
 
 class SiteServer:
-    """An HTTP server serving a SiteApi.
+    """An HTTP server serving a SiteRestApi.
 
     Make sure to call `close()` when you're done, or the program will
     not shut down because the background thread will still be running.
@@ -157,7 +157,7 @@ class SiteServer:
         endpoint: The HTTP endpoint at which the server can be reached.
 
     """
-    def __init__(self, api: SiteApi) -> None:
+    def __init__(self, api: SiteRestApi) -> None:
         """Create a SiteServer serving an API.
 
         This starts a background thread with an HTTP server.

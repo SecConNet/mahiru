@@ -19,7 +19,7 @@ from typing import (
         Any, Callable, Dict, Generic, Iterable, Optional, Set, Tuple, Type,
         TypeVar)
 
-from proof_of_concept.definitions import IReplicationSource, ReplicaUpdate
+from proof_of_concept.definitions import IReplicationService, ReplicaUpdate
 
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class ReplicableArchive(Generic[T]):
         self.version = 0            # type: int
 
 
-class CanonicalStore(IReplicationSource[T]):
+class CanonicalStore(IReplicationService[T]):
     """Stores Replicables and can be replicated."""
     UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
@@ -171,7 +171,7 @@ class ObjectValidator(Generic[T]):
 class Replica(Generic[T]):
     """Stores a replica of a CanonicalStore."""
     def __init__(
-            self, source: IReplicationSource[T],
+            self, source: IReplicationService[T],
             validator: Optional[ObjectValidator[T]] = None,
             on_update: Optional[Callable[[Set[T], Set[T]], None]] = None
             ) -> None:

@@ -170,7 +170,7 @@ class SiteServer:
 
         self._thread = Thread(
                 target=self._server.serve_forever,
-                name='RegistryServer')
+                name='SiteServer')
         self._thread.start()
 
         self.endpoint = (

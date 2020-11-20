@@ -24,22 +24,24 @@ def test_wf_output_checks():
     mock_client = MagicMock()
     mock_client.list_sites_with_runners = MagicMock(return_value=['s1', 's2'])
     mock_client.get_asset_location = lambda x: (
-            's1' if 'p1' in x else 's2')
+            's1' if 'ns1' in x else 's2')
 
     rules = [
-            MayAccess('s1', 'Anonymise'),
-            MayAccess('s1', 'Aggregate'),
-            ResultOfDataIn('Public', '*', 'Public'),
-            MayAccess('s1', 'Public'),
-            MayAccess('s2', 'Public'),
-            MayAccess('s1', 'id:p1/dataset/d1'),
-            ResultOfDataIn('id:p1/dataset/d1', 'Anonymise', 'Anonymous'),
-            ResultOfComputeIn('*', 'Anonymise', 'Public'),
-            MayAccess('s1', 'Anonymous'),
-            ResultOfDataIn('Anonymous', 'Aggregate', 'Aggregated'),
-            ResultOfComputeIn('*', 'Aggregate', 'Public'),
-            MayAccess('s1', 'Aggregated'),
-            MayAccess('s2', 'Aggregated'),
+            MayAccess('s1', 'id:ns:Anonymise'),
+            MayAccess('s1', 'id:ns:Aggregate'),
+            ResultOfDataIn('id:ns:Public', '*', 'id:ns:Public'),
+            MayAccess('s1', 'id:ns:Public'),
+            MayAccess('s2', 'id:ns:Public'),
+            MayAccess('s1', 'id:ns1:dataset.d1'),
+            ResultOfDataIn(
+                'id:ns1:dataset.d1', 'id:ns:Anonymise', 'id:ns1:Anonymous'),
+            ResultOfComputeIn('*', 'id:ns:Anonymise', 'id:ns:Public'),
+            MayAccess('s1', 'id:ns1:Anonymous'),
+            ResultOfDataIn(
+                'id:ns1:Anonymous', 'id:ns:Aggregate', 'id:ns1:Aggregated'),
+            ResultOfComputeIn('*', 'id:ns:Aggregate', 'id:ns:Public'),
+            MayAccess('s1', 'id:ns1:Aggregated'),
+            MayAccess('s2', 'id:ns1:Aggregated'),
             ]
     policy_evaluator = PolicyEvaluator(MockPolicySource(rules))
 
@@ -49,16 +51,16 @@ def test_wf_output_checks():
                 WorkflowStep(name='anonymise',
                              inputs={'x1': 'x'},
                              outputs=['y'],
-                             compute_asset_id='Anonymise'),
+                             compute_asset_id='id:ns:Anonymise'),
                 WorkflowStep(name='aggregate',
                              inputs={'x1': 'anonymise.y'},
                              outputs=['y'],
-                             compute_asset_id='Aggregate')])
-    job = Job(workflow, {'x': 'id:p1/dataset/d1'})
+                             compute_asset_id='id:ns:Aggregate')])
+    job = Job(workflow, {'x': 'id:ns1:dataset.d1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)
     plans = planner.make_plans('s2', job)
     assert len(plans) == 1
-    assert plans[0].input_sites['id:p1/dataset/d1'] == 's1'
+    assert plans[0].input_sites['id:ns1:dataset.d1'] == 's1'
     assert plans[0].step_sites['anonymise'] == 's1'
     assert plans[0].step_sites['aggregate'] == 's1'
 

@@ -2,6 +2,7 @@
 import requests
 from urllib.parse import quote
 
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.workflows import JobSubmission
 from proof_of_concept.rest.serialization import deserialize, serialize
@@ -27,7 +28,7 @@ class SiteRestClient:
         self._site_validator = site_validator
         self._registry_client = registry_client
 
-    def retrieve_asset(self, site_name: str, asset_id: str
+    def retrieve_asset(self, site_name: str, asset_id: AssetId
                        ) -> Asset:
         """Obtains a data item from a store."""
         try:

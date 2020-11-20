@@ -147,18 +147,21 @@ def _deserialize_rule(user_input: JSON) -> Rule:
     """Deserialize a Rule from JSON."""
     rule = None     # type: Optional[Rule]
     if user_input['type'] == 'InAssetCollection':
-        rule = InAssetCollection(user_input['asset'], user_input['collection'])
+        rule = InAssetCollection(
+                user_input['asset'], user_input['collection'])
     elif user_input['type'] == 'InPartyCollection':
         rule = InPartyCollection(user_input['party'], user_input['collection'])
     elif user_input['type'] == 'MayAccess':
         rule = MayAccess(user_input['site'], user_input['asset'])
     elif user_input['type'] == 'ResultOfDataIn':
         rule = ResultOfDataIn(
-                user_input['data_asset'], user_input['compute_asset'],
+                user_input['data_asset'],
+                user_input['compute_asset'],
                 user_input['collection'])
     elif user_input['type'] == 'ResultOfComputeIn':
         rule = ResultOfComputeIn(
-                user_input['data_asset'], user_input['compute_asset'],
+                user_input['data_asset'],
+                user_input['compute_asset'],
                 user_input['collection'])
     else:
         raise RuntimeError('Invalid rule type when deserialising')
@@ -205,7 +208,8 @@ def _serialize_job(job: Job) -> JSON:
     """Serialize a Job to JSON."""
     return {
            'workflow': _serialize_workflow(job.workflow),
-           'inputs': job.inputs}
+           'inputs': {
+               name: asset_id for name, asset_id in job.inputs.items()}}
 
 
 def _deserialize_job(user_input: JSON) -> Job:
@@ -268,9 +272,11 @@ def _deserialize_asset(user_input: JSON) -> Asset:
     """Deserialize an Asset from JSON."""
     if user_input['data'] is None:
         return ComputeAsset(
-                user_input['id'], user_input['data'], user_input['metadata'])
+                user_input['id'], user_input['data'],
+                user_input['metadata'])
     return DataAsset(
-            user_input['id'], user_input['data'], user_input['metadata'])
+            user_input['id'], user_input['data'],
+            user_input['metadata'])
 
 
 def _serialize_compute_asset(asset: ComputeAsset) -> JSON:

@@ -1,6 +1,8 @@
 """Classes for describing workflows."""
 from hashlib import sha256
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Mapping, Set, Tuple, Union
+
+from proof_of_concept.definitions.asset_id import AssetId
 
 
 class WorkflowStep:
@@ -8,7 +10,7 @@ class WorkflowStep:
     def __init__(
             self, name: str,
             inputs: Dict[str, str], outputs: List[str],
-            compute_asset_id: str
+            compute_asset_id: Union[str, AssetId]
             ) -> None:
         """Create a WorkflowStep.
 
@@ -23,6 +25,8 @@ class WorkflowStep:
         self.name = name
         self.inputs = inputs
         self.outputs = outputs
+        if not isinstance(compute_asset_id, AssetId):
+            compute_asset_id = AssetId(compute_asset_id)
         self.compute_asset_id = compute_asset_id
 
         self._validate()
@@ -162,7 +166,9 @@ class Workflow:
 
 class Job:
     """Represents a job to the system from a user."""
-    def __init__(self, workflow: Workflow, inputs: Dict[str, str]) -> None:
+    def __init__(
+            self, workflow: Workflow, inputs: Mapping[str, Union[str, AssetId]]
+            ) -> None:
         """Create a job.
 
         Args:
@@ -171,7 +177,9 @@ class Job:
                     parameters to data set ids.
         """
         self.workflow = workflow
-        self.inputs = inputs
+        self.inputs = {
+                inp: aid if isinstance(aid, AssetId) else AssetId(aid)
+                for inp, aid in inputs.items()}
 
     def __repr__(self) -> str:
         """Returns a string representation of the object."""
@@ -179,7 +187,7 @@ class Job:
                 self.inputs, self.workflow)
 
     @staticmethod
-    def niljob(key: str) -> 'Job':
+    def niljob(key: AssetId) -> 'Job':
         """Returns a zero-step job for a dataset.
 
         Args:
@@ -236,16 +244,19 @@ class Job:
             step_hash = sha256()
             for inp_name in sorted(step.inputs):
                 inp_item = '{}.{}'.format(step.name, inp_name)
-                step_hash.update(item_keys[inp_item].encode('utf-8'))
-            step_hash.update(step.compute_asset_id.encode('utf-8'))
+                step_hash.update(
+                        item_keys[inp_item].encode('utf-8'))
+            step_hash.update(
+                    step.compute_asset_id.encode('utf-8'))
             for outp_name in step.outputs:
                 outp_item = '{}.{}'.format(step.name, outp_name)
                 outp_hash = step_hash.copy()
                 outp_hash.update(outp_name.encode('utf-8'))
-                item_keys[outp_item] = 'hash:{}'.format(outp_hash.hexdigest())
+                item_keys[outp_item] = outp_hash.hexdigest()
 
         def set_workflow_outputs_keys(
-                item_keys: Dict[str, str], outputs: Dict[str, str]) -> None:
+                item_keys: Dict[str, str],
+                outputs: Dict[str, str]) -> None:
             for outp_name, outp_src in outputs.items():
                 item_keys[outp_name] = item_keys[outp_src]
 
@@ -274,20 +285,20 @@ class Plan:
     the inputs should be obtained from.
 
     Attributes:
-        input_sites (Dict[str, str]): Maps inputs to the site to
+        input_sites (Dict[AssetId, str]): Maps inputs to the site to
                 obtain them from.
         step_sites (Dict[WorkflowStep, str]): Maps steps to their
                 site's id.
 
     """
     def __init__(
-            self, input_sites: Dict[str, str],
+            self, input_sites: Dict[AssetId, str],
             step_sites: Dict[str, str]
             ) -> None:
         """Create a plan.
 
         Args:
-            input_sites: A map from input names to a site id to get
+            input_sites: A map from input asset ids to a site id to get
                     them from.
             step_sites: A map from step names to their site's id.
 

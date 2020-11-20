@@ -6,6 +6,7 @@ from typing import Any, Callable, List, Optional, Set
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 import ruamel.yaml as yaml
 
+from proof_of_concept.definitions.assets import AssetId
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.rest.serialization import serialize
@@ -119,7 +120,7 @@ class RegistryClient:
         if r.status_code == 404:
             raise KeyError('Site not found')
 
-    def register_asset(self, asset_id: str, site_name: str) -> None:
+    def register_asset(self, asset_id: AssetId, site_name: str) -> None:
         """Register an Asset with the Registry.
 
         Args:
@@ -170,7 +171,7 @@ class RegistryClient:
         return site
 
     @staticmethod
-    def get_asset_location(asset_id: str) -> str:
+    def get_asset_location(asset_id: AssetId) -> str:
         """Returns the name of the site which stores this asset."""
         return global_registry.get_asset_location(asset_id)
 

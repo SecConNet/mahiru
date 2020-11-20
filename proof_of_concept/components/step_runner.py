@@ -4,6 +4,7 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.assets import (
         ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
@@ -94,7 +95,7 @@ class JobRun(Thread):
                         result_item = '{}.{}'.format(step.name, output_name)
                         result_key = keys[result_item]
                         metadata = Metadata(step_subjob, result_item)
-                        asset = DataAsset(id=result_key,
+                        asset = DataAsset(id=AssetId.from_key(result_key),
                                           data=output_value,
                                           metadata=metadata)
                         self._target_store.store(asset)
@@ -169,24 +170,25 @@ class JobRun(Thread):
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
-            source_site, data_key = self._source(inp_source, keys)
+            source_site, source_asset = self._source(inp_source, keys)
             logger.info('Job at {} getting input {} from site {}'.format(
-                self._this_site, data_key, source_site))
+                self._this_site, source_asset, source_site))
             try:
                 asset = self._site_rest_client.retrieve_asset(
-                        source_site, data_key)
+                        source_site, source_asset)
                 step_input_data[inp_name] = asset.data
                 logger.info('Job at {} found input {} available.'.format(
-                    self._this_site, data_key))
+                    self._this_site, source_asset))
                 logger.info('Metadata: {}'.format(asset.metadata))
             except KeyError:
                 logger.info(f'Job at {self._this_site} found input'
-                            f' {data_key} not yet available.')
+                            f' {source_asset} not yet available.')
                 return None
 
         return step_input_data
 
-    def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
+    def _retrieve_compute_asset(
+            self, compute_asset_id: AssetId) -> ComputeAsset:
         site_name = self._registry_client.get_asset_location(compute_asset_id)
         asset = self._site_rest_client.retrieve_asset(
                 site_name, compute_asset_id)
@@ -195,7 +197,8 @@ class JobRun(Thread):
         return asset
 
     def _source(
-            self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:
+            self, inp_source: str, keys: Dict[str, str]
+            ) -> Tuple[str, AssetId]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
@@ -213,7 +216,7 @@ class JobRun(Thread):
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
-            return self._sites[step_name], keys[inp_source]
+            return self._sites[step_name], AssetId.from_key(keys[inp_source])
         else:
             dataset = self._inputs[inp_source]
             return self._plan.input_sites[dataset], dataset

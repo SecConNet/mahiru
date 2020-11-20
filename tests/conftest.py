@@ -13,9 +13,9 @@ import pytest
 
 # TODO: the below hack will go when the complete API is implemented,
 # then we'll have an object inside the fixture
-from proof_of_concept.ddm_client import global_registry
-from proof_of_concept.registry import Registry
-from proof_of_concept.registry_api import RegistryRestApi
+from proof_of_concept.components.registry_client import global_registry
+from proof_of_concept.registry.registry import Registry
+from proof_of_concept.rest.registry import RegistryRestApi
 
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -25,7 +25,9 @@ logging.getLogger('filelock').setLevel(logging.WARNING)
 @pytest.fixture
 def clean_global_registry():
     """Create a fresh global registry for each test."""
-    with patch('proof_of_concept.ddm_client.global_registry', Registry()):
+    with patch(
+            'proof_of_concept.components.registry_client.global_registry',
+            Registry()):
         yield None
 
 
@@ -46,7 +48,7 @@ def registry_server():
     """Create a REST server instance for the global registry."""
     # Need to reimport, because we changed it in the fixture above
     # Will disappear, see above
-    from proof_of_concept.ddm_client import global_registry
+    from proof_of_concept.components.registry_client import global_registry
     api = RegistryRestApi(global_registry)
     server = ReusingWSGIServer(('0.0.0.0', 4413), WSGIRequestHandler)
     server.set_app(api.app)

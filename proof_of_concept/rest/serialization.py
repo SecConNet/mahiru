@@ -1,23 +1,30 @@
-"""(De)Serializes objects of various kinds to JSON."""
+"""(De)Serialization of objects of various kinds to JSON."""
 import base64
-from datetime import datetime
 from typing import (
-        Any, Callable, cast, Dict, Generic, Mapping, Optional, Tuple, Type,
-        TypeVar, Union)
+        Any, Callable, cast, Dict, Optional, Type, TypeVar, Union)
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import (
         Encoding, load_pem_public_key, PublicFormat)
 from dateutil import parser as dateparser
 
-from proof_of_concept.asset import Asset, ComputeAsset, DataAsset, Metadata
-from proof_of_concept.definitions import (
-        JobSubmission, JSON, PartyDescription, Plan, PolicyUpdate,
-        RegisteredObject, RegistryUpdate, ReplicaUpdate, SiteDescription)
-from proof_of_concept.policy import (
+from proof_of_concept.definitions.assets import (
+        Asset, ComputeAsset, DataAsset, Metadata)
+from proof_of_concept.definitions.interfaces import IReplicaUpdate
+from proof_of_concept.definitions.policy import Rule
+from proof_of_concept.definitions.registry import (
+        PartyDescription, RegisteredObject, SiteDescription)
+from proof_of_concept.definitions.workflows import (
+        Job, JobSubmission, Plan, Workflow, WorkflowStep)
+
+from proof_of_concept.policy.definitions import PolicyUpdate
+from proof_of_concept.policy.rules import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
-        ResultOfDataIn, Rule)
-from proof_of_concept.workflow import Job, Workflow, WorkflowStep
+        ResultOfDataIn)
+
+from proof_of_concept.registry.replication import RegistryUpdate
+from proof_of_concept.replication import ReplicaUpdate
+from proof_of_concept.rest.definitions import JSON
 
 
 T = TypeVar('T')
@@ -25,7 +32,7 @@ T = TypeVar('T')
 
 Serializable = Union[
         Asset, Job, JobSubmission, Metadata, Plan, RegisteredObject,
-        ReplicaUpdate, Rule, Workflow, WorkflowStep]
+        IReplicaUpdate, Rule, Workflow, WorkflowStep]
 
 
 _SerializableT = TypeVar('_SerializableT', bound=Serializable)
@@ -279,7 +286,7 @@ def _serialize_data_asset(asset: DataAsset) -> JSON:
 # Replica updates
 
 
-def _serialize_replica_update(update: ReplicaUpdate[_SerializableT]) -> JSON:
+def _serialize_replica_update(update: IReplicaUpdate[_SerializableT]) -> JSON:
     """Serialize a ReplicaUpdate to JSON."""
     result = dict()     # type: JSON
     result['from_version'] = update.from_version

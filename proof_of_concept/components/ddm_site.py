@@ -1,4 +1,4 @@
-"""This module combines components into a site installation."""
+"""A site installation."""
 import logging
 from pathlib import Path
 from typing import Any, Dict, List
@@ -7,18 +7,22 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 import ruamel.yaml as yaml
 
-from proof_of_concept.asset import Asset
-from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
-from proof_of_concept.ddm_site_api import SiteRestApi, SiteServer
-from proof_of_concept.definitions import PartyDescription, SiteDescription
-from proof_of_concept.step_runner import StepRunner
-from proof_of_concept.policy import PolicyEvaluator, Rule
-from proof_of_concept.policy_replication import PolicyStore, PolicyClient
-from proof_of_concept.replication import CanonicalStore, ReplicableArchive
-from proof_of_concept.validation import Validator
-from proof_of_concept.workflow import Job
-from proof_of_concept.workflow_engine import WorkflowOrchestrator
+from proof_of_concept.components.asset_store import AssetStore
+from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.policy import Rule
+from proof_of_concept.definitions.registry import (
+        PartyDescription, SiteDescription)
+from proof_of_concept.definitions.workflows import Job
+from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
+from proof_of_concept.components.step_runner import StepRunner
+from proof_of_concept.policy.evaluation import PolicyEvaluator
+from proof_of_concept.policy.replication import PolicyStore
+from proof_of_concept.replication import ReplicableArchive
+from proof_of_concept.rest.validation import Validator
+from proof_of_concept.components.orchestration import WorkflowOrchestrator
+from proof_of_concept.components.policy_client import PolicyClient
 
 
 logger = logging.getLogger(__file__)
@@ -52,7 +56,7 @@ class Site:
         self.namespace = namespace
 
         # Load API definitions
-        site_api_file = Path(__file__).parent / 'site_api.yaml'
+        site_api_file = Path(__file__).parents[1] / 'rest' / 'site_api.yaml'
         with open(site_api_file, 'r') as f:
             site_api_def = yaml.safe_load(f.read())
 

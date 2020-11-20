@@ -1,13 +1,11 @@
 """Tools for validating untrusted JSON against an OpenAPI schema."""
 from typing import Dict
 
-import falcon
 import jsonschema
 from jsonschema.validators import RefResolver
 from openapi_schema_validator import OAS30Validator
 
-
-from proof_of_concept.definitions import JSON
+from proof_of_concept.rest.definitions import JSON
 
 
 ValidationError = jsonschema.ValidationError

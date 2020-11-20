@@ -2,12 +2,13 @@ import logging
 from textwrap import indent
 from typing import Any, Dict
 
-from proof_of_concept.asset import ComputeAsset, DataAsset
-from proof_of_concept.ddm_site import Site
-from proof_of_concept.policy import (
+from proof_of_concept.components.ddm_site import Site
+from proof_of_concept.definitions.assets import ComputeAsset, DataAsset
+from proof_of_concept.definitions.workflows import Job, WorkflowStep, Workflow
+from proof_of_concept.policy.rules import (
     InAssetCollection, MayAccess, ResultOfDataIn,
     ResultOfComputeIn)
-from proof_of_concept.workflow import Job, WorkflowStep, Workflow
+
 
 logger = logging.getLogger(__file__)
 

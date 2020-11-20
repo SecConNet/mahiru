@@ -13,13 +13,12 @@ the Python GIL.
 """
 from datetime import datetime, timedelta
 import logging
-import requests
-import time
 from typing import (
-        Any, Callable, Dict, Generic, Iterable, Optional, Set, Tuple, Type,
+        Callable, Generic, Iterable, Optional, Set, Type,
         TypeVar)
 
-from proof_of_concept.definitions import IReplicationService, ReplicaUpdate
+from proof_of_concept.definitions.interfaces import (
+        IReplicaUpdate, IReplicationService)
 
 
 logger = logging.getLogger(__name__)
@@ -69,6 +68,44 @@ class ReplicableArchive(Generic[T]):
         """Create an empty archive."""
         self.records = set()        # type: Set[Replicable[T]]
         self.version = 0            # type: int
+
+
+class ReplicaUpdate(IReplicaUpdate[T]):
+    """Contains an update for a Replica.
+
+    Attributes:
+        from_version: Version to apply this update to.
+        to_version: Version this update updates to.
+        valid_until: Time until which the new version is valid.
+        created: Set of objects that were created.
+        deleted: Set of objects that were deleted.
+    """
+    ReplicatedType = None      # type: Type[T]
+
+    def __init__(
+            self, from_version: int, to_version: int, valid_until: datetime,
+            created: Set[T], deleted: Set[T]) -> None:
+        """Create a replica update.
+
+        Args:
+            from_version: Version to apply this update to.
+            to_version: Version this update updates to.
+            valid_until: Point in time until which the new version is
+                valid.
+            created: Set of objects that were created.
+            deleted: Set of objects that were deleted.
+        """
+        self.from_version = from_version
+        self.to_version = to_version
+        self.valid_until = valid_until
+        self.created = created
+        self.deleted = deleted
+
+    def __repr__(self) -> str:
+        """Return a string representation of the object."""
+        return (
+            f'ReplicaUpdate({self.from_version} -> {self.to_version},'
+            f' {self.valid_until}, +{self.created}, -{self.deleted})')
 
 
 class CanonicalStore(IReplicationService[T]):

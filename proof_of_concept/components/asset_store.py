@@ -1,11 +1,12 @@
-"""Asset stores store data and compute assets."""
+"""Storage and exchange of data and compute assets."""
 import logging
 from typing import Dict
 
-from proof_of_concept.asset import Asset
-from proof_of_concept.definitions import IAssetStore
-from proof_of_concept.permission_calculator import PermissionCalculator
-from proof_of_concept.policy import PolicyEvaluator
+from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.interfaces import IAssetStore
+from proof_of_concept.policy.evaluation import (
+        PermissionCalculator, PolicyEvaluator)
+
 
 logger = logging.getLogger(__file__)
 

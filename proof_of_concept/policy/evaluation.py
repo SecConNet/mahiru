@@ -224,10 +224,9 @@ class PermissionCalculator:
             This modifies the permissions argument.
             """
             for inp_name, inp_asset in job.inputs.items():
-                if inp_asset not in permissions:
-                    permissions[inp_name] = (
-                            self._policy_evaluator.permissions_for_asset(
-                                inp_asset))
+                permissions[inp_name] = (
+                        self._policy_evaluator.permissions_for_asset(
+                            inp_asset))
 
         class InputNotAvailable(RuntimeError):
             pass

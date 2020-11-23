@@ -100,15 +100,9 @@ class WorkflowPlanner:
 
         sorted_step_names = [step.name for step in sorted_steps]
 
-        step_sites_per_plan = [
-                dict(zip(sorted_step_names, plan)) for plan in plan_from(0)]
-        input_sites = {
-                inp: ''     # to be removed in subsequent commit
-                for inp in job.inputs.values()}
-
         return [
-                Plan(input_sites, step_sites)
-                for step_sites in step_sites_per_plan]
+                Plan(dict(zip(sorted_step_names, plan)))
+                for plan in plan_from(0)]
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
         """Sorts the workflow's steps topologically.

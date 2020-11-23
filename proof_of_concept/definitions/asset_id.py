@@ -46,6 +46,14 @@ class AssetId(str):
         """Returns whether this is a primary asset."""
         return self.startswith('id:')
 
+    def is_concrete(self) -> bool:
+        """Returns whether this is a concrete asset.
+
+        An asset is concrete if it is primary and has a site it can
+        be downloaded from.
+        """
+        return self.is_primary() and len(self.split(':')) == 4
+
     def namespace(self) -> str:
         """Returns the namespace this asset is in.
 
@@ -58,3 +66,17 @@ class AssetId(str):
         if not self.is_primary():
             raise RuntimeError('Namespace of secondary asset requested')
         return self.split(':')[1]
+
+    def location(self) -> str:
+        """Returns the name of the site storing this asset.
+
+        Returns:
+            A site name.
+
+        Raises:
+            RuntimeError: If this is not a concrete asset.
+        """
+        if not self.is_concrete():
+            raise RuntimeError(
+                    'Location requested of non-concrete asset {self.data}')
+        return self.split(':')[3]

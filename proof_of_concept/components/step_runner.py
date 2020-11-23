@@ -129,7 +129,7 @@ class JobRun(Thread):
                         src_site = self._sites[src_step]
                     else:
                         inp_asset_id = self._job.inputs[inp_src]
-                        src_site = self._plan.input_sites[inp_asset_id]
+                        src_site = inp_asset_id.location()
 
                     if not self._policy_evaluator.may_access(
                             perms[inp_src], src_site):
@@ -189,9 +189,8 @@ class JobRun(Thread):
 
     def _retrieve_compute_asset(
             self, compute_asset_id: AssetId) -> ComputeAsset:
-        site_name = self._registry_client.get_asset_location(compute_asset_id)
         asset = self._site_rest_client.retrieve_asset(
-                site_name, compute_asset_id)
+                compute_asset_id.location(), compute_asset_id)
         if not isinstance(asset, ComputeAsset):
             raise TypeError('Expecting a compute asset in workflow')
         return asset
@@ -205,9 +204,9 @@ class JobRun(Thread):
         target site which is to execute that step according to the
         current plan, and the output name.
 
-        If the input is of the form 'site:data', this will return the
-        corresponding site from the plan and the name of the input
-        data asset to get from there.
+        If the input is a reference to a workflow input, then this will
+        return the site where the corresponding workflow input can be
+        found, and its id.
 
         Args:
             inp_source: Source description as above.
@@ -219,7 +218,7 @@ class JobRun(Thread):
             return self._sites[step_name], AssetId.from_key(keys[inp_source])
         else:
             dataset = self._inputs[inp_source]
-            return self._plan.input_sites[dataset], dataset
+            return dataset.location(), dataset
 
 
 class StepRunner(IStepRunner):

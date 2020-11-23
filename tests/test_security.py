@@ -32,9 +32,9 @@ def test_wf_output_checks():
             ResultOfDataIn('id:ns:Public', '*', 'id:ns:Public'),
             MayAccess('s1', 'id:ns:Public'),
             MayAccess('s2', 'id:ns:Public'),
-            MayAccess('s1', 'id:ns1:dataset.d1'),
+            MayAccess('s1', 'id:ns1:dataset.d1:s1'),
             ResultOfDataIn(
-                'id:ns1:dataset.d1', 'id:ns:Anonymise', 'id:ns1:Anonymous'),
+                'id:ns1:dataset.d1:s1', 'id:ns:Anonymise', 'id:ns1:Anonymous'),
             ResultOfComputeIn('*', 'id:ns:Anonymise', 'id:ns:Public'),
             MayAccess('s1', 'id:ns1:Anonymous'),
             ResultOfDataIn(
@@ -56,11 +56,10 @@ def test_wf_output_checks():
                              inputs={'x1': 'anonymise.y'},
                              outputs=['y'],
                              compute_asset_id='id:ns:Aggregate')])
-    job = Job(workflow, {'x': 'id:ns1:dataset.d1'})
+    job = Job(workflow, {'x': 'id:ns1:dataset.d1:s1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)
     plans = planner.make_plans('s2', job)
     assert len(plans) == 1
-    assert plans[0].input_sites['id:ns1:dataset.d1'] == 's1'
     assert plans[0].step_sites['anonymise'] == 's1'
     assert plans[0].step_sites['aggregate'] == 's1'
 

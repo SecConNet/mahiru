@@ -102,9 +102,8 @@ class WorkflowPlanner:
 
         step_sites_per_plan = [
                 dict(zip(sorted_step_names, plan)) for plan in plan_from(0)]
-        # We'll have some other kind of resolver here later
         input_sites = {
-                inp: self._registry_client.get_asset_location(inp)
+                inp: ''     # to be removed in subsequent commit
                 for inp in job.inputs.values()}
 
         return [

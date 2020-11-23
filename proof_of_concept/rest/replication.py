@@ -1,15 +1,18 @@
 """REST API handlers/clients for the replication system."""
 import logging
 import requests
-from typing import Any, Dict, Generic, Optional, Type, TypeVar
+from typing import Dict, Generic, Optional, Type, TypeVar
 
 from falcon import Request, Response
 
-from proof_of_concept.definitions import (
-        IReplicationService, ReplicaUpdate)
-from proof_of_concept.replication import ReplicableArchive
-from proof_of_concept.serialization import serialize, deserialize
-from proof_of_concept.validation import Validator
+from proof_of_concept.definitions.interfaces import IReplicationService
+from proof_of_concept.definitions.registry import RegisteredObject
+from proof_of_concept.definitions.policy import Rule
+from proof_of_concept.policy.replication import PolicyUpdate
+from proof_of_concept.registry.replication import RegistryUpdate
+from proof_of_concept.replication import ReplicaUpdate
+from proof_of_concept.rest.serialization import serialize, deserialize
+from proof_of_concept.rest.validation import Validator
 
 
 logger = logging.getLogger(__name__)
@@ -77,3 +80,13 @@ class ReplicationRestClient(IReplicationService[T]):
         self._validator.validate(self.UpdateType.__name__, update_json)
         logger.info(f'Validated against {self.UpdateType.__name__}')
         return deserialize(self.UpdateType, update_json)
+
+
+class PolicyRestClient(ReplicationRestClient[Rule]):
+    """A client for policy servers."""
+    UpdateType = PolicyUpdate
+
+
+class RegistryRestClient(ReplicationRestClient[RegisteredObject]):
+    """A client for the registry."""
+    UpdateType = RegistryUpdate

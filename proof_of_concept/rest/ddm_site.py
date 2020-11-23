@@ -3,19 +3,18 @@ import logging
 from pathlib import Path
 from threading import Thread
 from socketserver import ThreadingMixIn
-from typing import Any
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
 import ruamel.yaml as yaml
 
-from proof_of_concept.definitions import (
-        IAssetStore, IStepRunner, JobSubmission)
-from proof_of_concept.policy import Rule
-from proof_of_concept.policy_replication import PolicyStore
-from proof_of_concept.replication_rest import ReplicationHandler
-from proof_of_concept.serialization import deserialize, serialize
-from proof_of_concept.validation import Validator, ValidationError
+from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
+from proof_of_concept.definitions.policy import Rule
+from proof_of_concept.definitions.workflows import JobSubmission
+from proof_of_concept.policy.replication import PolicyStore
+from proof_of_concept.rest.replication import ReplicationHandler
+from proof_of_concept.rest.serialization import deserialize, serialize
+from proof_of_concept.rest.validation import Validator, ValidationError
 
 
 logger = logging.getLogger(__name__)

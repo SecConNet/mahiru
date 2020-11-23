@@ -1,133 +1,11 @@
-"""Classes for describing and managing policies."""
-from typing import Iterable, List, Set, Type
+"""Components for evaluating workflow permissions."""
+from typing import Dict, List, Set, Type
 
-from proof_of_concept.signable import Signable
-
-
-class Rule(Signable):
-    """Abstract base class for policy rules."""
-    pass
-
-
-class InAssetCollection(Rule):
-    """Says that an Asset is in an AssetCollection.
-
-    This implies that anyone who can access the collection can access
-    the Asset.
-    """
-    def __init__(self, asset: str, collection: str) -> None:
-        """Create an InAssetCollection rule.
-
-        Args:
-            asset: The asset to put into the collection.
-            collection: The collection to put it into.
-        """
-        self.asset = asset
-        self.collection = collection
-
-    def __repr__(self) -> str:
-        """Return a string representation of this rule."""
-        return '("{}" is in "{}")'.format(self.asset, self.collection)
-
-    def signing_representation(self) -> bytes:
-        """Return a string of bytes representing the object.
-
-        This adapts the Signable base class to this class.
-        """
-        return '{}|{}'.format(self.asset, self.collection).encode('utf-8')
-
-
-class InPartyCollection(Rule):
-    """Says that Party party is in PartyCollection collection."""
-    def __init__(self, party: str, collection: str) -> None:
-        """Create an InPartyCollection rule.
-
-        Args:
-            party: A party.
-            collection: The collection it is in.
-        """
-        self.party = party
-        self.collection = collection
-
-    def __repr__(self) -> str:
-        """Return a string representation of this rule."""
-        return '("{}" is in "{}")'.format(self.party, self.collection)
-
-    def signing_representation(self) -> bytes:
-        """Return a string of bytes representing the object.
-
-        This adapts the Signable base class to this class.
-        """
-        return '{}|{}'.format(self.party, self.collection).encode('utf-8')
-
-
-class MayAccess(Rule):
-    """Says that Site site may access Asset asset."""
-    def __init__(self, site: str, asset: str) -> None:
-        """Create a MayAccess rule.
-
-        Args:
-            site: The site that may access.
-            asset: The asset that may be accessed.
-        """
-        self.site = site
-        self.asset = asset
-
-    def __repr__(self) -> str:
-        """Return a string representation of this rule."""
-        return f'("{self.site}" may access "{self.asset}")'
-
-    def signing_representation(self) -> bytes:
-        """Return a string of bytes representing the object.
-
-        This adapts the Signable base class to this class.
-        """
-        return f'{self.site}|{self.asset}'.encode('utf-8')
-
-
-class ResultOfIn(Rule):
-    """Defines collections of results.
-
-    Says that any Asset that was computed from data_asset via
-    compute_asset is in collection, according to either the owner of
-    data_asset or the owner of compute_asset.
-    """
-    def __init__(self, data_asset: str, compute_asset: str, collection: str
-                 ) -> None:
-        """Create a ResultOfIn rule.
-
-        Args:
-            data_asset: The source data asset.
-            compute_asset: The compute asset used to process the data.
-            collection: The output collection.
-        """
-        self.data_asset = data_asset
-        self.compute_asset = compute_asset
-        self.collection = collection
-
-    def __repr__(self) -> str:
-        """Return a string representation of this rule."""
-        return '(result of "{}" on "{}" is in collection "{}")'.format(
-                self.compute_asset, self.data_asset, self.collection)
-
-    def signing_representation(self) -> bytes:
-        """Return a string of bytes representing the object.
-
-        This adapts the Signable base class to this class.
-        """
-        return '{}|{}|{}'.format(
-                self.data_asset, self.compute_asset, self.collection
-                ).encode('utf-8')
-
-
-class ResultOfDataIn(ResultOfIn):
-    """ResultOfIn rule on behalf of the data asset owner."""
-    pass
-
-
-class ResultOfComputeIn(ResultOfIn):
-    """ResultOfIn rule on behalf of the compute asset owner."""
-    pass
+from proof_of_concept.definitions.interfaces import IPolicyCollection
+from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
+from proof_of_concept.policy.rules import (
+        InAssetCollection, InPartyCollection, MayAccess, ResultOfIn,
+        ResultOfDataIn, ResultOfComputeIn)
 
 
 class Permissions:
@@ -144,13 +22,6 @@ class Permissions:
     def __repr__(self) -> str:
         """Returns a string representationf this object."""
         return 'Permissions({})'.format(repr(self._sets))
-
-
-class IPolicyCollection:
-    """Provides policies to a PolicyEvaluator."""
-    def policies(self) -> Iterable[Rule]:
-        """Returns an iterable collection of rules."""
-        raise NotImplementedError()
 
 
 class PolicyEvaluator:
@@ -317,3 +188,142 @@ class PolicyEvaluator:
                           for rule in new_rules
                           if rule.compute_asset in comp_assets])
         return rules
+
+
+class PermissionCalculator:
+    """Evaluates policies pertaining to a given workflow."""
+    def __init__(self, policy_evaluator: PolicyEvaluator) -> None:
+        """Create a Policy Evaluator.
+
+        Args:
+            policy_evaluator: The policy evaluator to use.
+        """
+        self._policy_evaluator = policy_evaluator
+
+    def calculate_permissions(
+            self, job: Job) -> Dict[str, Permissions]:
+        """Finds collections each workflow value is in.
+
+        This function returns a dictionary with a list of sets of
+        assets for each workflow input, workflow output, step input,
+        step, and step output. Workflow inputs are keyed by their
+        name, step inputs and outputs by <step>.<name>.
+
+        Args:
+            job: The job to evaluate.
+
+        Returns:
+            A dictionary with permissions per workflow value.
+        """
+        def set_input_assets_permissions(
+                permissions: Dict[str, Permissions],
+                job: Job) -> None:
+            """Sets permissions for the job's inputs.
+
+            This modifies the permissions argument.
+            """
+            for inp_asset in job.inputs.values():
+                if inp_asset not in permissions:
+                    permissions[inp_asset] = (
+                            self._policy_evaluator.permissions_for_asset(
+                                inp_asset))
+
+        def prop_workflow_inputs(
+                permissions: Dict[str, Permissions],
+                job: Job
+                ) -> None:
+            """Propagates permissions for the workflow's inputs.
+
+            This modifies the permissions argument.
+            """
+            for inp_name in job.workflow.inputs:
+                source_asset = job.inputs[inp_name]
+                permissions[inp_name] = permissions[source_asset]
+
+        class InputNotAvailable(RuntimeError):
+            pass
+
+        def prop_input_sources(
+                permissions: Dict[str, Permissions],
+                step: WorkflowStep
+                ) -> None:
+            """Propagates permissions of a step input from its source.
+
+            This modifies the permissions argument.
+
+            Raises:
+                InputNotAvailable if the input source is not (yet)
+                available.
+            """
+            for inp, inp_source in step.inputs.items():
+                inp_key = '{}.{}'.format(step.name, inp)
+                if inp_key not in permissions:
+                    if inp_source not in permissions:
+                        raise InputNotAvailable()
+                    permissions[inp_key] = permissions[inp_source]
+
+        def calc_step_permissions(
+                permissions: Dict[str, Permissions],
+                step: WorkflowStep
+                ) -> None:
+            """Derives the step's permissions and stores them.
+
+            These are the permissions needed to access the compute
+            asset.
+            """
+            permissions[step.name] = (
+                    self._policy_evaluator.permissions_for_asset(
+                        step.compute_asset_id))
+
+        def prop_step_outputs(
+                permissions: Dict[str, Permissions],
+                step: WorkflowStep
+                ) -> None:
+            """Derives step output permissions.
+
+            Propagates permissions from inputs via the step to the
+            outputs. This takes into account permissions induced by
+            the compute asset via ResultOfComputeIn rules, but not
+            access to the compute asset itself.
+
+            This modifies the permissions argument.
+            """
+            input_perms = list()     # type: List[Permissions]
+            for inp in step.inputs:
+                inp_key = '{}.{}'.format(step.name, inp)
+                input_perms.append(permissions[inp_key])
+
+            perms = self._policy_evaluator.propagate_permissions(
+                        input_perms, step.compute_asset_id)
+
+            for output in step.outputs:
+                output_key = '{}.{}'.format(step.name, output)
+                permissions[output_key] = perms
+
+        def set_workflow_outputs_permissions(
+                permissions: Dict[str, Permissions],
+                workflow: Workflow
+                ) -> None:
+            """Copies workflow output permissions from their sources."""
+            for name, source in workflow.outputs.items():
+                permissions[name] = permissions[source]
+
+        # Main function
+        permissions = dict()    # type: Dict[str, Permissions]
+        set_input_assets_permissions(permissions, job)
+        prop_workflow_inputs(permissions, job)
+
+        steps_done = set()  # type: Set[str]
+        while len(steps_done) < len(job.workflow.steps):
+            for step in job.workflow.steps.values():
+                if step.name not in steps_done:
+                    try:
+                        prop_input_sources(permissions, step)
+                        calc_step_permissions(permissions, step)
+                        prop_step_outputs(permissions, step)
+                        steps_done.add(step.name)
+                    except InputNotAvailable:
+                        continue
+
+        set_workflow_outputs_permissions(permissions, job.workflow)
+        return permissions

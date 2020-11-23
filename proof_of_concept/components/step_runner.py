@@ -4,13 +4,16 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
-from proof_of_concept.asset import ComputeAsset, DataAsset, Metadata
-from proof_of_concept.asset_store import AssetStore
-from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
-from proof_of_concept.definitions import IStepRunner, JobSubmission
-from proof_of_concept.permission_calculator import PermissionCalculator
-from proof_of_concept.policy import PolicyEvaluator
-from proof_of_concept.workflow import WorkflowStep
+from proof_of_concept.definitions.assets import (
+        ComputeAsset, DataAsset, Metadata)
+from proof_of_concept.definitions.interfaces import IStepRunner
+from proof_of_concept.definitions.workflows import JobSubmission, WorkflowStep
+from proof_of_concept.policy.evaluation import (
+        PermissionCalculator, PolicyEvaluator)
+from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.components.asset_store import AssetStore
+from proof_of_concept.components.registry_client import RegistryClient
+
 
 logger = logging.getLogger(__file__)
 

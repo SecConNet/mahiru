@@ -1,30 +1,18 @@
-"""Functionality for connecting to other DDM sites."""
+"""Functionality for connecting to the central registry."""
 from pathlib import Path
 import requests
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
-from urllib.parse import quote
+from typing import Any, Callable, List, Optional, Set
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 import ruamel.yaml as yaml
 
-from proof_of_concept.asset import Asset
-from proof_of_concept.definitions import (
-        IAssetStore, JobSubmission,
-        PartyDescription, PolicyUpdate, RegistryUpdate, SiteDescription)
-from proof_of_concept.policy import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
-        ResultOfDataIn, Rule)
-from proof_of_concept.serialization import deserialize, serialize
-from proof_of_concept.registry import global_registry, RegisteredObject
-from proof_of_concept.replication import ObjectValidator, Replica
-from proof_of_concept.replication_rest import ReplicationRestClient
-from proof_of_concept.validation import Validator
-from proof_of_concept.workflow import Job, Workflow
-
-
-class RegistryRestClient(ReplicationRestClient[RegisteredObject]):
-    """A client for the registry."""
-    UpdateType = RegistryUpdate
+from proof_of_concept.definitions.registry import (
+        PartyDescription, RegisteredObject, SiteDescription)
+from proof_of_concept.rest.serialization import serialize
+from proof_of_concept.registry.registry import global_registry
+from proof_of_concept.replication import Replica
+from proof_of_concept.rest.replication import RegistryRestClient
+from proof_of_concept.rest.validation import Validator
 
 
 RegistryCallback = Callable[
@@ -46,7 +34,8 @@ class RegistryClient:
         self._callbacks = list()    # type: List[RegistryCallback]
 
         # Set up connection to registry
-        registry_api_file = Path(__file__).parent / 'registry_api.yaml'
+        registry_api_file = (
+                Path(__file__).parents[1] / 'rest' / 'registry_api.yaml')
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
 
@@ -209,64 +198,3 @@ class RegistryClient:
         """Calls callbacks when sites are updated."""
         for callback in self._callbacks:
             callback(created, deleted)
-
-
-class SiteRestClient:
-    """Handles connecting to other sites' runners and stores."""
-    def __init__(
-            self, site: str, site_validator: Validator,
-            registry_client: RegistryClient
-            ) -> None:
-        """Create a SiteRestClient.
-
-        Args:
-            site: The site at which this client acts.
-            site_validator: A validator for the Site REST API.
-            registry_client: A registry client to get sites from.
-
-        """
-        self._site = site
-        self._site_validator = site_validator
-        self._registry_client = registry_client
-
-    def retrieve_asset(self, site_name: str, asset_id: str
-                       ) -> Asset:
-        """Obtains a data item from a store."""
-        try:
-            site = self._registry_client.get_site_by_name(site_name)
-        except KeyError:
-            raise RuntimeError(f'Site or store at site {site_name} not found')
-
-        if site.store is not None:
-            safe_asset_id = quote(asset_id, safe='')
-            r = requests.get(
-                    f'{site.endpoint}/assets/{safe_asset_id}',
-                    params={'requester': self._site})
-            if r.status_code == 404:
-                raise KeyError('Asset not found')
-            elif not r.ok:
-                raise RuntimeError('Server error when retrieving asset')
-
-            asset_json = r.json()
-            self._site_validator.validate('Asset', asset_json)
-            return deserialize(Asset, asset_json)
-
-        raise ValueError(f'Site {site_name} does not have a store')
-
-    def submit_job(self, site_name: str, submission: JobSubmission) -> None:
-        """Submits a job for execution to a local runner.
-
-        Args:
-            site_name: The site to submit to.
-            submission: The job submision to send.
-
-        """
-        try:
-            site = self._registry_client.get_site_by_name(site_name)
-        except KeyError:
-            raise RuntimeError(f'Site or runner at site {site_name} not found')
-
-        if site.runner:
-            requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
-        else:
-            raise ValueError(f'Site {site_name} does not have a runner')

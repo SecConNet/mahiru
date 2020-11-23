@@ -265,3 +265,60 @@ class Job:
 
         set_workflow_outputs_keys(item_keys, self.workflow.outputs)
         return item_keys
+
+
+class Plan:
+    """A plan for executing a workflow.
+
+    A plan says which step is to be executed by which site, and where
+    the inputs should be obtained from.
+
+    Attributes:
+        input_sites (Dict[str, str]): Maps inputs to the site to
+                obtain them from.
+        step_sites (Dict[WorkflowStep, str]): Maps steps to their
+                site's id.
+
+    """
+    def __init__(
+            self, input_sites: Dict[str, str],
+            step_sites: Dict[str, str]
+            ) -> None:
+        """Create a plan.
+
+        Args:
+            input_sites: A map from input names to a site id to get
+                    them from.
+            step_sites: A map from step names to their site's id.
+
+        """
+        self.input_sites = input_sites
+        self.step_sites = step_sites
+
+    def __str__(self) -> str:
+        """Return a string representation of the object."""
+        result = ''
+        for inp_name, site_id in self.input_sites.items():
+            result += '{} <- {}\n'.format(inp_name, site_id)
+        for step_name, site_id in self.step_sites.items():
+            result += '{} -> {}\n'.format(step_name, site_id)
+        return result
+
+
+class JobSubmission:
+    """A submission of a job and execution plan to a site.
+
+    Attributes:
+        job: The job we're executing.
+        plan: The plan according to which it should be executed.
+
+    """
+    def __init__(self, job: Job, plan: Plan) -> None:
+        """Create a JobSubmission.
+
+        Args:
+            job: The job we're executing.
+            plan: The plan according to which it should be executed.
+        """
+        self.job = job
+        self.plan = plan

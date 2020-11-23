@@ -1,4 +1,4 @@
-from proof_of_concept.policy import (
+from proof_of_concept.policy.rules import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn)
 
 

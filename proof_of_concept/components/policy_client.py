@@ -1,56 +1,15 @@
-"""Classes for distributing policies around the DDM."""
-from typing import Dict, Iterable, List, Set
+"""Component for making DDM policies available locally."""
+from typing import Dict, Iterable, Set
 
-from proof_of_concept.ddm_client import RegistryClient
-from proof_of_concept.definitions import (
-        PolicyUpdate, RegisteredObject, SiteDescription)
-from proof_of_concept.policy import (
-        IPolicyCollection, InPartyCollection, InAssetCollection, MayAccess,
-        ResultOfDataIn, ResultOfComputeIn, Rule)
-from proof_of_concept.replication import (
-        CanonicalStore, ObjectValidator, Replica)
-from proof_of_concept.replication_rest import ReplicationRestClient
-from proof_of_concept.validation import Validator
-
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-
-
-class PolicyRestClient(ReplicationRestClient[Rule]):
-    """A client for policy servers."""
-    UpdateType = PolicyUpdate
-
-
-class RuleValidator(ObjectValidator[Rule]):
-    """Validates incoming policy rules by checking signatures."""
-    def __init__(self, namespace: str, key: RSAPublicKey) -> None:
-        """Create a RuleValidator.
-
-        Checks that rules apply to the given namespace, and that they
-        have been signed by the owner of that namespace.
-
-        Args:
-            namespace: The namespace to expect rules for.
-            key: The key to validate the rules with.
-        """
-        self._namespace = namespace
-        self._key = key
-
-    def is_valid(self, rule: Rule) -> bool:
-        """Return True iff the rule is properly signed."""
-        if isinstance(rule, ResultOfDataIn):
-            namespace = rule.data_asset[3:].split('.')[0]
-        elif isinstance(rule, ResultOfComputeIn):
-            namespace = rule.compute_asset[3:].split('.')[0]
-        elif isinstance(rule, MayAccess):
-            namespace = rule.asset[3:].split('.')[0]
-        elif isinstance(rule, InAssetCollection):
-            namespace = rule.asset[3:].split('.')[0]
-        elif isinstance(rule, InPartyCollection):
-            namespace = rule.collection[3:].split('.')[0]
-
-        if namespace != self._namespace:
-            return False
-        return rule.has_valid_signature(self._key)
+from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.definitions.interfaces import IPolicyCollection
+from proof_of_concept.definitions.registry import (
+        RegisteredObject, SiteDescription)
+from proof_of_concept.definitions.policy import Rule
+from proof_of_concept.policy.replication import RuleValidator
+from proof_of_concept.replication import Replica
+from proof_of_concept.rest.replication import PolicyRestClient
+from proof_of_concept.rest.validation import Validator
 
 
 class PolicyClient(IPolicyCollection):
@@ -116,8 +75,3 @@ class PolicyClient(IPolicyCollection):
         # replicas as needed, so now we just need to update them.
         for replica in self._policy_replicas.values():
             replica.update()
-
-
-class PolicyStore(CanonicalStore[Rule]):
-    """A canonical store for policy rules."""
-    UpdateType = PolicyUpdate

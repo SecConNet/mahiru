@@ -1,14 +1,16 @@
-"""Classes for running DDM-wide workflows."""
+"""Supports running DDM-wide workflows."""
 import logging
 from copy import copy
 from time import sleep
-from typing import Any, Dict, Generator, List, Set
+from typing import Any, Dict, Generator, List
 
-from proof_of_concept.ddm_client import SiteRestClient, RegistryClient
-from proof_of_concept.definitions import JobSubmission, Plan
-from proof_of_concept.policy import Permissions, PolicyEvaluator
-from proof_of_concept.permission_calculator import PermissionCalculator
-from proof_of_concept.workflow import Job, Workflow, WorkflowStep
+from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.definitions.workflows import (
+        Job, JobSubmission, Plan, Workflow, WorkflowStep)
+from proof_of_concept.policy.evaluation import (
+        PermissionCalculator, Permissions, PolicyEvaluator)
+from proof_of_concept.rest.client import SiteRestClient
+
 
 logger = logging.getLogger(__file__)
 

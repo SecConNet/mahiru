@@ -1,10 +1,11 @@
 from unittest.mock import MagicMock
 
-from proof_of_concept.asset import ComputeAsset
-from proof_of_concept.policy import (
-        MayAccess, PolicyEvaluator, ResultOfDataIn, ResultOfComputeIn)
-from proof_of_concept.workflow import Job, Workflow, WorkflowStep
-from proof_of_concept.workflow_engine import WorkflowPlanner
+from proof_of_concept.definitions.assets import ComputeAsset
+from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
+from proof_of_concept.policy.evaluation import PolicyEvaluator
+from proof_of_concept.components.orchestration import WorkflowPlanner
+from proof_of_concept.policy.rules import (
+        MayAccess, ResultOfDataIn, ResultOfComputeIn)
 
 
 class MockPolicySource:

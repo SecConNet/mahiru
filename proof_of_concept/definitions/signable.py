@@ -1,6 +1,4 @@
 """Support for cryptographically signed objects."""
-from typing import cast
-
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding

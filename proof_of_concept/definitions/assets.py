@@ -1,7 +1,7 @@
 """Classes for describing assets."""
 from typing import Any, Dict, Optional
 
-from proof_of_concept.workflow import Job
+from proof_of_concept.definitions.workflows import Job
 
 
 class Metadata:

@@ -1,19 +1,18 @@
 """REST-style API for central registry."""
 import logging
 from pathlib import Path
-from typing import Any
 
 from falcon import (
         App, HTTP_200, HTTP_201, HTTP_400, HTTP_404, HTTP_409, Request,
         Response)
 import ruamel.yaml as yaml
 
-from proof_of_concept.definitions import (
+from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
-from proof_of_concept.serialization import deserialize
-from proof_of_concept.registry import Registry
-from proof_of_concept.replication_rest import ReplicationHandler
-from proof_of_concept.validation import Validator, ValidationError
+from proof_of_concept.registry.registry import Registry
+from proof_of_concept.rest.replication import ReplicationHandler
+from proof_of_concept.rest.serialization import deserialize
+from proof_of_concept.rest.validation import Validator, ValidationError
 
 
 logger = logging.getLogger(__name__)

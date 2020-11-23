@@ -1,24 +1,18 @@
 """Central registry of remote-accessible things."""
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Type, TypeVar
 
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-
-from proof_of_concept.definitions import (
-        IAssetStore, PartyDescription,
-        RegisteredObject, RegistryUpdate, SiteDescription)
-from proof_of_concept.replication import CanonicalStore, ReplicableArchive
+from proof_of_concept.definitions.interfaces import IAssetStore
+from proof_of_concept.definitions.registry import (
+        PartyDescription, RegisteredObject, SiteDescription)
+from proof_of_concept.registry.replication import RegistryStore, RegistryUpdate
+from proof_of_concept.replication import ReplicableArchive
 
 
 logger = logging.getLogger(__name__)
 
 
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
-
-
-class RegistryStore(CanonicalStore[RegisteredObject]):
-    """A canonical store for the registry."""
-    UpdateType = RegistryUpdate
 
 
 class Registry:

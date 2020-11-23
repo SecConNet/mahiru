@@ -10,7 +10,6 @@ from proof_of_concept.definitions.assets import AssetId
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.rest.serialization import serialize
-from proof_of_concept.registry.registry import global_registry
 from proof_of_concept.replication import Replica
 from proof_of_concept.rest.replication import RegistryRestClient
 from proof_of_concept.rest.validation import Validator
@@ -120,16 +119,6 @@ class RegistryClient:
         if r.status_code == 404:
             raise KeyError('Site not found')
 
-    def register_asset(self, asset_id: AssetId, site_name: str) -> None:
-        """Register an Asset with the Registry.
-
-        Args:
-            asset_id: The id of the asset to register.
-            site_name: Name of the site where it can be found.
-
-        """
-        global_registry.register_asset(asset_id, site_name)
-
     def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
         """Get the public key of the owner of a namespace."""
         # Do not update here, when this is called we're processing one
@@ -169,11 +158,6 @@ class RegistryClient:
         if not site:
             raise KeyError(f'Site named {site_name} not found')
         return site
-
-    @staticmethod
-    def get_asset_location(asset_id: AssetId) -> str:
-        """Returns the name of the site which stores this asset."""
-        return global_registry.get_asset_location(asset_id)
 
     def _get_party(self, name: str) -> Optional[PartyDescription]:
         """Returns the party with the given name."""

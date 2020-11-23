@@ -90,31 +90,6 @@ class Registry:
             raise KeyError('Site not found')
         self.store.delete(description)
 
-    def register_asset(self, asset_id: AssetId, site_name: str) -> None:
-        """Register an Asset with the Registry.
-
-        Args:
-            asset_id: The id of the asset to register.
-            site_name: Name of the site where it can be found.
-        """
-        if asset_id in self._asset_locations:
-            raise RuntimeError('There is already an asset with this name')
-        self._asset_locations[asset_id] = site_name
-
-    def get_asset_location(self, asset_id: AssetId) -> str:
-        """Returns the name of the site this asset is in.
-
-        Args:
-            asset_id: ID of the asset to find.
-
-        Return:
-            The site it can be found at.
-
-        Raises:
-            KeyError: If no asset with the given id is registered.
-        """
-        return self._asset_locations[asset_id]
-
     def _get_object(
             self, typ: Type[_ReplicatedClass], attr_name: str, value: Any
             ) -> Optional[_ReplicatedClass]:
@@ -168,6 +143,3 @@ class Registry:
                 `attr_name`.
         """
         return self._get_object(typ, attr_name, value) is not None
-
-
-global_registry = Registry()

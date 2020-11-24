@@ -30,8 +30,8 @@ class AssetId(str):
 
         return str.__new__(cls, seq)        # type: ignore
 
-    @staticmethod
-    def from_key(key: str) -> 'AssetId':
+    @classmethod
+    def from_key(cls, key: str) -> 'AssetId':
         """Creates an AssetId from a key (hash).
 
         Args:
@@ -40,7 +40,7 @@ class AssetId(str):
         Returns:
             The AssetId for the workflow result.
         """
-        return AssetId(f'hash:{key}')
+        return cls(f'hash:{key}')
 
     def is_primary(self) -> bool:
         """Returns whether this is a primary asset."""

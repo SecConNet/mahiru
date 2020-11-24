@@ -3,7 +3,33 @@ from typing import Any, cast, Type
 
 
 class AssetId(str):
-    """An ID of an asset."""
+    """An id of an asset.
+
+    An Asset id is a string of any of the following forms:
+
+    1. id:<namespace>:<name>:<site>
+    2. id:<namespace>:<name>
+    3. hash:<hash>
+
+    Form 1 is used for data assets and compute assets, i.e. data sets
+    and software wrapped in container images. These are primary assets,
+    meaning they are put into the DDM from the outside, and they are
+    concrete assets, meaning there's an actual object (the container
+    image) associated with them, which is stored at <site>.
+
+    Form 2 is used for asset collections. These are named (with an
+    AssetId) collections of assets created implicitly by
+    InAssetCollection rules. These are also considered primary assets,
+    but they are abstract, not concrete, because there is no
+    downloadable object associated with them.
+
+    Form 3 is used for results of data processing done in the DDM. The
+    hash identifying the object is derived from the workflow used to
+    create this asset. These objects are called secondary assets, as
+    they are temporary, only existing during workflow execution. Their
+    id does not specify their location.
+
+    """
     def __new__(cls: Type['AssetId'], seq: Any) -> 'AssetId':
         """Create an AssetId.
 

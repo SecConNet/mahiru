@@ -42,8 +42,8 @@ class AssetId(str):
         """
         data = str(seq)
         if data.startswith('id:'):
-            parts = len(data.split(':'))
-            if parts < 3 or parts > 4:
+            n_parts = len(data.split(':'))
+            if n_parts not in (3, 4):
                 raise ValueError(f'Invalid asset id: {data}')
         elif data.startswith('hash:'):
             if not all([c in '0123456789abcdef' for c in data[5:]]):

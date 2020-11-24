@@ -54,7 +54,7 @@ class PolicyEvaluator:
             ) -> Permissions:
         """Determines access for the result of an operation.
 
-        This applies the ResultOfDataIn and ResultOfSoftwareIn rules to
+        This applies the ResultOfDataIn and ResultOfComputeIn rules to
         determine, from the access permissions for the inputs of an
         operation and the compute asset to use, the access permissions
         of the results.
@@ -163,7 +163,7 @@ class PolicyEvaluator:
         The returned list contains only items of type typ.
 
         Args:
-            typ: Either ResultOfDataIn or ResultOfSoftwareIn, specifies
+            typ: Either ResultOfDataIn or ResultOfComputeIn, specifies
                     the kind of rules to return.
             asset_set: Set of data assets to match rules to.
             compute_asset: Compute asset to match rules to.

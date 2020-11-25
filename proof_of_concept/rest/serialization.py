@@ -216,14 +216,12 @@ def _deserialize_job(user_input: JSON) -> Job:
 
 def _serialize_plan(plan: Plan) -> JSON:
     """Serialize a Plan to JSON."""
-    return {
-            'input_sites': plan.input_sites,
-            'step_sites': plan.step_sites}
+    return {'step_sites': plan.step_sites}
 
 
 def _deserialize_plan(user_input: JSON) -> Plan:
     """Deserialize a Plan from JSON."""
-    return Plan(user_input['input_sites'], user_input['step_sites'])
+    return Plan(user_input['step_sites'])
 
 
 def _serialize_job_submission(submission: JobSubmission) -> JSON:

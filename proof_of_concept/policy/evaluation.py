@@ -1,6 +1,7 @@
 """Components for evaluating workflow permissions."""
 from typing import Dict, List, Set, Type
 
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.interfaces import IPolicyCollection
 from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
 from proof_of_concept.policy.rules import (
@@ -13,7 +14,7 @@ class Permissions:
     def __init__(self) -> None:
         """Creates Permissions that do not allow access."""
         # friend PolicyEvaluator
-        self._sets = list()     # type: List[Set[str]]
+        self._sets = list()     # type: List[Set[AssetId]]
 
     def __str__(self) -> str:
         """Returns a string representationf this object."""
@@ -34,7 +35,7 @@ class PolicyEvaluator:
         """
         self._policy_collection = policy_collection
 
-    def permissions_for_asset(self, asset: str) -> Permissions:
+    def permissions_for_asset(self, asset: AssetId) -> Permissions:
         """Returns permissions for the given asset.
 
         This must be a primary asset, not an intermediate result, as
@@ -50,7 +51,7 @@ class PolicyEvaluator:
     def propagate_permissions(
             self,
             input_permissions: List[Permissions],
-            compute_asset: str
+            compute_asset: AssetId
             ) -> Permissions:
         """Determines access for the result of an operation.
 
@@ -95,7 +96,7 @@ class PolicyEvaluator:
             permissions: Permissions for the asset to check.
             site: A site which needs access.
         """
-        def matches_one(asset_set: Set[str], site: str) -> bool:
+        def matches_one(asset_set: Set[AssetId], site: str) -> bool:
             for asset in asset_set:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, MayAccess):
@@ -129,7 +130,7 @@ class PolicyEvaluator:
                             new_parties.append(rule.collection)
         return cur_parties
 
-    def _equivalent_assets(self, asset: str) -> Set[str]:
+    def _equivalent_assets(self, asset: AssetId) -> Set[AssetId]:
         """Returns all the assets whose rules apply to an asset.
 
         These are the asset itself, and all assets that are asset
@@ -138,7 +139,7 @@ class PolicyEvaluator:
         Args:
             asset: The asset to find equivalents for.
         """
-        cur_assets = set()     # type: Set[str]
+        cur_assets = set()     # type: Set[AssetId]
         new_assets = {asset}
         while new_assets:
             cur_assets |= new_assets
@@ -149,11 +150,11 @@ class PolicyEvaluator:
                         if rule.asset == asset:
                             if rule.collection not in cur_assets:
                                 new_assets.add(rule.collection)
-        cur_assets.add('*')
+        cur_assets.add(AssetId('*'))
         return cur_assets
 
     def _resultofin_rules(
-            self, typ: Type, asset_set: Set[str], compute_asset: str
+            self, typ: Type, asset_set: Set[AssetId], compute_asset: AssetId
             ) -> List[ResultOfIn]:
         """Returns all ResultOfIn rules that apply to these assets.
 
@@ -168,7 +169,7 @@ class PolicyEvaluator:
             asset_set: Set of data assets to match rules to.
             compute_asset: Compute asset to match rules to.
         """
-        def rules_for_asset(asset: str) -> List[ResultOfIn]:
+        def rules_for_asset(asset: AssetId) -> List[ResultOfIn]:
             """Gets all matching rules for the given single asset."""
             result = list()     # type: List[ResultOfIn]
             assets = self._equivalent_assets(asset)
@@ -222,23 +223,10 @@ class PermissionCalculator:
 
             This modifies the permissions argument.
             """
-            for inp_asset in job.inputs.values():
-                if inp_asset not in permissions:
-                    permissions[inp_asset] = (
-                            self._policy_evaluator.permissions_for_asset(
-                                inp_asset))
-
-        def prop_workflow_inputs(
-                permissions: Dict[str, Permissions],
-                job: Job
-                ) -> None:
-            """Propagates permissions for the workflow's inputs.
-
-            This modifies the permissions argument.
-            """
-            for inp_name in job.workflow.inputs:
-                source_asset = job.inputs[inp_name]
-                permissions[inp_name] = permissions[source_asset]
+            for inp_name, inp_asset in job.inputs.items():
+                permissions[inp_name] = (
+                        self._policy_evaluator.permissions_for_asset(
+                            inp_asset))
 
         class InputNotAvailable(RuntimeError):
             pass
@@ -311,7 +299,6 @@ class PermissionCalculator:
         # Main function
         permissions = dict()    # type: Dict[str, Permissions]
         set_input_assets_permissions(permissions, job)
-        prop_workflow_inputs(permissions, job)
 
         steps_done = set()  # type: Set[str]
         while len(steps_done) < len(job.workflow.steps):

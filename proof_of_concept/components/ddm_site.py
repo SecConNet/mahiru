@@ -113,7 +113,6 @@ class Site:
         # Insert data
         for asset in stored_data:
             self.store.store(asset)
-            self._registry_client.register_asset(asset.id, self.name)
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""

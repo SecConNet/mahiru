@@ -1,4 +1,7 @@
 """Classes representing rules."""
+from typing import Union
+
+from proof_of_concept.definitions.assets import AssetId
 from proof_of_concept.definitions.policy import Rule
 
 
@@ -8,14 +11,18 @@ class InAssetCollection(Rule):
     This implies that anyone who can access the collection can access
     the Asset.
     """
-    def __init__(self, asset: str, collection: str) -> None:
+    def __init__(
+            self, asset: Union[str, AssetId], collection: Union[str, AssetId]
+            ) -> None:
         """Create an InAssetCollection rule.
 
         Args:
             asset: The asset to put into the collection.
             collection: The collection to put it into.
         """
-        self.asset = asset
+        self.asset = asset if isinstance(asset, AssetId) else AssetId(asset)
+        if not isinstance(collection, AssetId):
+            collection = AssetId(collection)
         self.collection = collection
 
     def __repr__(self) -> str:
@@ -56,7 +63,7 @@ class InPartyCollection(Rule):
 
 class MayAccess(Rule):
     """Says that Site site may access Asset asset."""
-    def __init__(self, site: str, asset: str) -> None:
+    def __init__(self, site: str, asset: Union[str, AssetId]) -> None:
         """Create a MayAccess rule.
 
         Args:
@@ -64,7 +71,7 @@ class MayAccess(Rule):
             asset: The asset that may be accessed.
         """
         self.site = site
-        self.asset = asset
+        self.asset = asset if isinstance(asset, AssetId) else AssetId(asset)
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
@@ -85,8 +92,12 @@ class ResultOfIn(Rule):
     compute_asset is in collection, according to either the owner of
     data_asset or the owner of compute_asset.
     """
-    def __init__(self, data_asset: str, compute_asset: str, collection: str
-                 ) -> None:
+    def __init__(
+            self,
+            data_asset: Union[str, AssetId],
+            compute_asset: Union[str, AssetId],
+            collection: AssetId
+            ) -> None:
         """Create a ResultOfIn rule.
 
         Args:
@@ -94,6 +105,12 @@ class ResultOfIn(Rule):
             compute_asset: The compute asset used to process the data.
             collection: The output collection.
         """
+        if not isinstance(data_asset, AssetId):
+            data_asset = AssetId(data_asset)
+
+        if not isinstance(compute_asset, AssetId):
+            compute_asset = AssetId(compute_asset)
+
         self.data_asset = data_asset
         self.compute_asset = compute_asset
         self.collection = collection

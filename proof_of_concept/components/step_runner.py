@@ -4,6 +4,7 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.assets import (
         ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
@@ -94,7 +95,7 @@ class JobRun(Thread):
                         result_item = '{}.{}'.format(step.name, output_name)
                         result_key = keys[result_item]
                         metadata = Metadata(step_subjob, result_item)
-                        asset = DataAsset(id=result_key,
+                        asset = DataAsset(id=AssetId.from_key(result_key),
                                           data=output_value,
                                           metadata=metadata)
                         self._target_store.store(asset)
@@ -128,7 +129,7 @@ class JobRun(Thread):
                         src_site = self._sites[src_step]
                     else:
                         inp_asset_id = self._job.inputs[inp_src]
-                        src_site = self._plan.input_sites[inp_asset_id]
+                        src_site = inp_asset_id.location()
 
                     if not self._policy_evaluator.may_access(
                             perms[inp_src], src_site):
@@ -169,42 +170,43 @@ class JobRun(Thread):
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
-            source_site, data_key = self._source(inp_source, keys)
+            source_site, source_asset = self._source(inp_source, keys)
             logger.info('Job at {} getting input {} from site {}'.format(
-                self._this_site, data_key, source_site))
+                self._this_site, source_asset, source_site))
             try:
                 asset = self._site_rest_client.retrieve_asset(
-                        source_site, data_key)
+                        source_site, source_asset)
                 step_input_data[inp_name] = asset.data
                 logger.info('Job at {} found input {} available.'.format(
-                    self._this_site, data_key))
+                    self._this_site, source_asset))
                 logger.info('Metadata: {}'.format(asset.metadata))
             except KeyError:
                 logger.info(f'Job at {self._this_site} found input'
-                            f' {data_key} not yet available.')
+                            f' {source_asset} not yet available.')
                 return None
 
         return step_input_data
 
-    def _retrieve_compute_asset(self, compute_asset_id: str) -> ComputeAsset:
-        site_name = self._registry_client.get_asset_location(compute_asset_id)
+    def _retrieve_compute_asset(
+            self, compute_asset_id: AssetId) -> ComputeAsset:
         asset = self._site_rest_client.retrieve_asset(
-                site_name, compute_asset_id)
+                compute_asset_id.location(), compute_asset_id)
         if not isinstance(asset, ComputeAsset):
             raise TypeError('Expecting a compute asset in workflow')
         return asset
 
     def _source(
-            self, inp_source: str, keys: Dict[str, str]) -> Tuple[str, str]:
+            self, inp_source: str, keys: Dict[str, str]
+            ) -> Tuple[str, AssetId]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
         target site which is to execute that step according to the
         current plan, and the output name.
 
-        If the input is of the form 'site:data', this will return the
-        corresponding site from the plan and the name of the input
-        data asset to get from there.
+        If the input is a reference to a workflow input, then this will
+        return the site where the corresponding workflow input can be
+        found, and its id.
 
         Args:
             inp_source: Source description as above.
@@ -213,10 +215,10 @@ class JobRun(Thread):
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
-            return self._sites[step_name], keys[inp_source]
+            return self._sites[step_name], AssetId.from_key(keys[inp_source])
         else:
             dataset = self._inputs[inp_source]
-            return self._plan.input_sites[dataset], dataset
+            return dataset.location(), dataset
 
 
 class StepRunner(IStepRunner):

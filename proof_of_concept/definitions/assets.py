@@ -1,6 +1,7 @@
 """Classes for describing assets."""
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.workflows import Job
 
 
@@ -30,12 +31,12 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
-    def __init__(self, id: str, data: Any,
+    def __init__(self, id: Union[str, AssetId], data: Any,
                  metadata: Optional[Metadata] = None):
         """Constructor.
 
         Args:
-            id: Name of the asset
+            id: Identifier of the asset
             data: Data related to the asset
             metadata: Metadata related to the asset. If no metadata is
                 passed, metadata is set to a niljob, indicating that
@@ -43,6 +44,8 @@ class Asset:
                 workflow.
 
         """
+        if not isinstance(id, AssetId):
+            id = AssetId(id)
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
         self.id = id
@@ -69,13 +72,13 @@ class ComputeAsset(Asset):
 
         """
         outputs = dict()  # type: Dict[str, Any]
-        if self.id == 'id:ddm_ns.software.combine':
+        if self.id.startswith('id:ddm_ns:software.combine'):
             outputs['y'] = [inputs['x1'], inputs['x2']]
-        elif self.id == 'id:ddm_ns.software.anonymise':
+        elif self.id.startswith('id:ddm_ns:software.anonymise'):
             outputs['y'] = [x - 10 for x in inputs['x1']]
-        elif self.id == 'id:ddm_ns.software.aggregate':
+        elif self.id.startswith('id:ddm_ns:software.aggregate'):
             outputs['y'] = sum(inputs['x1']) / len(inputs['x1'])
-        elif self.id == 'id:party2_ns.software.addition':
+        elif self.id.startswith('id:party2_ns:software.addition'):
             outputs['y'] = inputs['x1'] + inputs['x2']
         else:
             raise RuntimeError('Unknown compute asset')

@@ -379,15 +379,8 @@ components:
     Plan:
       type: object
       required:
-        - input_sites
         - step_sites
       properties:
-        input_sites:
-          # TODO: remove once we have intrinsic ids
-          description: Maps inputs to the site to obtain them from
-          type: object
-          additionalProperties:
-            type: string
         step_sites:
           description: Maps step names to the site to run them at
           type: object

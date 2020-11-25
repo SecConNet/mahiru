@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import Generic, Iterable, Set, Type, TypeVar
 
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.workflows import JobSubmission
@@ -67,7 +68,7 @@ class IAssetStore:
         """
         raise NotImplementedError()
 
-    def retrieve(self, asset_id: str, requester: str
+    def retrieve(self, asset_id: AssetId, requester: str
                  ) -> Asset:
         """Retrieves an asset.
 

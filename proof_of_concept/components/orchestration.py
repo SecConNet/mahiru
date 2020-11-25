@@ -5,6 +5,7 @@ from time import sleep
 from typing import Any, Dict, Generator, List
 
 from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.definitions.asset_id import AssetId
 from proof_of_concept.definitions.workflows import (
         Job, JobSubmission, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
@@ -99,16 +100,9 @@ class WorkflowPlanner:
 
         sorted_step_names = [step.name for step in sorted_steps]
 
-        step_sites_per_plan = [
-                dict(zip(sorted_step_names, plan)) for plan in plan_from(0)]
-        # We'll have some other kind of resolver here later
-        input_sites = {
-                inp: self._registry_client.get_asset_location(inp)
-                for inp in job.inputs.values()}
-
         return [
-                Plan(input_sites, step_sites)
-                for step_sites in step_sites_per_plan]
+                Plan(dict(zip(sorted_step_names, plan)))
+                for plan in plan_from(0)]
 
     def _sort_workflow(self, workflow: Workflow) -> List[WorkflowStep]:
         """Sorts the workflow's steps topologically.
@@ -172,8 +166,9 @@ class WorkflowExecutor:
                     src_site = submission.plan.step_sites[src_step_name]
                     outp_key = keys[wf_outp_name]
                     try:
+                        asset_id = AssetId.from_key(outp_key)
                         asset = self._site_rest_client.retrieve_asset(
-                                    src_site, outp_key)
+                                src_site, asset_id)
                         results[wf_outp_name] = asset.data
                     except KeyError:
                         continue

@@ -1,6 +1,9 @@
 """REST-style API for central registry."""
 import logging
 from pathlib import Path
+from threading import Thread
+from typing import Type
+from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
 
 from falcon import (
         App, HTTP_200, HTTP_201, HTTP_400, HTTP_404, HTTP_409, Request,
@@ -164,3 +167,32 @@ class RegistryRestApi:
         registry_replication = ReplicationHandler[RegisteredObject](
                 registry.store)
         self.app.add_route('/updates', registry_replication)
+
+
+class RegistryServer:
+    """An HTTP server serving the registry API."""
+    def __init__(
+            self, api: RegistryRestApi,
+            server_type: Type[WSGIServer] = WSGIServer
+            ) -> None:
+        """Create a RegistryServer.
+
+        This starts a background thread with an HTTP server. It will
+        listen on all local interfaces on port 4413.
+
+        Args:
+            api: The API to serve.
+            server_type: The server class to use.
+        """
+        self._server = server_type(('0.0.0.0', 4413), WSGIRequestHandler)
+        self._server.set_app(api.app)
+        self._thread = Thread(
+                target=self._server.serve_forever,
+                name='RegistryServer')
+        self._thread.start()
+
+    def close(self) -> None:
+        """Stop the server thread."""
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join()

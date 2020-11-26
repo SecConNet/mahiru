@@ -3,16 +3,15 @@
 This is a PyTest special file, see its documentation.
 """
 import logging
-from threading import Thread
 from unittest.mock import patch
-from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
+from wsgiref.simple_server import WSGIServer
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 import pytest
 
 from proof_of_concept.registry.registry import Registry
-from proof_of_concept.rest.registry import RegistryRestApi
+from proof_of_concept.rest.registry import RegistryRestApi, RegistryServer
 
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -36,18 +35,11 @@ def registry_server():
     """Create a REST server instance for the global registry."""
     registry = Registry()
     api = RegistryRestApi(registry)
-    server = ReusingWSGIServer(('0.0.0.0', 4413), WSGIRequestHandler)
-    server.set_app(api.app)
-    thread = Thread(
-            target=server.serve_forever,
-            name='RegistryServer')
-    thread.start()
+    server = RegistryServer(api, ReusingWSGIServer)
 
     yield
 
-    server.shutdown()
-    server.server_close()
-    thread.join()
+    server.close()
 
 
 @pytest.fixture

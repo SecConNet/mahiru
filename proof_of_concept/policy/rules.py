@@ -36,10 +36,14 @@ class InAssetCollection(Rule):
         """
         return '{}|{}'.format(self.asset, self.collection).encode('utf-8')
 
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.asset.namespace()
+
 
 class InPartyCollection(Rule):
     """Says that Party party is in PartyCollection collection."""
-    def __init__(self, party: str, collection: str) -> None:
+    def __init__(self, party: str, collection: Union[str, AssetId]) -> None:
         """Create an InPartyCollection rule.
 
         Args:
@@ -47,6 +51,8 @@ class InPartyCollection(Rule):
             collection: The collection it is in.
         """
         self.party = party
+        if not isinstance(collection, AssetId):
+            collection = AssetId(collection)
         self.collection = collection
 
     def __repr__(self) -> str:
@@ -59,6 +65,10 @@ class InPartyCollection(Rule):
         This adapts the Signable base class to this class.
         """
         return '{}|{}'.format(self.party, self.collection).encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.collection.namespace()
 
 
 class MayAccess(Rule):
@@ -83,6 +93,10 @@ class MayAccess(Rule):
         This adapts the Signable base class to this class.
         """
         return f'{self.site}|{self.asset}'.encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.asset.namespace()
 
 
 class ResultOfIn(Rule):
@@ -132,9 +146,13 @@ class ResultOfIn(Rule):
 
 class ResultOfDataIn(ResultOfIn):
     """ResultOfIn rule on behalf of the data asset owner."""
-    pass
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.data_asset.namespace()
 
 
 class ResultOfComputeIn(ResultOfIn):
     """ResultOfIn rule on behalf of the compute asset owner."""
-    pass
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.compute_asset.namespace()

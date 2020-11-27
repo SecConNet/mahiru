@@ -13,7 +13,7 @@ from proof_of_concept.policy.evaluation import (
 from proof_of_concept.rest.client import SiteRestClient
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class WorkflowPlanner:

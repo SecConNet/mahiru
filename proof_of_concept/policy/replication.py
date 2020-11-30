@@ -31,19 +31,7 @@ class RuleValidator(ObjectValidator[Rule]):
 
     def is_valid(self, rule: Rule) -> bool:
         """Return True iff the rule is properly signed."""
-        if isinstance(rule, ResultOfDataIn):
-            namespace = rule.data_asset.split(':')[1]
-        elif isinstance(rule, ResultOfComputeIn):
-            namespace = rule.compute_asset.split(':')[1]
-        elif isinstance(rule, MayAccess):
-            namespace = rule.asset.split(':')[1]
-        elif isinstance(rule, InAssetCollection):
-            namespace = rule.asset.split(':')[1]
-        elif isinstance(rule, InPartyCollection):
-            namespace = rule.collection.split(':')[1]
-
-        logger.info(f'Rule namespace {namespace}, should be {self._namespace}')
-        if namespace != self._namespace:
+        if rule.signing_namespace() != self._namespace:
             return False
         return rule.has_valid_signature(self._key)
 

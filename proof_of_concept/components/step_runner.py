@@ -16,7 +16,7 @@ from proof_of_concept.components.asset_store import AssetStore
 from proof_of_concept.components.registry_client import RegistryClient
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class JobRun(Thread):

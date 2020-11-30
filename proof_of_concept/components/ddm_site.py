@@ -25,7 +25,7 @@ from proof_of_concept.components.orchestration import WorkflowOrchestrator
 from proof_of_concept.components.policy_client import PolicyClient
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class Site:

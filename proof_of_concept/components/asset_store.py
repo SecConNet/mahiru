@@ -8,7 +8,7 @@ from proof_of_concept.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class AssetStore(IAssetStore):

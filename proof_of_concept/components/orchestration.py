@@ -157,16 +157,16 @@ class WorkflowExecutor:
 
         # get workflow outputs whenever they're available
         wf = submission.job.workflow
-        keys = submission.job.keys()
+        id_hashes = submission.job.id_hashes()
         results = dict()    # type: Dict[str, Any]
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
                     src_site = submission.plan.step_sites[src_step_name]
-                    outp_key = keys[wf_outp_name]
+                    outp_id_hash = id_hashes[wf_outp_name]
                     try:
-                        asset_id = AssetId.from_key(outp_key)
+                        asset_id = AssetId.from_id_hash(outp_id_hash)
                         asset = self._site_rest_client.retrieve_asset(
                                 src_site, asset_id)
                         results[wf_outp_name] = asset.data

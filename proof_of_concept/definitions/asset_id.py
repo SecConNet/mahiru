@@ -57,16 +57,16 @@ class AssetId(str):
         return str.__new__(cls, seq)        # type: ignore
 
     @classmethod
-    def from_key(cls, key: str) -> 'AssetId':
-        """Creates an AssetId from a key (hash).
+    def from_id_hash(cls, id_hash: str) -> 'AssetId':
+        """Creates an AssetId from an id hash.
 
         Args:
-            key: A hash of a workflow that created this asset.
+            id_hash: A hash of a workflow that created this asset.
 
         Returns:
             The AssetId for the workflow result.
         """
-        return cls(f'hash:{key}')
+        return cls(f'hash:{id_hash}')
 
     def is_primary(self) -> bool:
         """Returns whether this is a primary asset."""

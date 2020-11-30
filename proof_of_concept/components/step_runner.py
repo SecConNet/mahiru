@@ -72,7 +72,7 @@ class JobRun(Thread):
             raise RuntimeError(
                     'Security violation, asked to perform an illegal job.')
 
-        keys = self._job.keys()
+        id_hashes = self._job.id_hashes()
 
         steps_to_do = {
                 step for step in self._workflow.steps.values()
@@ -80,7 +80,7 @@ class JobRun(Thread):
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
-                inputs = self._get_step_inputs(step, keys)
+                inputs = self._get_step_inputs(step, id_hashes)
                 compute_asset = self._retrieve_compute_asset(
                     step.compute_asset_id)
                 if inputs is not None:
@@ -93,11 +93,11 @@ class JobRun(Thread):
                     step_subjob = self._job.subjob(step)
                     for output_name, output_value in outputs.items():
                         result_item = '{}.{}'.format(step.name, output_name)
-                        result_key = keys[result_item]
+                        result_id_hash = id_hashes[result_item]
                         metadata = Metadata(step_subjob, result_item)
-                        asset = DataAsset(id=AssetId.from_key(result_key),
-                                          data=output_value,
-                                          metadata=metadata)
+                        asset = DataAsset(
+                                AssetId.from_id_hash(result_id_hash),
+                                output_value, metadata)
                         self._target_store.store(asset)
 
                     steps_to_do.remove(step)
@@ -151,26 +151,26 @@ class JobRun(Thread):
         return True
 
     def _get_step_inputs(
-            self, step: WorkflowStep, keys: Dict[str, str]
+            self, step: WorkflowStep, id_hashes: Dict[str, str]
             ) -> Optional[Dict[str, Any]]:
         """Find and obtain inputs for the steps.
 
         If all inputs are available, returns a dictionary mapping their
-        keys to their values. If at least one input is not yet
+        names to their values. If at least one input is not yet
         available, returns None.
 
         Args:
             step: The step to obtain inputs for.
-            keys: Keys for the workflow's items.
+            id_hashes: Id hashes for the workflow's items.
 
         Return:
-            A dictionary keyed by output name with corresponding
+            A dictionary keyed by input name with corresponding
             values.
 
         """
         step_input_data = dict()
         for inp_name, inp_source in step.inputs.items():
-            source_site, source_asset = self._source(inp_source, keys)
+            source_site, source_asset = self._source(inp_source, id_hashes)
             logger.info('Job at {} getting input {} from site {}'.format(
                 self._this_site, source_asset, source_site))
             try:
@@ -196,26 +196,27 @@ class JobRun(Thread):
         return asset
 
     def _source(
-            self, inp_source: str, keys: Dict[str, str]
+            self, inp_source: str, id_hashes: Dict[str, str]
             ) -> Tuple[str, AssetId]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
         target site which is to execute that step according to the
-        current plan, and the output name.
+        current plan, and the output (result) identifier.
 
         If the input is a reference to a workflow input, then this will
         return the site where the corresponding workflow input can be
-        found, and its id.
+        found, and its asset id.
 
         Args:
             inp_source: Source description as above.
-            keys: Keys for the workflow's items.
+            id_hashes: Id hashes for the workflow's items.
 
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
-            return self._sites[step_name], AssetId.from_key(keys[inp_source])
+            return self._sites[step_name], AssetId.from_id_hash(
+                    id_hashes[inp_source])
         else:
             dataset = self._inputs[inp_source]
             return dataset.location(), dataset

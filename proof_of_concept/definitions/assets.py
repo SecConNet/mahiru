@@ -72,13 +72,13 @@ class ComputeAsset(Asset):
 
         """
         outputs = dict()  # type: Dict[str, Any]
-        if self.id.startswith('id:ddm_ns:software.combine'):
+        if 'combine' in self.id:
             outputs['y'] = [inputs['x1'], inputs['x2']]
-        elif self.id.startswith('id:ddm_ns:software.anonymise'):
+        elif 'anonymise' in self.id:
             outputs['y'] = [x - 10 for x in inputs['x1']]
-        elif self.id.startswith('id:ddm_ns:software.aggregate'):
+        elif 'aggregate' in self.id:
             outputs['y'] = sum(inputs['x1']) / len(inputs['x1'])
-        elif self.id.startswith('id:party2_ns:software.addition'):
+        elif 'addition' in self.id:
             outputs['y'] = inputs['x1'] + inputs['x2']
         else:
             raise RuntimeError('Unknown compute asset')

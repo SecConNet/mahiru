@@ -2,7 +2,7 @@
 import logging
 from typing import Any, Dict, Optional, Type, TypeVar
 
-from proof_of_concept.definitions.assets import Identifier
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)

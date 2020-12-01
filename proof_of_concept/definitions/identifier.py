@@ -1,58 +1,48 @@
-"""Identifier for assets."""
-from typing import Any, cast, Type
+"""Identifier for various things in the DDM."""
+import re
+from typing import Any, cast, List, Type
 
 
 class Identifier(str):
-    """An id of an asset.
+    """An identifier.
 
-    An Asset id is a string of any of the following forms:
+    An Identifier is a string of any of the following forms:
 
-    1. id:<namespace>:<name>:<site>
-    2. id:<namespace>:<name>
-    3. hash:<hash>
+    1. party:<namespace>:<name>
+    2. party_collection:<namespace>:<name>
+    3. site:<namespace>:<name>
+    4. asset:<namespace>:<name>:<site_namespace>:<site_name>
+    5. asset_collection:<namespace>:<name>
+    6. result:<id_hash>
 
-    Form 1 is used for data assets and compute assets, i.e. data sets
-    and software wrapped in container images. These are primary assets,
-    meaning they are put into the DDM from the outside, and they are
-    concrete assets, meaning there's an actual object (the container
-    image) associated with them, which is stored at <site>.
+    This class also accepts a single asterisk an an identifier, as it
+    is used as a wildcard in rules.
 
-    Form 2 is used for asset collections. These are named (with an
-    Identifier) collections of assets created implicitly by
-    InAssetCollection rules. These are also considered primary assets,
-    but they are abstract, not concrete, because there is no
-    downloadable object associated with them.
-
-    Form 3 is used for results of data processing done in the DDM. The
-    hash identifying the object is derived from the workflow used to
-    create this asset. These objects are called secondary assets, as
-    they are temporary, only existing during workflow execution. Their
-    id does not specify their location.
-
+    See the Terminology section of the documentation for details.
     """
     def __new__(cls: Type['Identifier'], seq: Any) -> 'Identifier':
         """Create an Identifier.
 
         Args:
             seq: Contents, will be converted to a string using str(),
-            then used as the id.
+            then used as the identifier.
 
         Raises:
-            ValueError: If str(seq) is not a valid ID.
+            ValueError: If str(seq) is not a valid identifier.
         """
         data = str(seq)
-        if data.startswith('id:'):
-            n_parts = len(data.split(':'))
-            if n_parts not in (3, 4):
-                raise ValueError(f'Invalid asset id: {data}')
-        elif data.startswith('hash:'):
-            if not all([c in '0123456789abcdef' for c in data[5:]]):
-                raise ValueError(f'Invalid asset id: {data}')
-        elif data == '*':
-            # Valid as a wildcard in rules
-            pass
-        else:
-            raise ValueError(f'Invalid asset id type: {data}')
+
+        if data != '*':
+            parts = data.split(':')
+            if parts[0] not in cls._kinds:
+                raise ValueError(f'Invalid identifier kind {parts[0]}')
+
+            if len(parts) != cls._lengths[parts[0]]:
+                raise ValueError(f'Too few or too many parts in {data}')
+
+            for part in parts:
+                if not cls._part_regex.match(part):
+                    raise ValueError(f'Invalid identifier part {part}')
 
         return str.__new__(cls, seq)        # type: ignore
 
@@ -61,24 +51,17 @@ class Identifier(str):
         """Creates an Identifier from an id hash.
 
         Args:
-            id_hash: A hash of a workflow that created this asset.
+            id_hash: A hash of a workflow that created this result.
 
         Returns:
             The Identifier for the workflow result.
         """
-        return cls(f'hash:{id_hash}')
+        return cls(f'result:{id_hash}')
 
-    def is_primary(self) -> bool:
-        """Returns whether this is a primary asset."""
-        return self.startswith('id:')
-
-    def is_concrete(self) -> bool:
-        """Returns whether this is a concrete asset.
-
-        An asset is concrete if it is primary and has a site it can
-        be downloaded from.
-        """
-        return self.is_primary() and len(self.split(':')) == 4
+    @property
+    def parts(self) -> List[str]:
+        """Return the list of parts of this identifier."""
+        return self.split(':')
 
     def namespace(self) -> str:
         """Returns the namespace this asset is in.
@@ -89,12 +72,12 @@ class Identifier(str):
         Raises:
             RuntimeError: If this is not a primary asset.
         """
-        if not self.is_primary():
-            raise RuntimeError('Namespace of secondary asset requested')
-        return self.split(':')[1]
+        if self.parts[0] == 'result':
+            raise RuntimeError('Results do not have a namespace')
+        return self.parts[1]
 
-    def location(self) -> str:
-        """Returns the name of the site storing this asset.
+    def location(self) -> 'Identifier':
+        """Returns the d of the site storing this asset.
 
         Returns:
             A site name.
@@ -102,7 +85,17 @@ class Identifier(str):
         Raises:
             RuntimeError: If this is not a concrete asset.
         """
-        if not self.is_concrete():
+        if self.parts[0] != 'asset':
             raise RuntimeError(
-                    'Location requested of non-concrete asset {self.data}')
-        return self.split(':')[3]
+                    'Location requested of non-concrete asset {self}')
+        return Identifier(f'site:{self.parts[3]}:{self.parts[4]}')
+
+    _kinds = (
+        'party', 'party_collection', 'site', 'asset', 'asset_collection',
+        'result')
+
+    _lengths = {
+            'party': 3, 'party_collection': 3, 'site': 3, 'asset': 5,
+            'asset_collection': 3, 'result': 2}
+
+    _part_regex = re.compile('[a-zA-Z0-9_.-]*')

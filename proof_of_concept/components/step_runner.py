@@ -117,8 +117,8 @@ class JobRun(Thread):
             if self._sites[step.name] == self._this_site:
                 # check that we can access the step's inputs
                 for inp_name, inp_src in step.inputs.items():
-                    inp_id = '{}.{}'.format(step.name, inp_name)
-                    inp_perms = perms[inp_id]
+                    inp_item = '{}.{}'.format(step.name, inp_name)
+                    inp_perms = perms[inp_item]
                     if not self._policy_evaluator.may_access(
                             inp_perms, self._this_site):
                         return False
@@ -142,8 +142,8 @@ class JobRun(Thread):
 
                 # check that we can access the step's outputs
                 for outp_name in step.outputs:
-                    outp_id = '{}.{}'.format(step.name, outp_name)
-                    outp_perms = perms[outp_id]
+                    outp_item = '{}.{}'.format(step.name, outp_name)
+                    outp_perms = perms[outp_item]
                     if not self._policy_evaluator.may_access(
                             outp_perms, self._this_site):
                         return False

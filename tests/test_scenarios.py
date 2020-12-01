@@ -125,21 +125,21 @@ def test_pii(registry_server):
 
     scenario['sites'] = [
             Site(
-                name='site:party1_ns:site1', owner='party:party1_ns:party1',
+                name='site1', owner='party:party1_ns:party1',
                 namespace='party1_ns',
                 stored_data=[
                     DataAsset(
                         'asset:party1_ns:dataset.pii1:party1_ns:site1', 42)],
                 rules=scenario['rules-party1']),
             Site(
-                name='site:party2_ns:site2', owner='party:party2_ns:party2',
+                name='site2', owner='party:party2_ns:party2',
                 namespace='party2_ns',
                 stored_data=[
                     DataAsset(
                         'asset:party2_ns:dataset.pii2:party2_ns:site2', 3)],
                 rules=scenario['rules-party2']),
             Site(
-                name='site:ddm_ns:site3', owner='party:ddm_ns:ddm',
+                name='site3', owner='party:ddm_ns:ddm',
                 namespace='ddm_ns',
                 stored_data=[
                     ComputeAsset(
@@ -241,12 +241,12 @@ def test_saas_with_data(registry_server):
 
     scenario['sites'] = [
             Site(
-                'site:party1_ns:site1', 'party:party1_ns:party1', 'party1_ns',
+                'site1', 'party:party1_ns:party1', 'party1_ns',
                 [DataAsset(
                     'asset:party1_ns:dataset.data1:party1_ns:site1', 42)],
                 scenario['rules-party1']),
             Site(
-                'site:party2_ns:site2', 'party:party2_ns:party2', 'party2_ns',
+                'site2', 'party:party2_ns:party2', 'party2_ns',
                 [DataAsset(
                     'asset:party2_ns:dataset.data2:party2_ns:site2', 3),
                  ComputeAsset(

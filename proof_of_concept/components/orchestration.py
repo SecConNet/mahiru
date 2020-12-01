@@ -83,7 +83,8 @@ class WorkflowPlanner:
         sorted_steps = self._sort_workflow(job.workflow)
         plan = [''] * len(sorted_steps)
 
-        def plan_from(cur_step_idx: int) -> Generator[List[str], None, None]:
+        def plan_from(
+                cur_step_idx: int) -> Generator[List[Identifier], None, None]:
             """Make remaining plan, starting at cur_step.
 
             Yields any complete plans found.
@@ -94,7 +95,7 @@ class WorkflowPlanner:
                 if may_run(permissions, cur_step, site):
                     plan[cur_step_idx] = site
                     if cur_step_idx == len(plan) - 1:
-                        yield copy(plan)
+                        yield list(map(Identifier, plan))
                     else:
                         yield from plan_from(cur_step_idx + 1)
 
@@ -152,8 +153,8 @@ class WorkflowExecutor:
             A dictionary of results, indexed by workflow output name.
         """
         # launch all the runners
-        for site_name in set(submission.plan.step_sites.values()):
-            self._site_rest_client.submit_job(site_name, submission)
+        for site_id in set(submission.plan.step_sites.values()):
+            self._site_rest_client.submit_job(site_id, submission)
 
         # get workflow outputs whenever they're available
         wf = submission.job.workflow
@@ -194,11 +195,11 @@ class WorkflowOrchestrator:
         self._executor = WorkflowExecutor(site_rest_client)
 
     def execute(
-            self, submitter: str, job: Job) -> Dict[str, Any]:
+            self, submitter: Identifier, job: Job) -> Dict[str, Any]:
         """Plans and executes the given workflow.
 
         Args:
-            submitter: Name of the site to submit this job.
+            submitter: The site to submit this job.
             job: The job to execute.
         """
         plans = self._planner.make_plans(submitter, job)

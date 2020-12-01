@@ -28,13 +28,13 @@ class SiteRestClient:
         self._site_validator = site_validator
         self._registry_client = registry_client
 
-    def retrieve_asset(self, site_name: str, asset_id: Identifier
+    def retrieve_asset(self, site_id: Identifier, asset_id: Identifier
                        ) -> Asset:
         """Obtains an asset from a store."""
         try:
-            site = self._registry_client.get_site_by_name(site_name)
+            site = self._registry_client.get_site_by_id(site_id)
         except KeyError:
-            raise RuntimeError(f'Site or store at site {site_name} not found')
+            raise RuntimeError(f'Site or store at site {site_id} not found')
 
         if site.store is not None:
             safe_asset_id = quote(asset_id, safe='')
@@ -50,22 +50,23 @@ class SiteRestClient:
             self._site_validator.validate('Asset', asset_json)
             return deserialize(Asset, asset_json)
 
-        raise ValueError(f'Site {site_name} does not have a store')
+        raise ValueError(f'Site {site_id} does not have a store')
 
-    def submit_job(self, site_name: str, submission: JobSubmission) -> None:
+    def submit_job(
+            self, site_id: Identifier, submission: JobSubmission) -> None:
         """Submits a job for execution to a local runner.
 
         Args:
-            site_name: The site to submit to.
+            site_id: The site to submit to.
             submission: The job submision to send.
 
         """
         try:
-            site = self._registry_client.get_site_by_name(site_name)
+            site = self._registry_client.get_site_by_id(site_id)
         except KeyError:
-            raise RuntimeError(f'Site or runner at site {site_name} not found')
+            raise RuntimeError(f'Site or runner at site {site_id} not found')
 
         if site.runner:
             requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
         else:
-            raise ValueError(f'Site {site_name} does not have a runner')
+            raise ValueError(f'Site {site_id} does not have a runner')

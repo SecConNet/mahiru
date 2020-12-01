@@ -59,16 +59,16 @@ class ComputeAsset(Asset):
     def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Run compute step.
 
-         For now this executes one of several simple
-         algorithms depending on the name attribute.
+        For now this executes one of several simple
+        algorithms depending on the id attribute.
 
         Args:
             inputs: inputs for the compute step, a dictionary keyed by
-            variable name with corresponding values.
+                input name with corresponding values.
 
         Returns:
             outputs: outputs for the compute step, a dictionary keyed by
-                variable name with corresponding values.
+                output name with corresponding values.
 
         """
         outputs = dict()  # type: Dict[str, Any]

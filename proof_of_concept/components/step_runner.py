@@ -26,7 +26,7 @@ class JobRun(Thread):
     """
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
-            this_site: str,
+            this_site: Identifier,
             registry_client: RegistryClient,
             site_rest_client: SiteRestClient,
             submission: JobSubmission,
@@ -197,7 +197,7 @@ class JobRun(Thread):
 
     def _source(
             self, inp_source: str, id_hashes: Dict[str, str]
-            ) -> Tuple[str, Identifier]:
+            ) -> Tuple[Identifier, Identifier]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
@@ -225,7 +225,7 @@ class JobRun(Thread):
 class StepRunner(IStepRunner):
     """A service for running steps of a workflow at a given site."""
     def __init__(
-            self, site: str,
+            self, site: Identifier,
             registry_client: RegistryClient,
             site_rest_client: SiteRestClient,
             policy_evaluator: PolicyEvaluator,

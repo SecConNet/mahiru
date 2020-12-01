@@ -289,7 +289,7 @@ class Plan:
                 site's id.
 
     """
-    def __init__(self, step_sites: Dict[str, str]) -> None:
+    def __init__(self, step_sites: Dict[str, Identifier]) -> None:
         """Create a plan.
 
         Args:

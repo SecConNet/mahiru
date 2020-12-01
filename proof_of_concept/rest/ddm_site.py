@@ -8,7 +8,7 @@ from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
 import ruamel.yaml as yaml
 
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.workflows import JobSubmission
@@ -53,7 +53,7 @@ class AssetAccessHandler:
                     f' {request.params["requester"]}')
             try:
                 asset = self._store.retrieve(
-                        AssetId(asset_id), request.params['requester'])
+                        Identifier(asset_id), request.params['requester'])
                 response.status = HTTP_200
                 response.media = serialize(asset)
             except KeyError:

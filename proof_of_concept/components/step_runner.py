@@ -4,7 +4,7 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, Optional, Tuple
 
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
         ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
@@ -96,7 +96,7 @@ class JobRun(Thread):
                         result_id_hash = id_hashes[result_item]
                         metadata = Metadata(step_subjob, result_item)
                         asset = DataAsset(
-                                AssetId.from_id_hash(result_id_hash),
+                                Identifier.from_id_hash(result_id_hash),
                                 output_value, metadata)
                         self._target_store.store(asset)
 
@@ -188,7 +188,7 @@ class JobRun(Thread):
         return step_input_data
 
     def _retrieve_compute_asset(
-            self, compute_asset_id: AssetId) -> ComputeAsset:
+            self, compute_asset_id: Identifier) -> ComputeAsset:
         asset = self._site_rest_client.retrieve_asset(
                 compute_asset_id.location(), compute_asset_id)
         if not isinstance(asset, ComputeAsset):
@@ -197,7 +197,7 @@ class JobRun(Thread):
 
     def _source(
             self, inp_source: str, id_hashes: Dict[str, str]
-            ) -> Tuple[str, AssetId]:
+            ) -> Tuple[str, Identifier]:
         """Extracts the source from a source description.
 
         If the input is of the form 'step.output', this will return the
@@ -215,7 +215,7 @@ class JobRun(Thread):
         """
         if '.' in inp_source:
             step_name, output_name = inp_source.split('.')
-            return self._sites[step_name], AssetId.from_id_hash(
+            return self._sites[step_name], Identifier.from_id_hash(
                     id_hashes[inp_source])
         else:
             dataset = self._inputs[inp_source]

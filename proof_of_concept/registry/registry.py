@@ -2,7 +2,7 @@
 import logging
 from typing import Any, Dict, Optional, Type, TypeVar
 
-from proof_of_concept.definitions.assets import AssetId
+from proof_of_concept.definitions.assets import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
@@ -25,7 +25,7 @@ class Registry:
     """
     def __init__(self) -> None:
         """Create a new registry."""
-        self._asset_locations = dict()           # type: Dict[AssetId, str]
+        self._asset_locations = dict()           # type: Dict[Identifier, str]
 
         archive = ReplicableArchive[RegisteredObject]()
         self.store = RegistryStore(archive, 0.1)

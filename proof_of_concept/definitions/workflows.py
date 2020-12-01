@@ -2,7 +2,7 @@
 from hashlib import sha256
 from typing import Dict, List, Mapping, Set, Tuple, Union
 
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 
 
 class WorkflowStep:
@@ -10,7 +10,7 @@ class WorkflowStep:
     def __init__(
             self, name: str,
             inputs: Dict[str, str], outputs: List[str],
-            compute_asset_id: Union[str, AssetId]
+            compute_asset_id: Union[str, Identifier]
             ) -> None:
         """Create a WorkflowStep.
 
@@ -25,8 +25,8 @@ class WorkflowStep:
         self.name = name
         self.inputs = inputs
         self.outputs = outputs
-        if not isinstance(compute_asset_id, AssetId):
-            compute_asset_id = AssetId(compute_asset_id)
+        if not isinstance(compute_asset_id, Identifier):
+            compute_asset_id = Identifier(compute_asset_id)
         self.compute_asset_id = compute_asset_id
 
         self._validate()
@@ -167,7 +167,8 @@ class Workflow:
 class Job:
     """Represents a job to the system from a user."""
     def __init__(
-            self, workflow: Workflow, inputs: Mapping[str, Union[str, AssetId]]
+            self, workflow: Workflow,
+            inputs: Mapping[str, Union[str, Identifier]]
             ) -> None:
         """Create a job.
 
@@ -178,7 +179,7 @@ class Job:
         """
         self.workflow = workflow
         self.inputs = {
-                inp: aid if isinstance(aid, AssetId) else AssetId(aid)
+                inp: aid if isinstance(aid, Identifier) else Identifier(aid)
                 for inp, aid in inputs.items()}
 
     def __repr__(self) -> str:
@@ -187,7 +188,7 @@ class Job:
                 self.inputs, self.workflow)
 
     @staticmethod
-    def niljob(asset_id: AssetId) -> 'Job':
+    def niljob(asset_id: Identifier) -> 'Job':
         """Returns a zero-step job for a dataset.
 
         Args:

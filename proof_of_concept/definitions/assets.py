@@ -1,7 +1,7 @@
 """Classes for describing assets."""
 from typing import Any, Dict, Optional, Union
 
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.workflows import Job
 
 
@@ -31,7 +31,7 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
-    def __init__(self, id: Union[str, AssetId], data: Any,
+    def __init__(self, id: Union[str, Identifier], data: Any,
                  metadata: Optional[Metadata] = None):
         """Constructor.
 
@@ -44,8 +44,8 @@ class Asset:
                 workflow.
 
         """
-        if not isinstance(id, AssetId):
-            id = AssetId(id)
+        if not isinstance(id, Identifier):
+            id = Identifier(id)
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
         self.id = id

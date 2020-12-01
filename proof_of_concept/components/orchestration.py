@@ -5,7 +5,7 @@ from time import sleep
 from typing import Any, Dict, Generator, List
 
 from proof_of_concept.components.registry_client import RegistryClient
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.workflows import (
         Job, JobSubmission, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
@@ -166,7 +166,7 @@ class WorkflowExecutor:
                     src_site = submission.plan.step_sites[src_step_name]
                     outp_id_hash = id_hashes[wf_outp_name]
                     try:
-                        asset_id = AssetId.from_id_hash(outp_id_hash)
+                        asset_id = Identifier.from_id_hash(outp_id_hash)
                         asset = self._site_rest_client.retrieve_asset(
                                 src_site, asset_id)
                         results[wf_outp_name] = asset.data

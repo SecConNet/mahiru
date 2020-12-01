@@ -1,7 +1,7 @@
 """Classes representing rules."""
 from typing import Union
 
-from proof_of_concept.definitions.assets import AssetId
+from proof_of_concept.definitions.assets import Identifier
 from proof_of_concept.definitions.policy import Rule
 
 
@@ -12,7 +12,8 @@ class InAssetCollection(Rule):
     the Asset.
     """
     def __init__(
-            self, asset: Union[str, AssetId], collection: Union[str, AssetId]
+            self, asset: Union[str, Identifier],
+            collection: Union[str, Identifier]
             ) -> None:
         """Create an InAssetCollection rule.
 
@@ -20,9 +21,11 @@ class InAssetCollection(Rule):
             asset: The asset to put into the collection.
             collection: The collection to put it into.
         """
-        self.asset = asset if isinstance(asset, AssetId) else AssetId(asset)
-        if not isinstance(collection, AssetId):
-            collection = AssetId(collection)
+        if not isinstance(asset, Identifier):
+            asset = Identifier(asset)
+        self.asset = asset
+        if not isinstance(collection, Identifier):
+            collection = Identifier(collection)
         self.collection = collection
 
     def __repr__(self) -> str:
@@ -43,7 +46,7 @@ class InAssetCollection(Rule):
 
 class InPartyCollection(Rule):
     """Says that Party party is in PartyCollection collection."""
-    def __init__(self, party: str, collection: Union[str, AssetId]) -> None:
+    def __init__(self, party: str, collection: Union[str, Identifier]) -> None:
         """Create an InPartyCollection rule.
 
         Args:
@@ -51,8 +54,8 @@ class InPartyCollection(Rule):
             collection: The collection it is in.
         """
         self.party = party
-        if not isinstance(collection, AssetId):
-            collection = AssetId(collection)
+        if not isinstance(collection, Identifier):
+            collection = Identifier(collection)
         self.collection = collection
 
     def __repr__(self) -> str:
@@ -73,7 +76,7 @@ class InPartyCollection(Rule):
 
 class MayAccess(Rule):
     """Says that Site site may access Asset asset."""
-    def __init__(self, site: str, asset: Union[str, AssetId]) -> None:
+    def __init__(self, site: str, asset: Union[str, Identifier]) -> None:
         """Create a MayAccess rule.
 
         Args:
@@ -81,7 +84,9 @@ class MayAccess(Rule):
             asset: The asset that may be accessed.
         """
         self.site = site
-        self.asset = asset if isinstance(asset, AssetId) else AssetId(asset)
+        if not isinstance(asset, Identifier):
+            asset = Identifier(asset)
+        self.asset = asset
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
@@ -108,9 +113,9 @@ class ResultOfIn(Rule):
     """
     def __init__(
             self,
-            data_asset: Union[str, AssetId],
-            compute_asset: Union[str, AssetId],
-            collection: AssetId
+            data_asset: Union[str, Identifier],
+            compute_asset: Union[str, Identifier],
+            collection: Identifier
             ) -> None:
         """Create a ResultOfIn rule.
 
@@ -119,11 +124,11 @@ class ResultOfIn(Rule):
             compute_asset: The compute asset used to process the data.
             collection: The output collection.
         """
-        if not isinstance(data_asset, AssetId):
-            data_asset = AssetId(data_asset)
+        if not isinstance(data_asset, Identifier):
+            data_asset = Identifier(data_asset)
 
-        if not isinstance(compute_asset, AssetId):
-            compute_asset = AssetId(compute_asset)
+        if not isinstance(compute_asset, Identifier):
+            compute_asset = Identifier(compute_asset)
 
         self.data_asset = data_asset
         self.compute_asset = compute_asset

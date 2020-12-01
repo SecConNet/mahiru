@@ -2,7 +2,7 @@
 from typing import Any, cast, Type
 
 
-class AssetId(str):
+class Identifier(str):
     """An id of an asset.
 
     An Asset id is a string of any of the following forms:
@@ -18,7 +18,7 @@ class AssetId(str):
     image) associated with them, which is stored at <site>.
 
     Form 2 is used for asset collections. These are named (with an
-    AssetId) collections of assets created implicitly by
+    Identifier) collections of assets created implicitly by
     InAssetCollection rules. These are also considered primary assets,
     but they are abstract, not concrete, because there is no
     downloadable object associated with them.
@@ -30,8 +30,8 @@ class AssetId(str):
     id does not specify their location.
 
     """
-    def __new__(cls: Type['AssetId'], seq: Any) -> 'AssetId':
-        """Create an AssetId.
+    def __new__(cls: Type['Identifier'], seq: Any) -> 'Identifier':
+        """Create an Identifier.
 
         Args:
             seq: Contents, will be converted to a string using str(),
@@ -57,14 +57,14 @@ class AssetId(str):
         return str.__new__(cls, seq)        # type: ignore
 
     @classmethod
-    def from_id_hash(cls, id_hash: str) -> 'AssetId':
-        """Creates an AssetId from an id hash.
+    def from_id_hash(cls, id_hash: str) -> 'Identifier':
+        """Creates an Identifier from an id hash.
 
         Args:
             id_hash: A hash of a workflow that created this asset.
 
         Returns:
-            The AssetId for the workflow result.
+            The Identifier for the workflow result.
         """
         return cls(f'hash:{id_hash}')
 

@@ -54,8 +54,8 @@ class WorkflowPlanner:
             """Check whether the given site may run the given step."""
             # check each input
             for inp_name in step.inputs:
-                inp_key = '{}.{}'.format(step.name, inp_name)
-                inp_perms = permissions[inp_key]
+                inp_item = '{}.{}'.format(step.name, inp_name)
+                inp_perms = permissions[inp_item]
                 if not self._policy_evaluator.may_access(inp_perms, site):
                     return False
 
@@ -66,8 +66,8 @@ class WorkflowPlanner:
 
             # check each output
             for outp_name in step.outputs:
-                outp_key = '{}.{}'.format(step.name, outp_name)
-                outp_perms = permissions[outp_key]
+                outp_item = '{}.{}'.format(step.name, outp_name)
+                outp_perms = permissions[outp_item]
                 if not self._policy_evaluator.may_access(outp_perms, site):
                     return False
 

@@ -244,11 +244,11 @@ class PermissionCalculator:
                 available.
             """
             for inp, inp_source in step.inputs.items():
-                inp_key = '{}.{}'.format(step.name, inp)
-                if inp_key not in permissions:
+                inp_item = '{}.{}'.format(step.name, inp)
+                if inp_item not in permissions:
                     if inp_source not in permissions:
                         raise InputNotAvailable()
-                    permissions[inp_key] = permissions[inp_source]
+                    permissions[inp_item] = permissions[inp_source]
 
         def calc_step_permissions(
                 permissions: Dict[str, Permissions],
@@ -278,15 +278,15 @@ class PermissionCalculator:
             """
             input_perms = list()     # type: List[Permissions]
             for inp in step.inputs:
-                inp_key = '{}.{}'.format(step.name, inp)
-                input_perms.append(permissions[inp_key])
+                inp_item = '{}.{}'.format(step.name, inp)
+                input_perms.append(permissions[inp_item])
 
             perms = self._policy_evaluator.propagate_permissions(
                         input_perms, step.compute_asset_id)
 
             for output in step.outputs:
-                output_key = '{}.{}'.format(step.name, output)
-                permissions[output_key] = perms
+                output_item = '{}.{}'.format(step.name, output)
+                permissions[output_item] = perms
 
         def set_workflow_outputs_permissions(
                 permissions: Dict[str, Permissions],

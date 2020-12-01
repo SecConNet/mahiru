@@ -30,7 +30,7 @@ class SiteRestClient:
 
     def retrieve_asset(self, site_name: str, asset_id: AssetId
                        ) -> Asset:
-        """Obtains a data item from a store."""
+        """Obtains an asset from a store."""
         try:
             site = self._registry_client.get_site_by_name(site_name)
         except KeyError:

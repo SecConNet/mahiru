@@ -77,7 +77,7 @@ class Identifier(str):
         return self.parts[1]
 
     def location(self) -> 'Identifier':
-        """Returns the d of the site storing this asset.
+        """Returns the identifier of the site storing this asset.
 
         Returns:
             A site name.

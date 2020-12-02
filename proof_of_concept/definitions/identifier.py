@@ -15,7 +15,7 @@ class Identifier(str):
     5. asset_collection:<namespace>:<name>
     6. result:<id_hash>
 
-    This class also accepts a single asterisk an an identifier, as it
+    This class also accepts a single asterisk as an identifier, as it
     is used as a wildcard in rules.
 
     See the Terminology section of the documentation for details.

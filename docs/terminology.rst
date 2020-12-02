@@ -9,10 +9,10 @@ There are different kinds of objects in the DDM which need to be distinguished
 from other objects of the same kind. So they need some kind of unique
 identifier.
 
-Identifiers in the DDM are strings consisting of colon-separated components. The
-first component is a fixed string designating the type of object being
-identified. One or more components follow depending on the type (see below).
-Components may contain lower- and uppercase letters, digits, underscores,
+Identifiers in the DDM are strings consisting of colon-separated segments. The
+first segment is a fixed string designating the type of object being
+identified. One or more segments follow depending on the type (see below).
+Segments may contain lower- and uppercase letters, digits, underscores,
 dashes, and periods.
 
 Here are some of those kinds of objects and how they are identified.
@@ -24,8 +24,8 @@ Party
 
     party:<namespace>:<name>
 
-  The ``<namespace>`` component is expected to be a DNS (sub-)domain, while
-  ``<name>`` can be any valid component.
+  The ``<namespace>`` segment is expected to be a DNS (sub-)domain, while
+  ``<name>`` can be any valid segment.
 
 Party Collection
   A party collection is a group of parties. It is used to organize parties and
@@ -34,8 +34,8 @@ Party Collection
 
     party_collection:<namespace>:<name>
 
-  The ``<namespace>`` component is expected to be a DNS (sub-)domain, while
-  ``<name>`` can be any valid component.
+  The ``<namespace>`` segment is expected to be a DNS (sub-)domain, while
+  ``<name>`` can be any valid segment.
 
 Site
   A site is a running software installation which takes part in the DDM. Sites
@@ -44,16 +44,16 @@ Site
 
     site:<namespace>:<name>
 
-  The ``<namespace>`` component is expected to be a DNS (sub-)domain, while
-  ``<name>`` can be any valid component.
+  The ``<namespace>`` segment is expected to be a DNS (sub-)domain, while
+  ``<name>`` can be any valid segment.
 
 Asset
-  An asset is either a data set or a software component. Assets are identified
+  An asset is either a data set or a software segment. Assets are identified
   using an Identifier of the form::
 
     asset:<namespace>:<name>:<site_namespace>:<site_name>
 
-  The ``<namespace>`` and ``<name>`` components are as above.
+  The ``<namespace>`` and ``<name>`` segments are as above.
   ``<site_namespace>`` and ``<site_name>`` refer to the site from which the
   asset is available, ``site:<site_namespace>:<site_name>``.
 
@@ -64,8 +64,8 @@ AssetCollection
 
     asset_collection:<namespace>:<name>
 
-  The ``<namespace>`` component is expected to be a DNS (sub-)domain, while
-  ``<name>`` can be any valid component.
+  The ``<namespace>`` segment is expected to be a DNS (sub-)domain, while
+  ``<name>`` can be any valid segment.
 
 Result
   A result is a data set that is an intermediate or final result of processing

@@ -33,16 +33,16 @@ class Identifier(str):
         data = str(seq)
 
         if data != '*':
-            parts = data.split(':')
-            if parts[0] not in cls._kinds:
-                raise ValueError(f'Invalid identifier kind {parts[0]}')
+            segments = data.split(':')
+            if segments[0] not in cls._kinds:
+                raise ValueError(f'Invalid identifier kind {segments[0]}')
 
-            if len(parts) != cls._lengths[parts[0]]:
-                raise ValueError(f'Too few or too many parts in {data}')
+            if len(segments) != cls._lengths[segments[0]]:
+                raise ValueError(f'Too few or too many segments in {data}')
 
-            for part in parts:
-                if not cls._part_regex.match(part):
-                    raise ValueError(f'Invalid identifier part {part}')
+            for segment in segments:
+                if not cls._segment_regex.match(segment):
+                    raise ValueError(f'Invalid identifier segment {segment}')
 
         return str.__new__(cls, seq)        # type: ignore
 
@@ -59,8 +59,8 @@ class Identifier(str):
         return cls(f'result:{id_hash}')
 
     @property
-    def parts(self) -> List[str]:
-        """Return the list of parts of this identifier."""
+    def segments(self) -> List[str]:
+        """Return the list of segments of this identifier."""
         return self.split(':')
 
     def namespace(self) -> str:
@@ -72,9 +72,9 @@ class Identifier(str):
         Raises:
             RuntimeError: If this is not a primary asset.
         """
-        if self.parts[0] == 'result':
+        if self.segments[0] == 'result':
             raise RuntimeError('Results do not have a namespace')
-        return self.parts[1]
+        return self.segments[1]
 
     def location(self) -> 'Identifier':
         """Returns the identifier of the site storing this asset.
@@ -85,10 +85,10 @@ class Identifier(str):
         Raises:
             RuntimeError: If this is not a concrete asset.
         """
-        if self.parts[0] != 'asset':
+        if self.segments[0] != 'asset':
             raise RuntimeError(
                     'Location requested of non-concrete asset {self}')
-        return Identifier(f'site:{self.parts[3]}:{self.parts[4]}')
+        return Identifier(f'site:{self.segments[3]}:{self.segments[4]}')
 
     _kinds = (
         'party', 'party_collection', 'site', 'asset', 'asset_collection',
@@ -98,4 +98,4 @@ class Identifier(str):
             'party': 3, 'party_collection': 3, 'site': 3, 'asset': 5,
             'asset_collection': 3, 'result': 2}
 
-    _part_regex = re.compile('[a-zA-Z0-9_.-]*')
+    _segment_regex = re.compile('[a-zA-Z0-9_.-]*')

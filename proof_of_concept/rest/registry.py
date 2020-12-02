@@ -10,6 +10,7 @@ from falcon import (
         Response)
 import ruamel.yaml as yaml
 
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.registry.registry import Registry
@@ -60,17 +61,17 @@ class PartyRegistrationHandler:
             response.body = 'Party already exists'
 
     def on_delete(
-            self, request: Request, response: Response, name: str) -> None:
+            self, request: Request, response: Response, id: str) -> None:
         """Handle a party deregistration request.
 
         Args:
             request: The submitted request.
             response: A response object to configure
-            name: Name of the party to deregister.
+            id: Identifier of the party to deregister.
 
         """
         try:
-            self._registry.deregister_party(name)
+            self._registry.deregister_party(Identifier(id))
             response.status = HTTP_200
             response.body = 'Deleted'
         except KeyError as e:
@@ -115,17 +116,17 @@ class SiteRegistrationHandler:
             response.body = 'Site already exists'
 
     def on_delete(
-            self, request: Request, response: Response, name: str) -> None:
+            self, request: Request, response: Response, id: str) -> None:
         """Handle a site deregistration request.
 
         Args:
             request: The submitted request.
             response: A response object to configure.
-            name: Name of the site to deregister.
+            id: Identifier of the site to deregister.
 
         """
         try:
-            self._registry.deregister_site(name)
+            self._registry.deregister_site(Identifier(id))
             response.status = HTTP_200
             response.body = 'Deleted'
         except KeyError as e:
@@ -158,11 +159,11 @@ class RegistryRestApi:
 
         party_registration = PartyRegistrationHandler(registry, validator)
         self.app.add_route('/parties', party_registration)
-        self.app.add_route('/parties/{name}', party_registration)
+        self.app.add_route('/parties/{id}', party_registration)
 
         site_registration = SiteRegistrationHandler(registry, validator)
         self.app.add_route('/sites', site_registration)
-        self.app.add_route('/sites/{name}', site_registration)
+        self.app.add_route('/sites/{id}', site_registration)
 
         registry_replication = ReplicationHandler[RegisteredObject](
                 registry.store)

@@ -5,7 +5,7 @@ from time import sleep
 from typing import Any, Dict, Generator, List
 
 from proof_of_concept.components.registry_client import RegistryClient
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.workflows import (
         Job, JobSubmission, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
@@ -54,8 +54,8 @@ class WorkflowPlanner:
             """Check whether the given site may run the given step."""
             # check each input
             for inp_name in step.inputs:
-                inp_key = '{}.{}'.format(step.name, inp_name)
-                inp_perms = permissions[inp_key]
+                inp_item = '{}.{}'.format(step.name, inp_name)
+                inp_perms = permissions[inp_item]
                 if not self._policy_evaluator.may_access(inp_perms, site):
                     return False
 
@@ -66,8 +66,8 @@ class WorkflowPlanner:
 
             # check each output
             for outp_name in step.outputs:
-                outp_key = '{}.{}'.format(step.name, outp_name)
-                outp_perms = permissions[outp_key]
+                outp_item = '{}.{}'.format(step.name, outp_name)
+                outp_perms = permissions[outp_item]
                 if not self._policy_evaluator.may_access(outp_perms, site):
                     return False
 
@@ -83,7 +83,8 @@ class WorkflowPlanner:
         sorted_steps = self._sort_workflow(job.workflow)
         plan = [''] * len(sorted_steps)
 
-        def plan_from(cur_step_idx: int) -> Generator[List[str], None, None]:
+        def plan_from(
+                cur_step_idx: int) -> Generator[List[Identifier], None, None]:
             """Make remaining plan, starting at cur_step.
 
             Yields any complete plans found.
@@ -94,7 +95,7 @@ class WorkflowPlanner:
                 if may_run(permissions, cur_step, site):
                     plan[cur_step_idx] = site
                     if cur_step_idx == len(plan) - 1:
-                        yield copy(plan)
+                        yield list(map(Identifier, plan))
                     else:
                         yield from plan_from(cur_step_idx + 1)
 
@@ -152,21 +153,21 @@ class WorkflowExecutor:
             A dictionary of results, indexed by workflow output name.
         """
         # launch all the runners
-        for site_name in set(submission.plan.step_sites.values()):
-            self._site_rest_client.submit_job(site_name, submission)
+        for site_id in set(submission.plan.step_sites.values()):
+            self._site_rest_client.submit_job(site_id, submission)
 
         # get workflow outputs whenever they're available
         wf = submission.job.workflow
-        keys = submission.job.keys()
+        id_hashes = submission.job.id_hashes()
         results = dict()    # type: Dict[str, Any]
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
                     src_site = submission.plan.step_sites[src_step_name]
-                    outp_key = keys[wf_outp_name]
+                    outp_id_hash = id_hashes[wf_outp_name]
                     try:
-                        asset_id = AssetId.from_key(outp_key)
+                        asset_id = Identifier.from_id_hash(outp_id_hash)
                         asset = self._site_rest_client.retrieve_asset(
                                 src_site, asset_id)
                         results[wf_outp_name] = asset.data
@@ -194,11 +195,11 @@ class WorkflowOrchestrator:
         self._executor = WorkflowExecutor(site_rest_client)
 
     def execute(
-            self, submitter: str, job: Job) -> Dict[str, Any]:
+            self, submitter: Identifier, job: Job) -> Dict[str, Any]:
         """Plans and executes the given workflow.
 
         Args:
-            submitter: Name of the site to submit this job.
+            submitter: The site to submit this job.
             job: The job to execute.
         """
         plans = self._planner.make_plans(submitter, job)

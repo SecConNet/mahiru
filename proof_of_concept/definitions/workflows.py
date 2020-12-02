@@ -2,7 +2,7 @@
 from hashlib import sha256
 from typing import Dict, List, Mapping, Set, Tuple, Union
 
-from proof_of_concept.definitions.asset_id import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 
 
 class WorkflowStep:
@@ -10,7 +10,7 @@ class WorkflowStep:
     def __init__(
             self, name: str,
             inputs: Dict[str, str], outputs: List[str],
-            compute_asset_id: Union[str, AssetId]
+            compute_asset_id: Union[str, Identifier]
             ) -> None:
         """Create a WorkflowStep.
 
@@ -25,8 +25,8 @@ class WorkflowStep:
         self.name = name
         self.inputs = inputs
         self.outputs = outputs
-        if not isinstance(compute_asset_id, AssetId):
-            compute_asset_id = AssetId(compute_asset_id)
+        if not isinstance(compute_asset_id, Identifier):
+            compute_asset_id = Identifier(compute_asset_id)
         self.compute_asset_id = compute_asset_id
 
         self._validate()
@@ -167,7 +167,8 @@ class Workflow:
 class Job:
     """Represents a job to the system from a user."""
     def __init__(
-            self, workflow: Workflow, inputs: Mapping[str, Union[str, AssetId]]
+            self, workflow: Workflow,
+            inputs: Mapping[str, Union[str, Identifier]]
             ) -> None:
         """Create a job.
 
@@ -178,7 +179,7 @@ class Job:
         """
         self.workflow = workflow
         self.inputs = {
-                inp: aid if isinstance(aid, AssetId) else AssetId(aid)
+                inp: aid if isinstance(aid, Identifier) else Identifier(aid)
                 for inp, aid in inputs.items()}
 
     def __repr__(self) -> str:
@@ -187,15 +188,15 @@ class Job:
                 self.inputs, self.workflow)
 
     @staticmethod
-    def niljob(key: AssetId) -> 'Job':
+    def niljob(asset_id: Identifier) -> 'Job':
         """Returns a zero-step job for a dataset.
 
         Args:
-            key: The key identifying the dataset.
+            asset_id: The dataset to represent.
 
         The job will have no steps, and a single input named `dataset`.
         """
-        return Job(Workflow(['dataset'], {}, []), {'dataset': key})
+        return Job(Workflow(['dataset'], {}, []), {'dataset': asset_id})
 
     def subjob(
             self, step: WorkflowStep) -> 'Job':
@@ -215,67 +216,67 @@ class Job:
                 if wf_inp in sub_wf.inputs}
         return Job(sub_wf, inputs)
 
-    def keys(self) -> Dict[str, str]:
-        """Calculates hash-keys of all items in the job's workflow.
+    def id_hashes(self) -> Dict[str, str]:
+        """Calculates id hashes of all items in the job's workflow.
 
         Returns:
-            A dict mapping workflow items to their key.
+            A dict mapping workflow items to their id hash.
         """
         class DependencyMissing(RuntimeError):
             pass
 
-        def prop_input_keys(item_keys: Dict[str, str]) -> None:
+        def prop_input_id_hashes(item_id_hashes: Dict[str, str]) -> None:
             for inp_name, inp_src in self.inputs.items():
-                inp_hash = sha256()
-                inp_hash.update(inp_src.encode('utf-8'))
-                item_keys[inp_name] = inp_hash.hexdigest()
+                inp_id_hash = sha256()
+                inp_id_hash.update(inp_src.encode('utf-8'))
+                item_id_hashes[inp_name] = inp_id_hash.hexdigest()
 
         def prop_input_sources(
-                item_keys: Dict[str, str], step: WorkflowStep) -> None:
+                item_id_hashes: Dict[str, str], step: WorkflowStep) -> None:
             for inp_name, inp_src in step.inputs.items():
                 inp_item = '{}.{}'.format(step.name, inp_name)
-                if inp_item not in item_keys:
-                    if inp_src not in item_keys:
+                if inp_item not in item_id_hashes:
+                    if inp_src not in item_id_hashes:
                         raise DependencyMissing()
-                    item_keys[inp_item] = item_keys[inp_src]
+                    item_id_hashes[inp_item] = item_id_hashes[inp_src]
 
         def calc_step_outputs(
-                item_keys: Dict[str, str], step: WorkflowStep) -> None:
+                item_id_hashes: Dict[str, str], step: WorkflowStep) -> None:
             step_hash = sha256()
             for inp_name in sorted(step.inputs):
                 inp_item = '{}.{}'.format(step.name, inp_name)
                 step_hash.update(
-                        item_keys[inp_item].encode('utf-8'))
+                        item_id_hashes[inp_item].encode('utf-8'))
             step_hash.update(
                     step.compute_asset_id.encode('utf-8'))
             for outp_name in step.outputs:
                 outp_item = '{}.{}'.format(step.name, outp_name)
                 outp_hash = step_hash.copy()
                 outp_hash.update(outp_name.encode('utf-8'))
-                item_keys[outp_item] = outp_hash.hexdigest()
+                item_id_hashes[outp_item] = outp_hash.hexdigest()
 
-        def set_workflow_outputs_keys(
-                item_keys: Dict[str, str],
+        def set_workflow_outputs_id_hashes(
+                item_id_hashes: Dict[str, str],
                 outputs: Dict[str, str]) -> None:
             for outp_name, outp_src in outputs.items():
-                item_keys[outp_name] = item_keys[outp_src]
+                item_id_hashes[outp_name] = item_id_hashes[outp_src]
 
-        item_keys = dict()      # type: Dict[str, str]
-        prop_input_keys(item_keys)
+        item_id_hashes = dict()      # type: Dict[str, str]
+        prop_input_id_hashes(item_id_hashes)
 
         steps_done = set()      # type: Set[str]
         while len(steps_done) < len(self.workflow.steps):
             for step in self.workflow.steps.values():
                 if step.name not in steps_done:
                     try:
-                        prop_input_sources(item_keys, step)
-                        calc_step_outputs(item_keys, step)
+                        prop_input_sources(item_id_hashes, step)
+                        calc_step_outputs(item_id_hashes, step)
                         steps_done.add(step.name)
                     except DependencyMissing:
                         continue
 
-        set_workflow_outputs_keys(item_keys, self.workflow.outputs)
-        return item_keys
+        set_workflow_outputs_id_hashes(item_id_hashes, self.workflow.outputs)
+        return item_id_hashes
 
 
 class Plan:
@@ -288,7 +289,7 @@ class Plan:
                 site's id.
 
     """
-    def __init__(self, step_sites: Dict[str, str]) -> None:
+    def __init__(self, step_sites: Dict[str, Identifier]) -> None:
         """Create a plan.
 
         Args:

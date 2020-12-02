@@ -2,7 +2,7 @@
 import logging
 from typing import Any, Dict, Optional, Type, TypeVar
 
-from proof_of_concept.definitions.assets import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
@@ -25,7 +25,7 @@ class Registry:
     """
     def __init__(self) -> None:
         """Create a new registry."""
-        self._asset_locations = dict()           # type: Dict[AssetId, str]
+        self._asset_locations = dict()           # type: Dict[Identifier, str]
 
         archive = ReplicableArchive[RegisteredObject]()
         self.store = RegistryStore(archive, 0.1)
@@ -37,20 +37,20 @@ class Registry:
         Args:
             description: A description of the party
         """
-        if self._in_store(PartyDescription, 'name', description.name):
+        if self._in_store(PartyDescription, 'id', description.id):
             raise RuntimeError(
-                    f'There is already a party called {description.name}')
+                    f'There is already a party called {description.id}')
 
         self.store.insert(description)
         logger.info(f'Registered party {description}')
 
-    def deregister_party(self, name: str) -> None:
+    def deregister_party(self, party_id: Identifier) -> None:
         """Deregister a party with the DDM.
 
         Args:
-            name: Name of the party to deregister.
+            party_id: Identifier of the party to deregister.
         """
-        description = self._get_object(PartyDescription, 'name', name)
+        description = self._get_object(PartyDescription, 'id', party_id)
         if description is None:
             raise KeyError('Party not found')
         self.store.delete(description)
@@ -62,30 +62,30 @@ class Registry:
             description: Description of the site.
 
         """
-        if self._in_store(SiteDescription, 'name', description.name):
+        if self._in_store(SiteDescription, 'id', description.id):
             raise RuntimeError(
-                    f'There is already a site called {description.name}')
+                    f'There is already a site called {description.id}')
 
         owner = self._get_object(
-                PartyDescription, 'name', description.owner_name)
+                PartyDescription, 'id', description.owner_id)
         if owner is None:
-            raise RuntimeError(f'Party {description.owner_name} not found')
+            raise RuntimeError(f'Party {description.owner_id} not found')
 
         admin = self._get_object(
-                PartyDescription, 'name', description.admin_name)
+                PartyDescription, 'id', description.admin_id)
         if admin is None:
-            raise RuntimeError(f'Party {description.admin_name} not found')
+            raise RuntimeError(f'Party {description.admin_id} not found')
 
         self.store.insert(description)
         logger.info(f'{self} Registered site {description}')
 
-    def deregister_site(self, name: str) -> None:
+    def deregister_site(self, site_id: Identifier) -> None:
         """Deregister a site with the DDM.
 
         Args:
-            name: Name of the site to deregister.
+            site_id: Identifer of the site to deregister.
         """
-        description = self._get_object(SiteDescription, 'name', name)
+        description = self._get_object(SiteDescription, 'id', site_id)
         if description is None:
             raise KeyError('Site not found')
         self.store.delete(description)

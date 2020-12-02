@@ -22,26 +22,33 @@ class MockPolicySource:
 def test_wf_output_checks():
     """Check whether workflow output permissions are checked."""
     mock_client = MagicMock()
-    mock_client.list_sites_with_runners = MagicMock(return_value=['s1', 's2'])
+    mock_client.list_sites_with_runners = MagicMock(return_value=[
+        'site:ns1:s1', 'site:ns2:s2'])
     mock_client.get_asset_location = lambda x: (
-            's1' if 'ns1' in x else 's2')
+            'site:ns1:s1' if 'ns1' in x else 'site:ns2:s2')
 
     rules = [
-            MayAccess('s1', 'id:ns:Anonymise'),
-            MayAccess('s1', 'id:ns:Aggregate'),
-            ResultOfDataIn('id:ns:Public', '*', 'id:ns:Public'),
-            MayAccess('s1', 'id:ns:Public'),
-            MayAccess('s2', 'id:ns:Public'),
-            MayAccess('s1', 'id:ns1:dataset.d1:s1'),
+            MayAccess('site:ns1:s1', 'asset:ns:Anonymise:ns:s'),
+            MayAccess('site:ns1:s1', 'asset:ns:Aggregate:ns:s'),
             ResultOfDataIn(
-                'id:ns1:dataset.d1:s1', 'id:ns:Anonymise', 'id:ns1:Anonymous'),
-            ResultOfComputeIn('*', 'id:ns:Anonymise', 'id:ns:Public'),
-            MayAccess('s1', 'id:ns1:Anonymous'),
+                'asset_collection:ns:Public', '*',
+                'asset_collection:ns:Public'),
+            MayAccess('site:ns1:s1', 'asset_collection:ns:Public'),
+            MayAccess('site:ns2:s2', 'asset_collection:ns:Public'),
+            MayAccess('site:ns1:s1', 'asset:ns1:dataset.d1:ns1:s1'),
             ResultOfDataIn(
-                'id:ns1:Anonymous', 'id:ns:Aggregate', 'id:ns1:Aggregated'),
-            ResultOfComputeIn('*', 'id:ns:Aggregate', 'id:ns:Public'),
-            MayAccess('s1', 'id:ns1:Aggregated'),
-            MayAccess('s2', 'id:ns1:Aggregated'),
+                'asset:ns1:dataset.d1:ns1:s1', 'asset:ns:Anonymise:ns:s',
+                'asset_collection:ns1:Anonymous'),
+            ResultOfComputeIn(
+                '*', 'asset:ns:Anonymise:ns:s', 'asset_collection:ns:Public'),
+            MayAccess('site:ns1:s1', 'asset_collection:ns1:Anonymous'),
+            ResultOfDataIn(
+                'asset_collection:ns1:Anonymous', 'asset:ns:Aggregate:ns:s',
+                'asset_collection:ns1:Aggregated'),
+            ResultOfComputeIn(
+                '*', 'asset:ns:Aggregate:ns:s', 'asset_collection:ns:Public'),
+            MayAccess('site:ns1:s1', 'asset_collection:ns1:Aggregated'),
+            MayAccess('site:ns2:s2', 'asset_collection:ns1:Aggregated'),
             ]
     policy_evaluator = PolicyEvaluator(MockPolicySource(rules))
 
@@ -51,19 +58,19 @@ def test_wf_output_checks():
                 WorkflowStep(name='anonymise',
                              inputs={'x1': 'x'},
                              outputs=['y'],
-                             compute_asset_id='id:ns:Anonymise'),
+                             compute_asset_id='asset:ns:Anonymise:ns:s'),
                 WorkflowStep(name='aggregate',
                              inputs={'x1': 'anonymise.y'},
                              outputs=['y'],
-                             compute_asset_id='id:ns:Aggregate')])
-    job = Job(workflow, {'x': 'id:ns1:dataset.d1:s1'})
+                             compute_asset_id='asset:ns:Aggregate:ns:s')])
+    job = Job(workflow, {'x': 'asset:ns1:dataset.d1:ns1:s1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)
-    plans = planner.make_plans('s2', job)
+    plans = planner.make_plans('site:ns2:s2', job)
     assert len(plans) == 1
-    assert plans[0].step_sites['anonymise'] == 's1'
-    assert plans[0].step_sites['aggregate'] == 's1'
+    assert plans[0].step_sites['anonymise'] == 'site:ns1:s1'
+    assert plans[0].step_sites['aggregate'] == 'site:ns1:s1'
 
     # test output from intermediate step
     workflow.outputs['y'] = 'anonymise.y'
-    plans = planner.make_plans('p2', job)
+    plans = planner.make_plans('site:ns2:s2', job)
     assert plans == []

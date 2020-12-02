@@ -1,7 +1,7 @@
 """A site installation."""
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -10,6 +10,7 @@ import ruamel.yaml as yaml
 from proof_of_concept.components.asset_store import AssetStore
 from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.registry import (
         PartyDescription, SiteDescription)
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 class Site:
     """Represents a single DDM installation."""
     def __init__(
-            self, name: str, owner: str,
+            self, name: str, owner: Union[str, Identifier],
             namespace: str, stored_data: List[Asset],
             rules: List[Rule]) -> None:
         """Create a Site.
@@ -47,7 +48,9 @@ class Site:
 
         """
         # Metadata
-        self.name = name
+        self.id = Identifier(f'site:{namespace}:{name}')
+        if not isinstance(owner, Identifier):
+            owner = Identifier(owner)
         self.owner = owner
         # Owner and administrator are the same for now, but could
         # in principle be different, e.g. in a SaaS scenario. They also
@@ -65,7 +68,7 @@ class Site:
         # Create clients for talking to the DDM
         self._registry_client = RegistryClient()
         self._site_rest_client = SiteRestClient(
-                self.name, self._site_validator, self._registry_client)
+                self.id, self._site_validator, self._registry_client)
 
         # Register party with DDM
         self._private_key = rsa.generate_private_key(
@@ -92,7 +95,7 @@ class Site:
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = StepRunner(
-                name, self._registry_client, self._site_rest_client,
+                self.id, self._registry_client, self._site_rest_client,
                 self._policy_evaluator, self.store)
 
         # REST server
@@ -107,7 +110,7 @@ class Site:
         # Register site with DDM
         self._registry_client.register_site(
                 SiteDescription(
-                    self.name, self.owner, self.administrator,
+                    self.id, self.owner, self.administrator,
                     self.server.endpoint, True, True, self.namespace))
 
         # Insert data
@@ -116,15 +119,15 @@ class Site:
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""
-        return 'Site({})'.format(self.name)
+        return 'Site({})'.format(self.id)
 
     def close(self) -> None:
         """Shut down the site."""
-        self._registry_client.deregister_site(self.name)
+        self._registry_client.deregister_site(self.id)
         self._registry_client.deregister_party(self.administrator)
         self.server.close()
 
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""
         logger.info('Starting job execution')
-        return self._workflow_engine.execute(self.name, job)
+        return self._workflow_engine.execute(self.id, job)

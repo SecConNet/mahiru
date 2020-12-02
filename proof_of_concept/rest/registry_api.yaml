@@ -32,7 +32,7 @@ paths:
                 description: An error message
                 type: string
         "409":
-          description: A party with this name was already registered
+          description: A party with this id was already registered
           content:
             text/plain:
               schema:
@@ -45,15 +45,15 @@ paths:
               schema:
                 type: string
 
-  /parties/{name}:
+  /parties/{id}:
     delete:
       summary: Deregister a party
       operationId: deregisterParty
       parameters:
-        - name: name
+        - name: id
           in: path
           required: true
-          description: The name of the asset to deregister
+          description: The id of the asset to deregister
           schema:
             type: string
       responses:
@@ -105,7 +105,7 @@ paths:
                 description: An error message
                 type: string
         "409":
-          description: A site with this name was already registered
+          description: A site with this id was already registered
           content:
             text/plain:
               schema:
@@ -118,15 +118,15 @@ paths:
               schema:
                 type: string
 
-  /sites/{name}:
+  /sites/{id}:
     delete:
       summary: Deregister a site
       operationId: deregisterSite
       parameters:
-        - name: name
+        - name: id
           in: path
           required: true
-          description: The name of the site to deregister
+          description: The id of the site to deregister
           schema:
             type: string
       responses:
@@ -190,11 +190,11 @@ components:
     Party:
       type: object
       required:
-        - name
+        - id
         - public_key
       properties:
-        name:
-          description: Name of the party
+        id:
+          description: Identifier of the party
           type: string
         public_key:
           description: The party's PEM-encoded RSA public key
@@ -203,22 +203,22 @@ components:
     Site:
       type: object
       required:
-        - name
-        - owner_name
-        - admin_name
+        - id
+        - owner_id
+        - admin_id
         - endpoint
         - runner
         - store
         - namespace
       properties:
-        name:
-          description: Name of the site
+        id:
+          description: Identifier of the site
           type: string
-        owner_name:
-          description: Name of the party which owns this site
+        owner_id:
+          description: Identifier of the party which owns this site
           type: string
-        admin_name:
-          description: Name of the party which administrates this site
+        admin_id:
+          description: Identifier of the party which administrates this site
           type: string
         endpoint:
           description: >-

@@ -6,7 +6,7 @@ from typing import Any, Callable, List, Optional, Set
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 import ruamel.yaml as yaml
 
-from proof_of_concept.definitions.assets import AssetId
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.rest.serialization import serialize
@@ -86,14 +86,14 @@ class RegistryClient:
                 self._registry_endpoint + '/parties',
                 json=serialize(description))
 
-    def deregister_party(self, name: str) -> None:
+    def deregister_party(self, party: Identifier) -> None:
         """Deregister a party with the Registry.
 
         Args:
-            name: Name of the party to deregister.
+            party: The party to deregister.
 
         """
-        r = requests.delete(f'{self._registry_endpoint}/parties/{name}')
+        r = requests.delete(f'{self._registry_endpoint}/parties/{party}')
         if r.status_code == 404:
             raise KeyError('Party not found')
 
@@ -108,14 +108,14 @@ class RegistryClient:
                 self._registry_endpoint + '/sites',
                 json=serialize(description))
 
-    def deregister_site(self, name: str) -> None:
+    def deregister_site(self, site: Identifier) -> None:
         """Deregister a site with the Registry.
 
         Args:
-            name: Name of the site to deregister.
+            site: The site to deregister.
 
         """
-        r = requests.delete(f'{self._registry_endpoint}/sites/{name}')
+        r = requests.delete(f'{self._registry_endpoint}/sites/{site}')
         if r.status_code == 404:
             raise KeyError('Site not found')
 
@@ -125,7 +125,7 @@ class RegistryClient:
         # already.
         site = self._get_site('namespace', namespace)
         if site is not None:
-            owner = self._get_party(site.owner_name)
+            owner = self._get_party(site.owner_id)
             if owner is None:
                 raise RuntimeError(f'Registry replica is broken')
             return owner.public_key
@@ -138,32 +138,32 @@ class RegistryClient:
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
                 if o.runner:
-                    sites.append(o.name)
+                    sites.append(o.id)
         return sites
 
-    def get_site_by_name(self, site_name: str) -> SiteDescription:
-        """Gets a site's description by name.
+    def get_site_by_id(self, site_id: Identifier) -> SiteDescription:
+        """Gets a site's description by id.
 
         Args:
-            site_name: Name of the site to look up.
+            site_id: Identifier of the site to look up.
 
         Returns:
             The description of the corresponding site.
 
         Raises:
-            KeyError: If no site with that name exists.
+            KeyError: If no site with that id exists.
 
         """
-        site = self._get_site('name', site_name)
+        site = self._get_site('id', site_id)
         if not site:
-            raise KeyError(f'Site named {site_name} not found')
+            raise KeyError(f'Site with id {site_id} not found')
         return site
 
-    def _get_party(self, name: str) -> Optional[PartyDescription]:
-        """Returns the party with the given name."""
+    def _get_party(self, party_id: Identifier) -> Optional[PartyDescription]:
+        """Returns the party with the given id."""
         for o in self._registry_replica.objects:
             if isinstance(o, PartyDescription):
-                if o.name == name:
+                if o.id == party_id:
                     return o
         return None
 

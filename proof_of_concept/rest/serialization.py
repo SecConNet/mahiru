@@ -49,24 +49,24 @@ def _serialize_party_description(party_desc: PartyDescription) -> JSON:
             ).decode('ascii')
 
     return {
-            'name': party_desc.name,
+            'id': party_desc.id,
             'public_key': public_key}
 
 
 def _deserialize_party_description(user_input: JSON) -> PartyDescription:
     """Deserialize a PartyDescription object from JSON."""
-    name = user_input['name']
+    id_ = user_input['id']
     public_key = load_pem_public_key(
             user_input['public_key'].encode('ascii'), default_backend())
-    return PartyDescription(name, public_key)
+    return PartyDescription(id_, public_key)
 
 
 def _serialize_site_description(site_desc: SiteDescription) -> JSON:
     """Serialize a SiteDescription object to JSON."""
     result = dict()     # type: JSON
-    result['name'] = site_desc.name
-    result['owner_name'] = site_desc.owner_name
-    result['admin_name'] = site_desc.admin_name
+    result['id'] = site_desc.id
+    result['owner_id'] = site_desc.owner_id
+    result['admin_id'] = site_desc.admin_id
     result['endpoint'] = site_desc.endpoint
     result['store'] = site_desc.store
     result['runner'] = site_desc.runner
@@ -77,9 +77,9 @@ def _serialize_site_description(site_desc: SiteDescription) -> JSON:
 def _deserialize_site_description(user_input: JSON) -> SiteDescription:
     """Deserialize a SiteDescription object from JSON."""
     return SiteDescription(
-            user_input['name'],
-            user_input['owner_name'],
-            user_input['admin_name'],
+            user_input['id'],
+            user_input['owner_id'],
+            user_input['admin_id'],
             user_input['endpoint'],
             user_input['runner'],
             user_input['store'],

@@ -2,7 +2,8 @@
 import logging
 from typing import Dict
 
-from proof_of_concept.definitions.assets import Asset, AssetId
+from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore
 from proof_of_concept.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
@@ -17,7 +18,7 @@ class AssetStore(IAssetStore):
         """Create a new empty AssetStore."""
         self._policy_evaluator = policy_evaluator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
-        self._assets = dict()  # type: Dict[AssetId, Asset]
+        self._assets = dict()  # type: Dict[Identifier, Asset]
 
     def store(self, asset: Asset) -> None:
         """Stores an asset.
@@ -34,7 +35,7 @@ class AssetStore(IAssetStore):
 
         self._assets[asset.id] = asset
 
-    def retrieve(self, asset_id: AssetId, requester: str
+    def retrieve(self, asset_id: Identifier, requester: str
                  ) -> Asset:
         """Retrieves an asset.
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -22,9 +22,7 @@ setup(
     author="Lourens Veen",
     author_email='l.veen@esciencecenter.nl',
     url='https://github.com/SecConNet/proof_of_concept',
-    packages=[
-        'proof_of_concept',
-    ],
+    packages=find_packages(include=['proof_of_concept', 'proof_of_concept.*']),
     include_package_data=True,
     license="Apache Software License 2.0",
     zip_safe=False,
@@ -43,7 +41,8 @@ setup(
     install_requires=[
         'cryptography',
         'python-dateutil',
-        'falcon',
+        'requests',
+        'falcon==3.0.0a3',
         'openapi-schema-validator',
         'ruamel.yaml'
     ],

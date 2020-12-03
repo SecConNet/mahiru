@@ -197,3 +197,8 @@ class RegistryServer:
         self._server.shutdown()
         self._server.server_close()
         self._thread.join()
+
+
+def wsgi_app() -> App:
+    """Creates a WSGI app for a WSGI runner."""
+    return RegistryRestApi(Registry()).app

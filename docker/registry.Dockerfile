@@ -24,4 +24,4 @@ USER mahiru
 RUN pip3 install gunicorn /home/mahiru
 
 USER root
-CMD ["/usr/local/bin/init.sh"]
+CMD ["/usr/local/bin/init.sh", "proof_of_concept.rest.registry:wsgi_app()"]

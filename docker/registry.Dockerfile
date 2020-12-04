@@ -21,11 +21,7 @@ RUN chmod +x /usr/local/bin/init.sh
 COPY . /home/mahiru/
 RUN chown -R mahiru:mahiru /home/mahiru
 USER mahiru
-RUN \
-    python3 -m venv /home/mahiru/.env && \
-    . /home/mahiru/.env/bin/activate && \
-    pip3 install wheel && \
-    pip3 install gunicorn /home/mahiru
+RUN pip3 install gunicorn /home/mahiru
 
 USER root
 CMD ["/usr/local/bin/init.sh"]

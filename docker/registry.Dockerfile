@@ -20,8 +20,7 @@ RUN chmod +x /usr/local/bin/init.sh
 
 COPY . /home/mahiru/
 RUN chown -R mahiru:mahiru /home/mahiru
-USER mahiru
-RUN pip3 install gunicorn /home/mahiru
+RUN pip3 install --system gunicorn /home/mahiru
 
 USER root
 CMD ["/usr/local/bin/init.sh", "proof_of_concept.rest.registry:wsgi_app()"]

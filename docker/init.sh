@@ -17,7 +17,7 @@ echo 'Installed handler' 1>&2
 
 service nginx start
 
-su -c "/home/mahiru/.local/bin/gunicorn --pid ${pid_file} --access-logfile /var/log/gunicorn/access.log --error-logfile /var/log/gunicorn/error.log --capture-output --bind 127.0.0.1:8000 '${wsgi_entry_point}'" mahiru &
+su -c "gunicorn --pid ${pid_file} --access-logfile /var/log/gunicorn/access.log --error-logfile /var/log/gunicorn/error.log --capture-output --bind 127.0.0.1:8000 '${wsgi_entry_point}'" mahiru &
 
 wait
 

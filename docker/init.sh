@@ -8,6 +8,8 @@ function stop_container {
     kill -TERM $(cat ${pid_file})
 }
 
+# Docker sends us a SIGTERM on 'docker stop'.
+# This catches it and shuts down cleanly by calling the function above
 trap stop_container SIGTERM
 
 echo 'Installed handler' 1>&2

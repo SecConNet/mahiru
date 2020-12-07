@@ -10,11 +10,8 @@ from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.policy import Rule
-from proof_of_concept.definitions.registry import (
-        PartyDescription, SiteDescription)
 from proof_of_concept.definitions.workflows import Job
 from proof_of_concept.rest.client import SiteRestClient
-from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
 from proof_of_concept.components.step_runner import StepRunner
 from proof_of_concept.policy.evaluation import PolicyEvaluator
 from proof_of_concept.policy.replication import PolicyStore
@@ -71,9 +68,9 @@ class Site:
 
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()
-        self._policy_store = PolicyStore(self._policy_archive, 0.1)
+        self.policy_store = PolicyStore(self._policy_archive, 0.1)
         for rule in rules:
-            self._policy_store.insert(rule)
+            self.policy_store.insert(rule)
 
         self._policy_client = PolicyClient(
                 self._registry_client, self._site_validator)
@@ -86,20 +83,10 @@ class Site:
                 self.id, self._registry_client, self._site_rest_client,
                 self._policy_evaluator, self.store)
 
-        # REST server
-        self.api = SiteRestApi(self._policy_store, self.store, self.runner)
-        self.server = SiteServer(self.api)
-
         # Client side
         self._workflow_engine = WorkflowOrchestrator(
                 self._policy_evaluator, self._registry_client,
                 self._site_rest_client)
-
-        # Register site with DDM
-        self._registry_client.register_site(
-                SiteDescription(
-                    self.id, self.owner, self.administrator,
-                    self.server.endpoint, True, True, self.namespace))
 
         # Insert data
         for asset in stored_data:
@@ -108,11 +95,6 @@ class Site:
     def __repr__(self) -> str:
         """Return a string representation of this object."""
         return 'Site({})'.format(self.id)
-
-    def close(self) -> None:
-        """Shut down the site."""
-        self._registry_client.deregister_site(self.id)
-        self.server.close()
 
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""

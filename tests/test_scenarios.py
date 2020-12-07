@@ -9,11 +9,13 @@ from cryptography.hazmat.primitives.asymmetric.rsa import (
 from proof_of_concept.components.ddm_site import Site
 from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.assets import ComputeAsset, DataAsset
-from proof_of_concept.definitions.registry import PartyDescription
+from proof_of_concept.definitions.registry import (
+        PartyDescription, SiteDescription)
 from proof_of_concept.definitions.workflows import Job, WorkflowStep, Workflow
 from proof_of_concept.policy.rules import (
     InAssetCollection, MayAccess, ResultOfDataIn,
     ResultOfComputeIn)
+from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
 
 
 logger = logging.getLogger(__file__)
@@ -62,6 +64,39 @@ def create_sites(
             for site_name, desc in site_descriptions.items()}
 
 
+def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
+    """Create REST servers for sites."""
+    return {
+            site_name: SiteServer(
+                    SiteRestApi(site.policy_store, site.store, site.runner))
+            for site_name, site in sites.items()}
+
+
+def register_sites(
+        registry_client: RegistryClient, sites: Dict[str, Site],
+        servers: Dict[str, SiteServer]) -> None:
+    """Register sites with the registry."""
+    for site_name, site in sites.items():
+        registry_client.register_site(
+                SiteDescription(
+                    site.id, site.owner, site.administrator,
+                    servers[site_name].endpoint,
+                    True, True, site.namespace))
+
+
+def stop_servers(servers: Dict[str, SiteServer]):
+    """Stops the sites' REST servers."""
+    for server in servers.values():
+        server.close()
+
+
+def deregister_sites(
+        registry_client: RegistryClient, sites: Dict[str, Site]) -> None:
+    """Deregisters sites from the registry."""
+    for site in sites.values():
+        registry_client.deregister_site(site.id)
+
+
 def deregister_parties(
         registry_client: RegistryClient, parties: Dict[str, RSAPrivateKey]
         ) -> None:
@@ -82,11 +117,13 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
 
     sign_rules(scenario['sites'], parties)
     sites = create_sites(registry_client, scenario['sites'])
+    servers = create_servers(sites)
+    register_sites(registry_client, sites, servers)
 
     result = sites[scenario['user_site']].run_job(scenario['job'])
 
-    for site in sites.values():
-        site.close()
+    stop_servers(servers)
+    deregister_sites(registry_client, sites)
     deregister_parties(registry_client, parties)
 
     logger.info(f'Result: {result}')

@@ -34,7 +34,7 @@ class Site:
     def __init__(
             self, name: str, owner: Union[str, Identifier],
             namespace: str, stored_data: List[Asset],
-            rules: List[Rule]) -> None:
+            rules: List[Rule], registry_client: RegistryClient) -> None:
         """Create a Site.
 
         Also registers its runner and store in the global registry.
@@ -45,6 +45,7 @@ class Site:
             namespace: Namespace used by this site.
             stored_data: Data sets stored at this site.
             rules: A policy to adhere to.
+            registry_client: A RegistryClient to use.
 
         """
         # Metadata
@@ -66,7 +67,7 @@ class Site:
         self._site_validator = Validator(site_api_def)
 
         # Create clients for talking to the DDM
-        self._registry_client = RegistryClient()
+        self._registry_client = registry_client
         self._site_rest_client = SiteRestClient(
                 self.id, self._site_validator, self._registry_client)
 

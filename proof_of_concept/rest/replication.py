@@ -1,4 +1,5 @@
 """REST API handlers/clients for the replication system."""
+from datetime import datetime, timedelta
 import logging
 import requests
 from typing import Dict, Generic, Optional, Type, TypeVar
@@ -74,7 +75,18 @@ class ReplicationRestClient(IReplicationService[T]):
         params = dict()     # type: Dict[str, int]
         if from_version is not None:
             params['from_version'] = from_version
-        r = requests.get(self._endpoint, params=params)
+
+        start_time = datetime.now()
+        r = None
+        while datetime.now() < start_time + timedelta(seconds=100):
+            try:
+                r = requests.get(self._endpoint, params=params)
+            except requests.ConnectionError:
+                pass
+
+        if r is None:
+            raise RuntimeError('Could not connect to registry')
+
         update_json = r.json()
         logger.info(f'Replication update: {update_json}')
         self._validator.validate(self.UpdateType.__name__, update_json)

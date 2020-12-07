@@ -7,7 +7,10 @@ from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
 import ruamel.yaml as yaml
+import yatiml
 
+from proof_of_concept.components.ddm_site import Site
+from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
 from proof_of_concept.definitions.policy import Rule
@@ -184,3 +187,42 @@ class SiteServer:
         self._server.shutdown()
         self._server.server_close()
         self._thread.join()
+
+
+class Settings:
+    """Settings for a site.
+
+    Attributes:
+        name: Name of the site.
+        namespace: Namespace controlled by the site's policy server.
+        owner: Party owning the site.
+    """
+    def __init__(
+            self,
+            name: str, namespace: str, owner: Identifier, endpoint: str
+            ) -> None:
+        """Create a Settings object.
+
+        Args:
+            name: Name of the site.
+            namespace: Namespace controlled by the site's policy server.
+            owner: Party owning the site.
+        """
+        self.name = name
+        self.namespace = namespace
+        self.owner = owner
+        self.endpoint = endpoint
+
+
+load_settings = yatiml.load_function(Settings, Identifier)
+
+
+def wsgi_app() -> App:
+    """Creates a WSGI app for a WSGI runner."""
+    settings = load_settings(Path('/etc/mahiru/mahiru.conf'))
+
+    registry_client = RegistryClient(settings.endpoint)
+    site = Site(
+            settings.name, settings.owner, settings.namespace, [], [],
+            registry_client)
+    return SiteRestApi(site.policy_store, site.store, site.runner)

@@ -227,4 +227,4 @@ def wsgi_app() -> App:
     site = Site(
             settings.name, settings.owner, settings.namespace, [], [],
             registry_client)
-    return SiteRestApi(site.policy_store, site.store, site.runner)
+    return SiteRestApi(site.policy_store, site.store, site.runner).app

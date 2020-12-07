@@ -196,6 +196,7 @@ class Settings:
         name: Name of the site.
         namespace: Namespace controlled by the site's policy server.
         owner: Party owning the site.
+        endpoint: Registry endpoint location.
     """
     def __init__(
             self,
@@ -207,6 +208,7 @@ class Settings:
             name: Name of the site.
             namespace: Namespace controlled by the site's policy server.
             owner: Party owning the site.
+            endpoint: Registry endpoint location.
         """
         self.name = name
         self.namespace = namespace

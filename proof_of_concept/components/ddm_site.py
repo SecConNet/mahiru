@@ -3,8 +3,6 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
 import ruamel.yaml as yaml
 
 from proof_of_concept.components.asset_store import AssetStore
@@ -71,21 +69,10 @@ class Site:
         self._site_rest_client = SiteRestClient(
                 self.id, self._site_validator, self._registry_client)
 
-        # Register party with DDM
-        self._private_key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=2048,
-                backend=default_backend())
-
-        self._registry_client.register_party(
-                PartyDescription(
-                    self.administrator, self._private_key.public_key()))
-
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()
         self._policy_store = PolicyStore(self._policy_archive, 0.1)
         for rule in rules:
-            rule.sign(self._private_key)
             self._policy_store.insert(rule)
 
         self._policy_client = PolicyClient(
@@ -125,7 +112,6 @@ class Site:
     def close(self) -> None:
         """Shut down the site."""
         self._registry_client.deregister_site(self.id)
-        self._registry_client.deregister_party(self.administrator)
         self.server.close()
 
     def run_job(self, job: Job) -> Dict[str, Any]:

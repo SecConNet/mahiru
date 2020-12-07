@@ -2,9 +2,14 @@ import logging
 from textwrap import indent
 from typing import Any, Dict
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.rsa import (
+        generate_private_key, RSAPrivateKey)
+
 from proof_of_concept.components.ddm_site import Site
 from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.assets import ComputeAsset, DataAsset
+from proof_of_concept.definitions.registry import PartyDescription
 from proof_of_concept.definitions.workflows import Job, WorkflowStep, Workflow
 from proof_of_concept.policy.rules import (
     InAssetCollection, MayAccess, ResultOfDataIn,
@@ -14,10 +19,42 @@ from proof_of_concept.policy.rules import (
 logger = logging.getLogger(__file__)
 
 
+def create_parties(
+        site_descriptions: Dict[str, Any]
+        ) -> Dict[str, RSAPrivateKey]:
+    """Creates parties with private keys and registers them."""
+    return {
+            desc['owner']: generate_private_key(
+                public_exponent=65537,
+                key_size=2048,
+                backend=default_backend())
+            for desc in site_descriptions.values()}
+
+
+def register_parties(
+        registry_client: RegistryClient, parties: Dict[str, RSAPrivateKey]
+        ) -> None:
+    """Register parties with their public keys."""
+    for party_id, private_key in parties.items():
+        registry_client.register_party(
+                PartyDescription(party_id, private_key.public_key()))
+
+
+def sign_rules(
+        site_descriptions: Dict[str, Any], parties: Dict[str, RSAPrivateKey]
+        ) -> None:
+    """Update site descriptions by signing rules."""
+    for desc in site_descriptions.values():
+        private_key = parties[desc['owner']]
+        for rule in desc['rules']:
+            rule.sign(private_key)
+
+
 def create_sites(
         registry_client: RegistryClient,
         site_descriptions: Dict[str, Any]
         ) -> Dict[str, Site]:
+    """Creates sites for the scenario."""
     return {
             site_name: Site(
                 site_name, desc['owner'], desc['namespace'], desc['assets'],
@@ -25,18 +62,32 @@ def create_sites(
             for site_name, desc in site_descriptions.items()}
 
 
-def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
-    registry_client = RegistryClient()
-    sites = create_sites(registry_client, scenario['sites'])
+def deregister_parties(
+        registry_client: RegistryClient, parties: Dict[str, RSAPrivateKey]
+        ) -> None:
+    """Deregisters parties from the registry."""
+    for party_id in parties:
+        registry_client.deregister_party(party_id)
 
+
+def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     logger.info('Running test scenario on behalf of {}'.format(
         scenario['user_site']))
     logger.info('Job:\n{}'.format(indent(str(scenario["job"]), " "*4)))
+
+    registry_client = RegistryClient()
+
+    parties = create_parties(scenario['sites'])
+    register_parties(registry_client, parties)
+
+    sign_rules(scenario['sites'], parties)
+    sites = create_sites(registry_client, scenario['sites'])
 
     result = sites[scenario['user_site']].run_job(scenario['job'])
 
     for site in sites.values():
         site.close()
+    deregister_parties(registry_client, parties)
 
     logger.info(f'Result: {result}')
     return result

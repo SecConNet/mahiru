@@ -81,6 +81,7 @@ class ReplicationRestClient(IReplicationService[T]):
         while datetime.now() < start_time + timedelta(seconds=100):
             try:
                 r = requests.get(self._endpoint, params=params)
+                break
             except requests.ConnectionError:
                 pass
 

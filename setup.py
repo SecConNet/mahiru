@@ -44,7 +44,8 @@ setup(
         'requests',
         'falcon==3.0.0a3',
         'openapi-schema-validator',
-        'ruamel.yaml'
+        'ruamel.yaml<=0.16.10',
+        'yatiml'
     ],
     setup_requires=[
         # dependency for `python setup.py test`

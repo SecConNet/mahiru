@@ -26,10 +26,9 @@ class RegistryReplica(Replica[RegisteredObject]):
 
 class RegistryClient:
     """Local interface to the global registry."""
-    def __init__(self) -> None:
+    def __init__(self, endpoint: str = 'http://localhost:4413') -> None:
         """Create a RegistryClient."""
-        # TODO: This will be passed in as an argument later.
-        self._registry_endpoint = 'http://localhost:4413'
+        self._registry_endpoint = endpoint
 
         self._callbacks = list()    # type: List[RegistryCallback]
 

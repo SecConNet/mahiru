@@ -44,6 +44,7 @@ setup(
         'requests',
         'falcon==3.0.0a3',
         'openapi-schema-validator',
+        'retrying',
         'ruamel.yaml<=0.16.10',
         'yatiml'
     ],

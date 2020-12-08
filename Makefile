@@ -1,10 +1,20 @@
 .PHONY: docker_images
-docker_images: registry_docker_image
+docker_images: base_docker_image registry_docker_image site_docker_image
 
 .PHONY: docker_clean
 docker_clean:
+	docker rmi -f mahiru-site:latest
 	docker rmi -f mahiru-registry:latest
+	docker rmi -f mahiru-base:latest
+
+.PHONY: base_docker_image
+base_docker_image:
+	docker build . -f docker/base.Dockerfile -t mahiru-base:latest
 
 .PHONY: registry_docker_image
-registry_docker_image:
+registry_docker_image: base_docker_image
 	docker build . -f docker/registry.Dockerfile -t mahiru-registry:latest
+
+.PHONY: site_docker_image
+site_docker_image: base_docker_image
+	docker build . -f docker/site.Dockerfile -t mahiru-site:latest

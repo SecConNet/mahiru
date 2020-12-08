@@ -1,9 +1,11 @@
 """REST API handlers/clients for the replication system."""
+from datetime import datetime, timedelta
 import logging
 import requests
 from typing import Dict, Generic, Optional, Type, TypeVar
 
 from falcon import Request, Response
+from retrying import retry
 
 from proof_of_concept.definitions.interfaces import IReplicationService
 from proof_of_concept.definitions.registry import RegisteredObject
@@ -19,6 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 T = TypeVar('T')
+
+
+def _retry_on_connection_error(exception: BaseException) -> bool:
+    """Helper for retrying connections."""
+    return isinstance(exception, requests.ConnectionError)
 
 
 class ReplicationHandler(Generic[T]):
@@ -74,12 +81,22 @@ class ReplicationRestClient(IReplicationService[T]):
         params = dict()     # type: Dict[str, int]
         if from_version is not None:
             params['from_version'] = from_version
-        r = requests.get(self._endpoint, params=params)
+
+        r = self._retry_http_get(params)
+
         update_json = r.json()
         logger.info(f'Replication update: {update_json}')
         self._validator.validate(self.UpdateType.__name__, update_json)
         logger.info(f'Validated against {self.UpdateType.__name__}')
         return deserialize(self.UpdateType, update_json)
+
+    @retry(                                             # type: ignore
+            stop_max_delay=20000, wait_fixed=500,
+            retry_on_exception=_retry_on_connection_error)
+    def _retry_http_get(
+            self, params: Dict[str, int]) -> requests.Response:
+        """Do an HTTP get and retry for a while on failure."""
+        return requests.get(self._endpoint, params=params)
 
 
 class PolicyRestClient(ReplicationRestClient[Rule]):

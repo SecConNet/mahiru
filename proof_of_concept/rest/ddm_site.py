@@ -219,9 +219,12 @@ class Settings:
 load_settings = yatiml.load_function(Settings, Identifier)
 
 
+default_config_location = Path('/etc/mahiru/mahiru.conf')
+
+
 def wsgi_app() -> App:
     """Creates a WSGI app for a WSGI runner."""
-    settings = load_settings(Path('/etc/mahiru/mahiru.conf'))
+    settings = load_settings(default_config_location)
 
     registry_client = RegistryClient(settings.endpoint)
     site = Site(

@@ -196,11 +196,12 @@ class Settings:
         name: Name of the site.
         namespace: Namespace controlled by the site's policy server.
         owner: Party owning the site.
-        endpoint: Registry endpoint location.
+        registry_endpoint: Registry endpoint location.
     """
     def __init__(
             self,
-            name: str, namespace: str, owner: Identifier, endpoint: str
+            name: str, namespace: str, owner: Identifier,
+            registry_endpoint: str
             ) -> None:
         """Create a Settings object.
 
@@ -208,12 +209,12 @@ class Settings:
             name: Name of the site.
             namespace: Namespace controlled by the site's policy server.
             owner: Party owning the site.
-            endpoint: Registry endpoint location.
+            registry_endpoint: Registry endpoint location.
         """
         self.name = name
         self.namespace = namespace
         self.owner = owner
-        self.endpoint = endpoint
+        self.registry_endpoint = registry_endpoint
 
 
 load_settings = yatiml.load_function(Settings, Identifier)
@@ -226,7 +227,7 @@ def wsgi_app() -> App:
     """Creates a WSGI app for a WSGI runner."""
     settings = load_settings(default_config_location)
 
-    registry_client = RegistryClient(settings.endpoint)
+    registry_client = RegistryClient(settings.registry_endpoint)
     site = Site(
             settings.name, settings.owner, settings.namespace, [], [],
             registry_client)

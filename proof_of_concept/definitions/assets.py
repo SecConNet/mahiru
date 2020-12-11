@@ -32,12 +32,19 @@ class Asset:
     """Asset, a representation of a computation or piece of data."""
 
     def __init__(self, id: Union[str, Identifier], data: Any,
-                 metadata: Optional[Metadata] = None):
-        """Constructor.
+                 image_location: Optional[str] = None,
+                 metadata: Optional[Metadata] = None
+                 ) -> None:
+        """Create an Asset.
+
+        Assets may have either a data item (a JSON-serialisable Python
+        value) associated with them, or reference Docker image tarball
+        containing data or code.
 
         Args:
             id: Identifier of the asset
             data: Data related to the asset
+            image_location: URL or path to the container image file.
             metadata: Metadata related to the asset. If no metadata is
                 passed, metadata is set to a niljob, indicating that
                 this is an asset that is not the product of some
@@ -50,6 +57,7 @@ class Asset:
             metadata = Metadata(Job.niljob(id), 'dataset')
         self.id = id
         self.data = data
+        self.image_location = image_location
         self.metadata = metadata
 
 

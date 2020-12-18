@@ -2,7 +2,7 @@
 import logging
 from threading import Thread
 from time import sleep
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
@@ -65,6 +65,7 @@ class JobRun(Thread):
         This executes the steps in the job one at a time, in an order
         compatible with their dependencies.
         """
+        logger.info('Starting job at {}'.format(self._this_site))
         if not self._is_legal():
             # for each output we were supposed to produce
             #     store an error object instead
@@ -80,26 +81,8 @@ class JobRun(Thread):
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
-                inputs = self._get_step_inputs(step, id_hashes)
-                compute_asset = self._retrieve_compute_asset(
-                    step.compute_asset_id)
-                if inputs is not None:
-                    logger.info('Job at {} executing step {}'.format(
-                        self._this_site, step))
-                    # run compute asset step
-                    outputs = compute_asset.run(inputs)
-
-                    # save output to store
-                    step_subjob = self._job.subjob(step)
-                    for output_name, output_value in outputs.items():
-                        result_item = '{}.{}'.format(step.name, output_name)
-                        result_id_hash = id_hashes[result_item]
-                        metadata = Metadata(step_subjob, result_item)
-                        asset = DataAsset(
-                                Identifier.from_id_hash(result_id_hash),
-                                output_value, None, metadata)
-                        self._target_store.store(asset)
-
+                success = self._try_step(step, id_hashes)
+                if success:
                     steps_to_do.remove(step)
                     break
             else:
@@ -150,6 +133,15 @@ class JobRun(Thread):
 
         return True
 
+    def _try_step(
+            self, step: WorkflowStep, id_hashes: Dict[str, str]
+            ) -> bool:
+        """Try to execute a step, if its inputs are ready."""
+        inputs = self._get_step_inputs(step, id_hashes)
+        if inputs is not None:
+            self._run_step(step, inputs, id_hashes)
+        return inputs is not None
+
     def _get_step_inputs(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
             ) -> Optional[Dict[str, Any]]:
@@ -186,6 +178,30 @@ class JobRun(Thread):
                 return None
 
         return step_input_data
+
+    def _run_step(
+            self, step: WorkflowStep, inputs: Dict[str, Any],
+            id_hashes: Dict[str, str]) -> None:
+        """Run a workflow step."""
+        logger.info('Job at {} executing step {}'.format(
+            self._this_site, step))
+
+        # run compute asset step
+        compute_asset = self._retrieve_compute_asset(
+            step.compute_asset_id)
+        outputs = compute_asset.run(inputs)
+
+        # store asset objects for outputs
+        results = list()    # type: List[DataAsset]
+        step_subjob = self._job.subjob(step)
+        for output_name, output_value in outputs.items():
+            result_item = '{}.{}'.format(step.name, output_name)
+            result_id_hash = id_hashes[result_item]
+            metadata = Metadata(step_subjob, result_item)
+            asset = DataAsset(
+                    Identifier.from_id_hash(result_id_hash),
+                    output_value, None, metadata)
+            self._target_store.store(asset)
 
     def _retrieve_compute_asset(
             self, compute_asset_id: Identifier) -> ComputeAsset:

@@ -92,6 +92,10 @@ class Site:
         for asset in stored_data:
             self.store.store(asset)
 
+    def close(self) -> None:
+        """Release resources."""
+        self.store.close()
+
     def __repr__(self) -> str:
         """Return a string representation of this object."""
         return 'Site({})'.format(self.id)

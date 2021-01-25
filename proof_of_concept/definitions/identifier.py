@@ -44,7 +44,7 @@ class Identifier(str):
                 if not cls._segment_regex.match(segment):
                     raise ValueError(f'Invalid identifier segment {segment}')
 
-        return str.__new__(cls, seq)        # type: ignore
+        return str.__new__(cls, seq)
 
     @classmethod
     def from_id_hash(cls, id_hash: str) -> 'Identifier':

@@ -3,6 +3,7 @@
 This is a PyTest special file, see its documentation.
 """
 import logging
+from pathlib import Path
 from unittest.mock import patch
 from wsgiref.simple_server import WSGIServer
 
@@ -49,3 +50,15 @@ def private_key():
             public_exponent=65537,
             key_size=2048,
             backend=default_backend())
+
+
+@pytest.fixture
+def test_dir():
+    """Returns the directory the tests are in."""
+    return Path(__file__).parent
+
+
+@pytest.fixture
+def temp_path(tmpdir) -> Path:
+    """Returns tmpdir as a standard Path object."""
+    return Path(str(tmpdir))

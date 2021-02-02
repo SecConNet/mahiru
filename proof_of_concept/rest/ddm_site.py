@@ -37,7 +37,7 @@ class AssetAccessHandler:
     def on_get(
             self, request: Request, response: Response, asset_id: str
             ) -> None:
-        """Handle request for an asset image.
+        """Handle request for an asset.
 
         Args:
             request: The submitted request.
@@ -59,6 +59,62 @@ class AssetAccessHandler:
                         Identifier(asset_id), request.params['requester'])
                 response.status = HTTP_200
                 response.media = serialize(asset)
+            except KeyError:
+                logger.info(f'Asset {asset_id} not found')
+                response.status = HTTP_404
+                response.body = 'Asset not found'
+            except RuntimeError:
+                # This is permission denied, but we return a 404 to
+                # avoid information-leaking the existence of any
+                # particular assets.
+                logger.info(
+                        f'Asset {asset_id} not available for user'
+                        f' {request.params["requester"]}')
+                response.status = HTTP_404
+                response.body = 'Asset not found'
+
+
+class AssetImageAccessHandler:
+    """A handler for the /assets/{assetId}/image endpoints."""
+    def __init__(self, store: IAssetStore) -> None:
+        """Create an AssetImageAccessHandler handler.
+
+        Args:
+            store: The asset store to send requests to.
+        """
+        self._store = store
+
+    def on_get(
+            self, request: Request, response: Response, asset_id: str
+            ) -> None:
+        """Handle request for an asset image.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+            asset_id: The id of the requested asset
+
+        """
+        logger.info(f'Asset image request, store = {self._store}')
+        if 'requester' not in request.params:
+            logger.info(f'Invalid asset access request')
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+        else:
+            logger.info(
+                    f'Received request for asset {asset_id} from'
+                    f' {request.params["requester"]}')
+            try:
+                asset = self._store.retrieve(
+                        Identifier(asset_id), request.params['requester'])
+                if asset.image_location is None:
+                    raise KeyError()
+                response.status = HTTP_200
+                response.content_type = 'application/x-tar'
+                image_path = Path(asset.image_location)
+                image_size = image_path.stat().st_size
+                image_stream = image_path.open('rb')
+                response.set_stream(image_stream, image_size)
             except KeyError:
                 logger.info(f'Asset {asset_id} not found')
                 response.status = HTTP_404
@@ -140,6 +196,9 @@ class SiteRestApi:
 
         asset_access = AssetAccessHandler(asset_store)
         self.app.add_route('/assets/{asset_id}', asset_access)
+
+        asset_image_access = AssetImageAccessHandler(asset_store)
+        self.app.add_route('/assets/{asset_id}/image', asset_image_access)
 
         workflow_execution = WorkflowExecutionHandler(runner, validator)
         self.app.add_route('/jobs', workflow_execution)

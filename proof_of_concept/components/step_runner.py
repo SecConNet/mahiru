@@ -97,7 +97,7 @@ class JobRun(Thread):
                         metadata = Metadata(step_subjob, result_item)
                         asset = DataAsset(
                                 Identifier.from_id_hash(result_id_hash),
-                                output_value, metadata)
+                                output_value, None, metadata)
                         self._target_store.store(asset)
 
                     steps_to_do.remove(step)

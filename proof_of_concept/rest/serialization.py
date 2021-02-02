@@ -266,9 +266,10 @@ def _deserialize_asset(user_input: JSON) -> Asset:
     """Deserialize an Asset from JSON."""
     if user_input['data'] is None:
         return ComputeAsset(
-                user_input['id'], user_input['data'], user_input['metadata'])
+                user_input['id'], user_input['data'], None,
+                user_input['metadata'])
     return DataAsset(
-            user_input['id'], user_input['data'], user_input['metadata'])
+            user_input['id'], user_input['data'], None, user_input['metadata'])
 
 
 def _serialize_compute_asset(asset: ComputeAsset) -> JSON:

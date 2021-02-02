@@ -62,3 +62,24 @@ def test_dir():
 def temp_path(tmpdir) -> Path:
     """Returns tmpdir as a standard Path object."""
     return Path(str(tmpdir))
+
+
+@pytest.fixture
+def image_dir(temp_path) -> Path:
+    """Returns a temp directory for asset store images."""
+    path = temp_path / 'store'
+    path.mkdir(exist_ok=True)
+    return path
+
+
+@pytest.fixture
+def test_image_file(temp_path) -> Path:
+    """Returns a path to a mock image file.
+
+    Note: it's just a text file containing 'testing', so the extension
+    is a lie.
+    """
+    test_file = temp_path / 'image.tar.gz'
+    with test_file.open('w') as f:
+        f.write('testing')
+    return test_file

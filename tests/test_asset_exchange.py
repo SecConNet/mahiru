@@ -50,13 +50,20 @@ def image_server(asset_store):
     thread.join()
 
 
-def test_asset_download(temp_path, asset_id, image_server, caplog):
-    caplog.set_level(logging.DEBUG)
+@pytest.fixture
+def mock_empty_registry_client():
     registry_client = MagicMock()
     empty_ddm = ReplicaUpdate[RegisteredObject](
             0, 0, datetime(2100, 1, 1, 0, 0, 0), set(), set())
     registry_client.get_updates_since = lambda: empty_ddm
-    client = SiteRestClient('site:ns:site', MagicMock(), registry_client)
+    return registry_client
+
+
+def test_asset_download(
+        temp_path, asset_id, image_server, mock_empty_registry_client):
+
+    client = SiteRestClient(
+            'site:ns:site', MagicMock(), mock_empty_registry_client)
 
     download_path = temp_path / 'retrieved_image.tar.gz'
     client.retrieve_asset_image(

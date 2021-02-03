@@ -31,6 +31,8 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
+    KINDS = ('compute', 'data')
+
     def __init__(self, id: Union[str, Identifier], kind: str, data: Any,
                  image_location: Optional[str] = None,
                  metadata: Optional[Metadata] = None
@@ -54,7 +56,7 @@ class Asset:
         """
         if not isinstance(id, Identifier):
             id = Identifier(id)
-        if kind not in ('data', 'compute'):
+        if kind not in self.KINDS:
             raise ValueError(f'Invalid kind {kind}')
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')

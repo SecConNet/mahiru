@@ -1,4 +1,5 @@
 """Clients for REST APIs."""
+from pathlib import Path
 import requests
 from urllib.parse import quote
 
@@ -51,6 +52,35 @@ class SiteRestClient:
             return deserialize(Asset, asset_json)
 
         raise ValueError(f'Site {site_id} does not have a store')
+
+    def retrieve_asset_image(self, asset_location: str, target: Path) -> None:
+        """Obtains an asset image from a store.
+
+        This downloads the image at the given location into a file at
+        the given path.
+
+        Args:
+            asset_location: URL of the image to download.
+            target: Path of the file to save.
+        """
+        with requests.get(
+                asset_location,
+                params={'requester': self._site},
+                stream=True) as r:
+            if r.status_code == 404:
+                raise KeyError('Asset image not found')
+            elif not r.ok:
+                raise RuntimeError('Server error when retrieving asset image')
+
+            if r.headers.get('Transfer-Encoding', '') == 'chunked':
+                chunk_size = None
+            else:
+                chunk_size = 1024 * 1024
+
+            with target.open('wb') as f:
+                for chunk in r.iter_content(chunk_size):
+                    if chunk:
+                        f.write(chunk)
 
     def submit_job(
             self, site_id: Identifier, submission: JobSubmission) -> None:

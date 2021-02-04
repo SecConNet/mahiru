@@ -31,18 +31,21 @@ class Metadata:
 class Asset:
     """Asset, a representation of a computation or piece of data."""
 
-    def __init__(self, id: Union[str, Identifier], data: Any,
+    KINDS = ('compute', 'data')
+
+    def __init__(self, id: Union[str, Identifier], kind: str, data: Any,
                  image_location: Optional[str] = None,
                  metadata: Optional[Metadata] = None
                  ) -> None:
         """Create an Asset.
 
         Assets may have either a data item (a JSON-serialisable Python
-        value) associated with them, or reference Docker image tarball
+        value) associated with them, or reference a Docker image tarball
         containing data or code.
 
         Args:
             id: Identifier of the asset
+            kind: Either "data" or "compute"
             data: Data related to the asset
             image_location: URL or path to the container image file.
             metadata: Metadata related to the asset. If no metadata is
@@ -53,9 +56,12 @@ class Asset:
         """
         if not isinstance(id, Identifier):
             id = Identifier(id)
+        if kind not in self.KINDS:
+            raise ValueError(f'Invalid kind {kind}')
         if metadata is None:
             metadata = Metadata(Job.niljob(id), 'dataset')
         self.id = id
+        self.kind = kind
         self.data = data
         self.image_location = image_location
         self.metadata = metadata
@@ -63,6 +69,12 @@ class Asset:
 
 class ComputeAsset(Asset):
     """Compute asset, represents a computing step, i.e. software."""
+    def __init__(self, id: Union[str, Identifier], data: Any,
+                 image_location: Optional[str] = None,
+                 metadata: Optional[Metadata] = None
+                 ) -> None:
+        """Create a ComputeAsset (see Asset)."""
+        super().__init__(id, 'compute', data, image_location, metadata)
 
     def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Run compute step.
@@ -95,3 +107,9 @@ class ComputeAsset(Asset):
 
 class DataAsset(Asset):
     """Data asset, represents a data set."""
+    def __init__(self, id: Union[str, Identifier], data: Any,
+                 image_location: Optional[str] = None,
+                 metadata: Optional[Metadata] = None
+                 ) -> None:
+        """Create a DataAsset (see Asset)."""
+        super().__init__(id, 'data', data, image_location, metadata)

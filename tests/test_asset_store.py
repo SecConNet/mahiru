@@ -8,21 +8,6 @@ from proof_of_concept.definitions.assets import DataAsset
 from proof_of_concept.definitions.identifier import Identifier
 
 
-@pytest.fixture
-def image_dir(temp_path) -> Path:
-    path = temp_path / 'store'
-    path.mkdir(exist_ok=True)
-    return path
-
-
-@pytest.fixture
-def test_image_file(temp_path) -> Path:
-    test_file = temp_path / 'image.tar.gz'
-    with test_file.open('w') as f:
-        f.write('testing')
-    return test_file
-
-
 def test_asset_store_store_retrieve(image_dir, test_image_file) -> None:
     mock_policy_evaluator = MagicMock()
     store = AssetStore(mock_policy_evaluator, image_dir)

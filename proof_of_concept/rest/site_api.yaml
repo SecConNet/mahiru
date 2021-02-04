@@ -78,6 +78,46 @@ paths:
               schema:
                 type: string
 
+  /assets/{assetId}/image:
+    get:
+      summary: Download an asset container image
+      operationId: downloadAssetImage
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          type: string
+          description: The id of the asset whose image to retrieve
+        # TODO: The below will be replaced with an HTTPS client-side
+        # certificate eventually, but we'll just pass it insecurely for now.
+        - name: requester
+          in: query
+          description: Name of the requesting site
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested image
+          content:
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: The asset does not exist or is not available to you.
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
   /jobs:
     post:
       summary: Submit a job for the site to run
@@ -263,17 +303,19 @@ components:
       type: object
       required:
         - id
+        - kind
         - data
+        - image_location
         - metadata
       properties:
         id:
           description: Identifier for this asset
           type: string
+        kind:
+          description: 'Kind of asset ("compute" or "data")'
+          type: string
         data:
           description: Data related to the asset
-          # TODO: replace this with a URL for a binary image
-          # TODO: probably /assets/{id}/image
-          # TODO: and/or an endpoint for remote access
           # This is currently null for compute objects, and the only way I
           # could get it to match was with this double nullable
           # declaration...
@@ -283,6 +325,10 @@ components:
               items:
                 type: number
               nullable: true
+          nullable: true
+        image_location:
+          description: URL to download the image from
+          type: string
           nullable: true
         metadata:
           type: object

@@ -258,18 +258,24 @@ def _serialize_asset(asset: Asset) -> JSON:
     """Serialize an Asset to JSON."""
     return {
             'id': asset.id,
+            'kind': asset.kind,
             'data': asset.data,
+            'image_location': asset.image_location,
             'metadata': _serialize_metadata(asset.metadata)}
 
 
 def _deserialize_asset(user_input: JSON) -> Asset:
     """Deserialize an Asset from JSON."""
-    if user_input['data'] is None:
+    if user_input['kind'] == 'compute':
         return ComputeAsset(
-                user_input['id'], user_input['data'], None,
-                user_input['metadata'])
-    return DataAsset(
-            user_input['id'], user_input['data'], None, user_input['metadata'])
+                user_input['id'], user_input['data'],
+                user_input['image_location'], user_input['metadata'])
+    elif user_input['kind'] == 'data':
+        return DataAsset(
+                user_input['id'], user_input['data'],
+                user_input['image_location'], user_input['metadata'])
+    else:
+        raise RuntimeError('Invalid asset type when deserialising')
 
 
 def _serialize_compute_asset(asset: ComputeAsset) -> JSON:

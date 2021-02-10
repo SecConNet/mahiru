@@ -4,6 +4,7 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple
 
+from proof_of_concept.components.domain_administrator import PlainDockerDA
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
         Asset, ComputeAsset, DataAsset, Metadata)
@@ -58,6 +59,8 @@ class JobRun(Thread):
         self._plan = submission.plan
         self._sites = submission.plan.step_sites
         self._target_store = target_store
+        self._domain_administrator = PlainDockerDA(
+                site_rest_client, target_store)
 
     def run(self) -> None:
         """Runs the job.
@@ -141,7 +144,15 @@ class JobRun(Thread):
         if inputs is not None:
             compute_asset = self._retrieve_compute_asset(
                 step.compute_asset_id)
-            self._run_step(step, inputs, compute_asset, id_hashes)
+            if compute_asset.image_location is not None:
+                logger.info('Job at {} executing container step {}'.format(
+                    self._this_site, step))
+
+                step_subjob = self._job.subjob(step)
+                self._domain_administrator.execute_step(
+                        step, inputs, compute_asset, id_hashes, step_subjob)
+            else:
+                self._run_step(step, inputs, compute_asset, id_hashes)
         return inputs is not None
 
     def _get_step_inputs(

@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
-        ComputeAsset, DataAsset, Metadata)
+        Asset, ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
 from proof_of_concept.definitions.workflows import JobSubmission, WorkflowStep
 from proof_of_concept.policy.evaluation import (
@@ -139,12 +139,14 @@ class JobRun(Thread):
         """Try to execute a step, if its inputs are ready."""
         inputs = self._get_step_inputs(step, id_hashes)
         if inputs is not None:
-            self._run_step(step, inputs, id_hashes)
+            compute_asset = self._retrieve_compute_asset(
+                step.compute_asset_id)
+            self._run_step(step, inputs, compute_asset, id_hashes)
         return inputs is not None
 
     def _get_step_inputs(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
-            ) -> Optional[Dict[str, Any]]:
+            ) -> Optional[Dict[str, Asset]]:
         """Find and obtain inputs for the steps.
 
         If all inputs are available, returns a dictionary mapping their
@@ -157,7 +159,7 @@ class JobRun(Thread):
 
         Return:
             A dictionary keyed by input name with corresponding
-            values.
+            assets.
 
         """
         step_input_data = dict()
@@ -168,7 +170,7 @@ class JobRun(Thread):
             try:
                 asset = self._site_rest_client.retrieve_asset(
                         source_site, source_asset)
-                step_input_data[inp_name] = asset.data
+                step_input_data[inp_name] = asset
                 logger.info('Job at {} found input {} available.'.format(
                     self._this_site, source_asset))
                 logger.info('Metadata: {}'.format(asset.metadata))
@@ -180,16 +182,15 @@ class JobRun(Thread):
         return step_input_data
 
     def _run_step(
-            self, step: WorkflowStep, inputs: Dict[str, Any],
-            id_hashes: Dict[str, str]) -> None:
+            self, step: WorkflowStep, inputs: Dict[str, Asset],
+            compute_asset: ComputeAsset, id_hashes: Dict[str, str]) -> None:
         """Run a workflow step."""
         logger.info('Job at {} executing step {}'.format(
             self._this_site, step))
 
         # run compute asset step
-        compute_asset = self._retrieve_compute_asset(
-            step.compute_asset_id)
-        outputs = compute_asset.run(inputs)
+        outputs = compute_asset.run(
+                {inp: asset.data for inp, asset in inputs.items()})
 
         # store asset objects for outputs
         results = list()    # type: List[DataAsset]

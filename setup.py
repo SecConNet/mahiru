@@ -40,10 +40,11 @@ setup(
     test_suite='tests',
     install_requires=[
         'cryptography',
-        'python-dateutil',
-        'requests',
+        'docker',
         'falcon==3.0.0a3',
         'openapi-schema-validator',
+        'python-dateutil',
+        'requests',
         'retrying',
         'ruamel.yaml<=0.16.10',
         'yatiml'

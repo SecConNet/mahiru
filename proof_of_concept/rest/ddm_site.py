@@ -1,4 +1,5 @@
 """REST-style API for a site."""
+from copy import copy
 import logging
 from pathlib import Path
 from threading import Thread
@@ -55,8 +56,15 @@ class AssetAccessHandler:
                     f'Received request for asset {asset_id} from'
                     f' {request.params["requester"]}')
             try:
-                asset = self._store.retrieve(
-                        Identifier(asset_id), request.params['requester'])
+                asset = copy(self._store.retrieve(
+                        Identifier(asset_id), request.params['requester']))
+                # Send URL instead of local file location
+                if asset.image_location is not None:
+                    asset.image_location = (
+                            f'{request.scheme}://{request.netloc}'
+                            f'/assets/{asset_id}/image')
+                logger.info(
+                        f'Sending with asset location {asset.image_location}')
                 response.status = HTTP_200
                 response.media = serialize(asset)
             except KeyError:
@@ -111,6 +119,7 @@ class AssetImageAccessHandler:
                     raise KeyError()
                 response.status = HTTP_200
                 response.content_type = 'application/x-tar'
+                logger.info(f'Reading image from {asset.image_location}')
                 image_path = Path(asset.image_location)
                 image_size = image_path.stat().st_size
                 image_stream = image_path.open('rb')

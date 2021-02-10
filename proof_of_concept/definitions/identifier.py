@@ -64,17 +64,26 @@ class Identifier(str):
         return self.split(':')
 
     def namespace(self) -> str:
-        """Returns the namespace this asset is in.
-
-        Returns:
-            The namespace.
+        """Returns the namespace part of the identifier.
 
         Raises:
-            RuntimeError: If this is not a primary asset.
+            RuntimeError: If this is the identifier of a result, which
+                don't have namespaces.
         """
         if self.segments[0] == 'result':
             raise RuntimeError('Results do not have a namespace')
         return self.segments[1]
+
+    def name(self) -> str:
+        """Returns the name part of the identifier.
+
+        Raises:
+            RuntimeError: If this is the identifier of a result, which
+                don't have namespaces.
+        """
+        if self.segments[0] == 'result':
+            raise RuntimeError('Results do not have a name')
+        return self.segments[2]
 
     def location(self) -> 'Identifier':
         """Returns the identifier of the site storing this asset.

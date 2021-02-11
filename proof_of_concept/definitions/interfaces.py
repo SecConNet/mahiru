@@ -107,7 +107,15 @@ class IStepRunner:
 
 
 class IDomainAdministrator:
-    """Manages container and network resources for a site."""
+    """Manages container and network resources for a site.
+
+    The "domain" in the name is a system administration or networking
+    domain, containing (virtual) networks and containers (and
+    potentially virtual machines, (virtual) programmable networking
+    hardware, etc. in which workflows are executed. Classes
+    implementing this interface manage ("administrate") these resources
+    in the domain to implement workflow execution.
+    """
     def execute_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset, id_hashes: Dict[str, str],

@@ -46,6 +46,11 @@ class PlainDockerDA(IDomainAdministrator):
         self._site_rest_client = site_rest_client
         self._target_store = target_store
         self._dcli = docker.from_env()
+
+        # Note: this is a unique ID per executed step, it is unrelated
+        # to Job objects, which represent an entire submitted workflow.
+        # It is used to avoid name collisions among Docker containers
+        # and images in the docker repository.
         self._next_job_id = 1
         self._job_id_lock = Lock()
 
@@ -112,7 +117,21 @@ class PlainDockerDA(IDomainAdministrator):
     def _download_images(
             self, workdir: Path, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset) -> Dict[str, Path]:
-        """Download required container images."""
+        """Download required container images.
+
+        This downloads the container images for step inputs, compute
+        asset and step outputs from their source asset stores, and
+        saves them as tarballs in the working directory.
+
+        Args:
+            workdir: Working directory for this job.
+            inputs: Step input Asset objects to download.
+            compute_asset: The ComputeAsset image to download.
+
+        Returns:
+            Paths to the downloaded files, indexed by input/output
+            name.
+        """
         image_files = dict()
 
         # input images
@@ -149,7 +168,18 @@ class PlainDockerDA(IDomainAdministrator):
     def _load_images_into_docker(
             self, job_id: int, image_files: Dict[str, Path]
             ) -> Dict[str, Image]:
-        """Load images from files into Docker."""
+        """Load images from files into Docker.
+
+        This loads container images from tarballs on disk into the
+        local Docker image repository.
+
+        Args:
+            job_id: Id of the step execution job these are for.
+            image_files: Files (tarballs) to load in.
+
+        Returns:
+            Docker Image objects indexed by input/output name.
+        """
         try:
             images = dict()
             for name, path in image_files.items():
@@ -165,7 +195,20 @@ class PlainDockerDA(IDomainAdministrator):
             self, job_id: int, images: Dict[str, Image],
             inputs: Dict[str, Asset], outputs: List[str]
             ) -> Dict[str, Container]:
-        """Start input and output data containers."""
+        """Start input and output data containers.
+
+        Creates and starts containers for the inputs and outputs of
+        the step.
+
+        Args:
+            job_id: Id of the step execution job these are for.
+            images: Images to use, indexed by input/output name.
+            inputs: The step's inputs' names and Assets.
+            outputs: The step's outputs' names.
+
+        Returns:
+            Docker Container objects indexed by input/output name.
+        """
         try:
             containers = dict()
             for name, asset in inputs.items():
@@ -188,13 +231,32 @@ class PlainDockerDA(IDomainAdministrator):
     def _create_config_file(
             self, workdir: Path, inputs: Dict[str, Asset], outputs: List[str],
             containers: Dict[str, Container]) -> Path:
-        """Create config file in workdir and return path."""
+        """Create config file in workdir and return path.
+
+        This creates a JSON configuration file in the working directory
+        which is mounted into the compute container, and tells it where
+        on the network to find the data containers for inputs and
+        outputs. It assumes that all connections go through HTTP on
+        port 80, and gets the IP addresses from Docker. For that to
+        work, the data containers must be running, as IPs are assigned
+        on start-up.
+
+        Args:
+            workdir: Working directory for this step execution job.
+            inputs: Assets for the step's inputs.
+            outputs: The step's outputs.
+            containers: Containers for each input and output.
+
+        Returns:
+            Path to the created configuration file.
+        """
         config = {
                 'inputs': dict(),
                 'outputs': dict()}  # type: Dict[str, Dict[str, str]]
         for name in inputs:
+            # IP addresses were added after creation, so we need to
+            # reload data from the Docker daemon to get them.
             containers[name].reload()
-            logger.debug(f'{name} attrs: {containers[name].attrs}')
             addr = containers[name].attrs['NetworkSettings']['IPAddress']
             config['inputs'][name] = f'http://{addr}'
 
@@ -212,7 +274,19 @@ class PlainDockerDA(IDomainAdministrator):
     def _run_compute_container(
             self, job_id: int, compute_image: Image, config_file: Path
             ) -> Container:
-        """Run the compute container."""
+        """Run the compute container.
+
+        This runs the compute container, synchronously, returning when
+        it is done.
+
+        Args:
+            job_id: Id of the step execution job this is for.
+            compute_image: The compute image to run.
+            config_file: Input/output configuration file to use.
+
+        Returns:
+            The (stopped) container that was run.
+        """
         try:
             config_mount = docker.types.Mount(
                     '/etc/mahiru/step_config.json', str(config_file), 'bind')
@@ -230,7 +304,17 @@ class PlainDockerDA(IDomainAdministrator):
     def _stop_data_containers(
             self, inputs: Dict[str, Asset], outputs: List[str],
             containers: Dict[str, Container]) -> None:
-        """Stop input and output data containers."""
+        """Stop input and output data containers.
+
+        Stops data containers, but not the compute container, which
+        should be done already.
+
+        Args:
+            inputs: Step input Assets indexed by name.
+            outputs: Step output names.
+            containers: Docker Container objects, indexed by
+                input/output name.
+        """
         for name in inputs:
             containers[name].stop()
 
@@ -241,7 +325,21 @@ class PlainDockerDA(IDomainAdministrator):
             self, job_id: int, workdir: Path, outputs: List[str],
             containers: Dict[str, Container]
             ) -> Tuple[Dict[str, Image], Dict[str, Path]]:
-        """Save output containers to image files."""
+        """Save output containers to image files.
+
+        This creates images from the output containers of the step,
+        then saves those to tarballs in the working directory.
+
+        Args:
+            job_id: Id of the step execution job this is for.
+            workdir: Working directory to put the files into.
+            outputs: Step outputs' names.
+            containers: Docker containers indexed by output names.
+
+        Returns:
+            Docker Image objects and tarball paths, both indexed by
+            output name.
+        """
         try:
             output_image_files = dict()
             output_images = dict()
@@ -265,7 +363,21 @@ class PlainDockerDA(IDomainAdministrator):
             self, step: WorkflowStep, step_subjob: Job,
             id_hashes: Dict[str, str], output_image_files: Dict[str, Path]
             ) -> None:
-        """Stores results into the target asset store."""
+        """Stores results into the target asset store.
+
+        This creates, for each output, an Asset object with metadata
+        and stores it in the target store, together with the
+        corresponding tarball.
+
+        Args:
+            step: The workflow step we're running.
+            step_subjob: A minimal workflow to calculate the outputs
+                of the current step. See :meth:`Job.subjob`.
+            id_hashes: ID hashes of the step's outputs, indexed by
+                workflow item. See :meth:`Job.id_hashes`.
+            output_image_files: Paths to image files, indexed by output
+                name.
+        """
         for name in step.outputs:
             result_item = '{}.{}'.format(step.name, name)
             result_id_hash = id_hashes[result_item]
@@ -281,7 +393,28 @@ class PlainDockerDA(IDomainAdministrator):
             compute_container: Optional[Container],
             output_images: Optional[Dict[str, Image]],
             images: Optional[Dict[str, Image]]) -> None:
-        """Removes containers and images from Docker."""
+        """Remove containers and images from Docker.
+
+        This tries to clean up the local Docker environment, removing
+        containers and images even if something went wrong during
+        execution. In that case, not all containers and images may
+        exist, but it's important to remove what is there to avoid
+        making a mess, breaking future runs, or running out of disk
+        space (a potential DOS).
+
+        Note that the output images, which include the data and were
+        created when saving the output containers, must be deleted
+        before the original empty output images, because they depend
+        on them. So they're passed separately, and deleted first.
+
+        Args:
+            data_containers: Docker Container objects for inputs and
+                outputs, if any have been created.
+            compute_container: Docker Container object for the compute
+                container, if it has been created.
+            output_images: Images that output containers were saved to.
+            images: Images for inputs, outputs and the compute asset.
+        """
         if data_containers is not None:
             for container in data_containers.values():
                 try:

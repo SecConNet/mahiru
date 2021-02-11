@@ -139,7 +139,12 @@ class JobRun(Thread):
     def _try_execute_step(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
             ) -> bool:
-        """Try to execute a step, if its inputs are ready."""
+        """Try to execute a step, if its inputs are ready.
+
+        Supports both container-based and plain steps; if the compute
+        asset has an associated image then a container run will be
+        attempted, otherwise we'll use the built-in hack.
+        """
         inputs = self._get_step_inputs(step, id_hashes)
         if inputs is not None:
             compute_asset = self._retrieve_compute_asset(

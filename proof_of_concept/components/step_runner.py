@@ -84,7 +84,7 @@ class JobRun(Thread):
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
-                success = self._try_step(step, id_hashes)
+                success = self._try_execute_step(step, id_hashes)
                 if success:
                     steps_to_do.remove(step)
                     break
@@ -136,7 +136,7 @@ class JobRun(Thread):
 
         return True
 
-    def _try_step(
+    def _try_execute_step(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
             ) -> bool:
         """Try to execute a step, if its inputs are ready."""

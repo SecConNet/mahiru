@@ -1,11 +1,12 @@
 """Widely used interface definitions."""
 from datetime import datetime
-from typing import Generic, Iterable, Set, Type, TypeVar
+from typing import Dict, Generic, Iterable, Set, Type, TypeVar
 
 from proof_of_concept.definitions.identifier import Identifier
-from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.assets import Asset, ComputeAsset
 from proof_of_concept.definitions.policy import Rule
-from proof_of_concept.definitions.workflows import JobSubmission
+from proof_of_concept.definitions.workflows import (
+        Job, JobSubmission, WorkflowStep)
 
 
 T = TypeVar('T')
@@ -101,5 +102,32 @@ class IStepRunner:
         Args:
             submission: the job to execute and plan to do it.
 
+        """
+        raise NotImplementedError()
+
+
+class IDomainAdministrator:
+    """Manages container and network resources for a site.
+
+    The "domain" in the name is a system administration or networking
+    domain, containing (virtual) networks and containers (and
+    potentially virtual machines, (virtual) programmable networking
+    hardware, etc. in which workflows are executed. Classes
+    implementing this interface manage ("administrate") these resources
+    in the domain to implement workflow execution.
+    """
+    def execute_step(
+            self, step: WorkflowStep, inputs: Dict[str, Asset],
+            compute_asset: ComputeAsset, id_hashes: Dict[str, str],
+            step_subjob: Job) -> None:
+        """Execute the given workflow step.
+
+        Args:
+            step: The step to execute.
+            inputs: Input assets indexed by input name.
+            compute_asset: The compute asset to run.
+            id_hashes: A hash for each workflow item, indexed by its
+                name.
+            step_subjob: A subjob for the step's results' metadata.
         """
         raise NotImplementedError()

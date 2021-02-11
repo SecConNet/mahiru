@@ -173,7 +173,7 @@ class WorkflowExecutor:
                         results[wf_outp_name] = asset.data
                     except KeyError:
                         continue
-            sleep(0.5)
+            sleep(5)
 
         return results
 

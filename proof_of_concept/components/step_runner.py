@@ -2,11 +2,12 @@
 import logging
 from threading import Thread
 from time import sleep
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+from proof_of_concept.components.domain_administrator import PlainDockerDA
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
-        ComputeAsset, DataAsset, Metadata)
+        Asset, ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
 from proof_of_concept.definitions.workflows import JobSubmission, WorkflowStep
 from proof_of_concept.policy.evaluation import (
@@ -58,6 +59,8 @@ class JobRun(Thread):
         self._plan = submission.plan
         self._sites = submission.plan.step_sites
         self._target_store = target_store
+        self._domain_administrator = PlainDockerDA(
+                site_rest_client, target_store)
 
     def run(self) -> None:
         """Runs the job.
@@ -65,6 +68,7 @@ class JobRun(Thread):
         This executes the steps in the job one at a time, in an order
         compatible with their dependencies.
         """
+        logger.info('Starting job at {}'.format(self._this_site))
         if not self._is_legal():
             # for each output we were supposed to produce
             #     store an error object instead
@@ -80,26 +84,8 @@ class JobRun(Thread):
 
         while len(steps_to_do) > 0:
             for step in steps_to_do:
-                inputs = self._get_step_inputs(step, id_hashes)
-                compute_asset = self._retrieve_compute_asset(
-                    step.compute_asset_id)
-                if inputs is not None:
-                    logger.info('Job at {} executing step {}'.format(
-                        self._this_site, step))
-                    # run compute asset step
-                    outputs = compute_asset.run(inputs)
-
-                    # save output to store
-                    step_subjob = self._job.subjob(step)
-                    for output_name, output_value in outputs.items():
-                        result_item = '{}.{}'.format(step.name, output_name)
-                        result_id_hash = id_hashes[result_item]
-                        metadata = Metadata(step_subjob, result_item)
-                        asset = DataAsset(
-                                Identifier.from_id_hash(result_id_hash),
-                                output_value, None, metadata)
-                        self._target_store.store(asset)
-
+                success = self._try_execute_step(step, id_hashes)
+                if success:
                     steps_to_do.remove(step)
                     break
             else:
@@ -150,9 +136,33 @@ class JobRun(Thread):
 
         return True
 
+    def _try_execute_step(
+            self, step: WorkflowStep, id_hashes: Dict[str, str]
+            ) -> bool:
+        """Try to execute a step, if its inputs are ready.
+
+        Supports both container-based and plain steps; if the compute
+        asset has an associated image then a container run will be
+        attempted, otherwise we'll use the built-in hack.
+        """
+        inputs = self._get_step_inputs(step, id_hashes)
+        if inputs is not None:
+            compute_asset = self._retrieve_compute_asset(
+                step.compute_asset_id)
+            if compute_asset.image_location is not None:
+                logger.info('Job at {} executing container step {}'.format(
+                    self._this_site, step))
+
+                step_subjob = self._job.subjob(step)
+                self._domain_administrator.execute_step(
+                        step, inputs, compute_asset, id_hashes, step_subjob)
+            else:
+                self._run_step(step, inputs, compute_asset, id_hashes)
+        return inputs is not None
+
     def _get_step_inputs(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
-            ) -> Optional[Dict[str, Any]]:
+            ) -> Optional[Dict[str, Asset]]:
         """Find and obtain inputs for the steps.
 
         If all inputs are available, returns a dictionary mapping their
@@ -165,7 +175,7 @@ class JobRun(Thread):
 
         Return:
             A dictionary keyed by input name with corresponding
-            values.
+            assets.
 
         """
         step_input_data = dict()
@@ -176,7 +186,7 @@ class JobRun(Thread):
             try:
                 asset = self._site_rest_client.retrieve_asset(
                         source_site, source_asset)
-                step_input_data[inp_name] = asset.data
+                step_input_data[inp_name] = asset
                 logger.info('Job at {} found input {} available.'.format(
                     self._this_site, source_asset))
                 logger.info('Metadata: {}'.format(asset.metadata))
@@ -186,6 +196,29 @@ class JobRun(Thread):
                 return None
 
         return step_input_data
+
+    def _run_step(
+            self, step: WorkflowStep, inputs: Dict[str, Asset],
+            compute_asset: ComputeAsset, id_hashes: Dict[str, str]) -> None:
+        """Run a workflow step."""
+        logger.info('Job at {} executing step {}'.format(
+            self._this_site, step))
+
+        # run compute asset step
+        outputs = compute_asset.run(
+                {inp: asset.data for inp, asset in inputs.items()})
+
+        # store asset objects for outputs
+        results = list()    # type: List[DataAsset]
+        step_subjob = self._job.subjob(step)
+        for output_name, output_value in outputs.items():
+            result_item = '{}.{}'.format(step.name, output_name)
+            result_id_hash = id_hashes[result_item]
+            metadata = Metadata(step_subjob, result_item)
+            asset = DataAsset(
+                    Identifier.from_id_hash(result_id_hash),
+                    output_value, None, metadata)
+            self._target_store.store(asset)
 
     def _retrieve_compute_asset(
             self, compute_asset_id: Identifier) -> ComputeAsset:

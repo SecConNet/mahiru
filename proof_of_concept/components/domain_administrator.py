@@ -5,7 +5,7 @@ import logging
 from threading import Lock
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import docker
 from docker.models.images import Image
@@ -416,38 +416,52 @@ class PlainDockerDA(IDomainAdministrator):
             images: Images for inputs, outputs and the compute asset.
         """
         if data_containers is not None:
-            for container in data_containers.values():
-                try:
-                    container.remove()
-                except Exception as e:
-                    logger.warning(
-                            f'Failed to remove container {container.id}: {e}')
-                    container.remove(force=True)
+            self._remove_containers(data_containers.values())
 
         if compute_container is not None:
-            try:
-                compute_container.remove()
-            except Exception as e:
-                logger.warning(
-                        f'Failed to remove container {compute_container.id}:'
-                        f'{e}')
-                compute_container.remove(force=True)
+            self._remove_containers([compute_container])
 
         if output_images is not None:
-            for name, image in output_images.items():
-                try:
-                    self._dcli.images.remove(image.id)
-                except Exception as e:
-                    logger.warning(f'Failed to remove image {image.id}: {e}')
-                    self._dcli.images.remove(image.id, force=True)
+            self._remove_images(output_images.values())
 
         if images is not None:
-            for name, image in images.items():
-                try:
-                    self._dcli.images.remove(image.id)
-                except docker.errors.ImageNotFound:
-                    # base output images may already have been deleted
-                    pass
-                except Exception as e:
-                    logger.warning(f'Failed to remove image {image.id}: {e}')
-                    self._dcli.images.remove(image.id, force=True)
+            self._remove_images(images.values())
+
+    def _remove_containers(self, containers: Iterable[Container]) -> None:
+        """Removes containers from Docker.
+
+        This will ask nicely first, then if that fails try to force
+        removal, to maximise the chances of not leaving a mess in the
+        Docker environment.
+
+        Args:
+            containers: List of containers to remove.
+        """
+        for container in containers:
+            try:
+                container.remove()
+            except Exception as e:
+                logger.warning(
+                        f'Failed to remove container {container.id}: {e}')
+                container.remove(force=True)
+
+    def _remove_images(self, images: Iterable[Image]) -> None:
+        """Removes images from Docker.
+
+        This will ask nicely first, then if that fails try to force
+        removal, to maximise the chances of not leaving a mess in the
+        Docker environment.
+
+        Args:
+            images: List of images to remove.
+        """
+        for image in images:
+            try:
+                self._dcli.images.remove(image.id)
+            except docker.errors.ImageNotFound:
+                # Base output images may already have been deleted,
+                # so this is probably okay.
+                pass
+            except Exception as e:
+                logger.warning(f'Failed to remove image {image.id}: {e}')
+                self._dcli.images.remove(image.id, force=True)

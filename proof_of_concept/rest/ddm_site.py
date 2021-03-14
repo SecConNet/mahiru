@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from threading import Thread
 from socketserver import ThreadingMixIn
+from urllib.parse import quote
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class AssetAccessHandler:
-    """A handler for the /assets endpoint."""
+    """A handler for the external /assets endpoint."""
     def __init__(self, store: IAssetStore) -> None:
         """Create an AssetAccessHandler handler.
 
@@ -60,9 +61,9 @@ class AssetAccessHandler:
                         Identifier(asset_id), request.params['requester']))
                 # Send URL instead of local file location
                 if asset.image_location is not None:
-                    asset.image_location = (
-                            f'{request.scheme}://{request.netloc}'
-                            f'/assets/{asset_id}/image')
+                    prefix = request.forwarded_prefix
+                    path = quote(request.path, safe='/')
+                    asset.image_location = f'{prefix}{path}/image'
                 logger.info(
                         f'Sending with asset location {asset.image_location}')
                 response.status = HTTP_200
@@ -83,7 +84,7 @@ class AssetAccessHandler:
 
 
 class AssetImageAccessHandler:
-    """A handler for the /assets/{assetId}/image endpoints."""
+    """A handler for the external /assets/{assetId}/image endpoints."""
     def __init__(self, store: IAssetStore) -> None:
         """Create an AssetImageAccessHandler handler.
 
@@ -140,7 +141,7 @@ class AssetImageAccessHandler:
 
 
 class WorkflowExecutionHandler:
-    """A handler for the /jobs endpoint."""
+    """A handler for the external /jobs endpoint."""
     def __init__(
             self, runner: IStepRunner, validator: Validator
             ) -> None:
@@ -201,16 +202,17 @@ class SiteRestApi:
         validator = Validator(site_api_def)
 
         rule_replication = ReplicationHandler[Rule](policy_store)
-        self.app.add_route('/rules/updates', rule_replication)
+        self.app.add_route('/external/rules/updates', rule_replication)
 
         asset_access = AssetAccessHandler(asset_store)
-        self.app.add_route('/assets/{asset_id}', asset_access)
+        self.app.add_route('/external/assets/{asset_id}', asset_access)
 
         asset_image_access = AssetImageAccessHandler(asset_store)
-        self.app.add_route('/assets/{asset_id}/image', asset_image_access)
+        self.app.add_route(
+                '/external/assets/{asset_id}/image', asset_image_access)
 
         workflow_execution = WorkflowExecutionHandler(runner, validator)
-        self.app.add_route('/jobs', workflow_execution)
+        self.app.add_route('/external/jobs', workflow_execution)
 
 
 class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):
@@ -245,10 +247,10 @@ class SiteServer:
                 name='SiteServer')
         self._thread.start()
 
-        self.endpoint = (
+        self.external_endpoint = (
                 f'http://{self._server.server_name}'
-                f':{self._server.server_port}')
-        logger.info(f'Site server listening on {self.endpoint}')
+                f':{self._server.server_port}/external')
+        logger.info(f'Site server listening on {self.external_endpoint}')
 
     def close(self) -> None:
         """Stop the server thread."""

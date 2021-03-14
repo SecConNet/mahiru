@@ -173,7 +173,7 @@ def test_container_step(
     registry_client.register_site(
         SiteDescription(
                 site.id, site.owner, site.administrator,
-                site_server.endpoint,
+                site_server.external_endpoint,
                 True, True, site.namespace))
 
     # create single-step workflow

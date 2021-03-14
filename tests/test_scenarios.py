@@ -80,7 +80,7 @@ def register_sites(
         registry_client.register_site(
                 SiteDescription(
                     site.id, site.owner, site.administrator,
-                    servers[site_name].endpoint,
+                    servers[site_name].external_endpoint,
                     True, True, site.namespace))
 
 

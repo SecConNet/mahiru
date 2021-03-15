@@ -59,6 +59,30 @@ class AssetStore(IAssetStore):
                 copyfile(src_path, tgt_path)
             self._assets[asset.id].image_location = str(tgt_path)
 
+    def store_image(
+            self, asset_id: Identifier, image_file: Path,
+            move_image: bool = False) -> None:
+        """Stores an image for an already-stored asset.
+
+        Args:
+            asset_id: ID of the asset to add an image for.
+            move: Whether to move the input file rather than copy it.
+
+        Raises:
+            KeyError: If there's no asset with the given ID.
+
+        """
+        if asset_id not in self._assets:
+            raise KeyError(f'Asset with id {asset_id} not found.')
+
+        asset = self._assets[asset_id]
+        tgt_path = self._image_dir / f'{asset_id}.tar.gz'
+        if move_image:
+            move(str(image_file), str(tgt_path))
+        else:
+            copyfile(image_file, tgt_path)
+        asset.image_location = str(tgt_path)
+
     def retrieve(self, asset_id: Identifier, requester: str) -> Asset:
         """Retrieves an asset.
 

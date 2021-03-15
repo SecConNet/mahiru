@@ -19,6 +19,7 @@ from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
 from proof_of_concept.policy.rules import (
         MayAccess, ResultOfComputeIn, ResultOfDataIn)
 from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
+from proof_of_concept.rest.internal_client import InternalSiteRestClient
 
 
 logger = logging.getLogger(__file__)
@@ -165,10 +166,14 @@ def test_container_step(
     # create site
     site = Site(
             'test_site', 'party:ns:test_party', 'ns',
-            assets, rules, registry_client)
+            [], rules, registry_client)
 
     site_server = SiteServer(SiteRestApi(
         site.policy_store, site.store, site.runner))
+
+    internal_client = InternalSiteRestClient(site_server.internal_endpoint)
+    for asset in assets:
+        internal_client.store_asset(asset)
 
     registry_client.register_site(
         SiteDescription(

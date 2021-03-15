@@ -269,11 +269,13 @@ def _deserialize_asset(user_input: JSON) -> Asset:
     if user_input['kind'] == 'compute':
         return ComputeAsset(
                 user_input['id'], user_input['data'],
-                user_input['image_location'], user_input['metadata'])
+                user_input['image_location'],
+                _deserialize_metadata(user_input['metadata']))
     elif user_input['kind'] == 'data':
         return DataAsset(
                 user_input['id'], user_input['data'],
-                user_input['image_location'], user_input['metadata'])
+                user_input['image_location'],
+                _deserialize_metadata(user_input['metadata']))
     else:
         raise RuntimeError('Invalid asset type when deserialising')
 

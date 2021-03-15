@@ -1,4 +1,4 @@
-"""Clients for REST APIs."""
+"""Client for external REST APIs."""
 from pathlib import Path
 import requests
 from urllib.parse import quote

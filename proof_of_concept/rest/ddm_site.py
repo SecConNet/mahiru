@@ -13,6 +13,7 @@ import yatiml
 
 from proof_of_concept.components.ddm_site import Site
 from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
 from proof_of_concept.definitions.policy import Rule
@@ -140,6 +141,38 @@ class AssetImageAccessHandler:
                 response.body = 'Asset not found'
 
 
+class AssetManagementHandler:
+    """A handler for the internal /assets endpoint."""
+    def __init__(self, store: IAssetStore, validator: Validator) -> None:
+        """Create an AssetManagementHandler handler.
+
+        Args:
+            store: The asset store to send requests to.
+            validator: The validator to use on received objects.
+        """
+        self._store = store
+        self._validator = validator
+
+    def on_post(self, request: Request, response: Response) -> None:
+        """Handle adding an asset.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+
+        """
+        try:
+            logger.info(f'Asset storage request')
+            self._validator.validate('Asset', request.media)
+            asset = deserialize(Asset, request.media)
+            logger.info(f'Storing asset {asset}')
+            self._store.store(asset)
+        except ValidationError:
+            logger.warning(f'Invalid asset storage request: {request.media}')
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+
+
 class WorkflowExecutionHandler:
     """A handler for the external /jobs endpoint."""
     def __init__(
@@ -214,6 +247,9 @@ class SiteRestApi:
         workflow_execution = WorkflowExecutionHandler(runner, validator)
         self.app.add_route('/external/jobs', workflow_execution)
 
+        asset_management = AssetManagementHandler(asset_store, validator)
+        self.app.add_route('/internal/assets', asset_management)
+
 
 class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):
     """Threading version of a simple WSGI server."""
@@ -251,6 +287,11 @@ class SiteServer:
                 f'http://{self._server.server_name}'
                 f':{self._server.server_port}/external')
         logger.info(f'Site server listening on {self.external_endpoint}')
+
+        self.internal_endpoint = (
+                f'http://{self._server.server_name}'
+                f':{self._server.server_port}/internal')
+        logger.info(f'Site server listening on {self.internal_endpoint}')
 
     def close(self) -> None:
         """Stop the server thread."""

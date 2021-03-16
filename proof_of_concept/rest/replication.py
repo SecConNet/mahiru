@@ -85,9 +85,7 @@ class ReplicationRestClient(IReplicationService[T]):
         r = self._retry_http_get(params)
 
         update_json = r.json()
-        logger.info(f'Replication update: {update_json}')
         self._validator.validate(self.UpdateType.__name__, update_json)
-        logger.info(f'Validated against {self.UpdateType.__name__}')
         return deserialize(self.UpdateType, update_json)
 
     @retry(                                             # type: ignore

@@ -16,6 +16,7 @@ from proof_of_concept.policy.rules import (
     InAssetCollection, MayAccess, ResultOfDataIn,
     ResultOfComputeIn)
 from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
+from proof_of_concept.rest.internal_client import InternalSiteRestClient
 
 
 logger = logging.getLogger(__file__)
@@ -59,7 +60,7 @@ def create_sites(
     """Creates sites for the scenario."""
     return {
             site_name: Site(
-                site_name, desc['owner'], desc['namespace'], desc['assets'],
+                site_name, desc['owner'], desc['namespace'], [],
                 desc['rules'], registry_client)
             for site_name, desc in site_descriptions.items()}
 
@@ -72,6 +73,16 @@ def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
             for site_name, site in sites.items()}
 
 
+def upload_assets(
+        site_descriptions: Dict[str, Any], servers: Dict[str, Site]) -> None:
+    """Add assets to sites using internal API."""
+    for site_name, desc in site_descriptions.items():
+        server = servers[site_name]
+        client = InternalSiteRestClient(server.internal_endpoint)
+        for asset in desc['assets']:
+            client.store_asset(asset)
+
+
 def register_sites(
         registry_client: RegistryClient, sites: Dict[str, Site],
         servers: Dict[str, SiteServer]) -> None:
@@ -80,7 +91,7 @@ def register_sites(
         registry_client.register_site(
                 SiteDescription(
                     site.id, site.owner, site.administrator,
-                    servers[site_name].endpoint,
+                    servers[site_name].external_endpoint,
                     True, True, site.namespace))
 
 
@@ -118,6 +129,7 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     sign_rules(scenario['sites'], parties)
     sites = create_sites(registry_client, scenario['sites'])
     servers = create_servers(sites)
+    upload_assets(scenario['sites'], servers)
     register_sites(registry_client, sites, servers)
 
     result = sites[scenario['user_site']].run_job(scenario['job'])

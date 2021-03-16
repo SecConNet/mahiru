@@ -2,12 +2,14 @@
 from copy import copy
 import logging
 from pathlib import Path
-from threading import Thread
 from socketserver import ThreadingMixIn
+from tempfile import NamedTemporaryFile
+from threading import Thread
 from urllib.parse import quote
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
-from falcon import App, HTTP_200, HTTP_400, HTTP_404, Request, Response
+from falcon import (
+        App, HTTP_200, HTTP_204, HTTP_400, HTTP_404, Request, Response)
 import ruamel.yaml as yaml
 import yatiml
 
@@ -149,6 +151,7 @@ class AssetManagementHandler:
         Args:
             store: The asset store to send requests to.
             validator: The validator to use on received objects.
+
         """
         self._store = store
         self._validator = validator
@@ -171,6 +174,55 @@ class AssetManagementHandler:
             logger.warning(f'Invalid asset storage request: {request.media}')
             response.status = HTTP_400
             response.body = 'Invalid request'
+
+
+class AssetImageManagementHandler:
+    """A handler for the internal /assets/.../image endpoint."""
+
+    _CHUNK_SIZE = 1024 * 1024
+
+    def __init__(self, store: IAssetStore) -> None:
+        """Create an AssetImageManagementHandler handler.
+
+        Args:
+            store: The asset store to send images to.
+
+        """
+        self._store = store
+
+    def on_put(
+            self, request: Request, response: Response, asset_id: str) -> None:
+        """Handle adding an asset image.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+            asset_id: ID of the asset to store an image for.
+
+        """
+        try:
+            asset_id = Identifier(asset_id)
+        except ValueError:
+            logger.warning(f'Invalid asset image storage request')
+            response.status = HTTP_400
+            response.body = 'Invalid asset id'
+            return
+
+        with NamedTemporaryFile(delete=False) as f:
+            chunk = request.bounded_stream.read(self._CHUNK_SIZE)
+            while chunk:
+                f.write(chunk)
+                chunk = request.bounded_stream.read(self._CHUNK_SIZE)
+
+            file_path = Path(f.name)
+
+        try:
+            self._store.store_image(asset_id, file_path, move_image=True)
+            response.status = HTTP_204
+        except KeyError:
+            logger.warning(f'Image storage requested for known asset')
+            response.status = HTTP_404
+            response.body = 'Unknown asset id'
 
 
 class WorkflowExecutionHandler:
@@ -249,6 +301,10 @@ class SiteRestApi:
 
         asset_management = AssetManagementHandler(asset_store, validator)
         self.app.add_route('/internal/assets', asset_management)
+
+        asset_image_management = AssetImageManagementHandler(asset_store)
+        self.app.add_route(
+                '/internal/assets/{asset_id}/image', asset_image_management)
 
 
 class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):

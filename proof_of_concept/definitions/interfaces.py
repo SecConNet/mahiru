@@ -1,5 +1,6 @@
 """Widely used interface definitions."""
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Generic, Iterable, Set, Type, TypeVar
 
 from proof_of_concept.definitions.identifier import Identifier
@@ -57,14 +58,30 @@ class IPolicyCollection:
 class IAssetStore:
     """An interface for asset stores."""
 
-    def store(self, asset: Asset) -> None:
+    def store(self, asset: Asset, move_image: bool = False) -> None:
         """Stores an asset.
 
         Args:
             asset: asset object to store
+            move_image: If the asset has an image and True is passed,
+                the image file will be moved rather than copied into
+                the store.
 
         Raises:
             KeyError: If there's already an asset with the asset id.
+
+        """
+        raise NotImplementedError()
+
+    def store_image(
+            self, asset_id: Identifier, image_file: Path,
+            move_image: bool = False) -> None:
+        """Stores an image for an already-stored asset.
+
+        Args:
+            asset_id: ID of the asset to add an image for.
+            image_file: Path to the file to store.
+            move_image: If True, move the image instead of copying it.
 
         """
         raise NotImplementedError()

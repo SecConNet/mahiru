@@ -5,6 +5,7 @@ from urllib.parse import quote
 import requests
 
 from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.rest.serialization import serialize
 
 
@@ -40,3 +41,14 @@ class InternalSiteRestClient:
                         data=f)
                 if r.status_code != 204:
                     raise RuntimeError('Error uploading asset image to site')
+
+    def add_rule(self, rule: Rule) -> None:
+        """Adds a rule to the site's policy store.
+
+        Args:
+            rule: The rule to add.
+
+        """
+        r = requests.post(f'{self._endpoint}/rules', json=serialize(rule))
+        if r.status_code != 200:
+            raise RuntimeError(f'Error adding rule to site: {r.text}')

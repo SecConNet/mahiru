@@ -245,6 +245,13 @@ components:
           description: Id of the collection the result is in
           type: string
 
+    Rule:
+      oneOf:
+        - $ref: '#/components/schemas/InAssetCollection'
+        - $ref: '#/components/schemas/InPartyCollection'
+        - $ref: '#/components/schemas/MayAccess'
+        - $ref: '#/components/schemas/ResultOfIn'
+
     PolicyUpdate:
       type: object
       required:

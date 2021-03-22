@@ -166,7 +166,7 @@ def test_container_step(
     # create site
     site = Site(
             'test_site', 'party:ns:test_party', 'ns',
-            [], rules, registry_client)
+            [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
         site.policy_store, site.store, site.runner))
@@ -174,6 +174,9 @@ def test_container_step(
     internal_client = InternalSiteRestClient(site_server.internal_endpoint)
     for asset in assets:
         internal_client.store_asset(asset)
+
+    for rule in rules:
+        internal_client.add_rule(rule)
 
     registry_client.register_site(
         SiteDescription(

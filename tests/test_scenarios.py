@@ -61,7 +61,7 @@ def create_sites(
     return {
             site_name: Site(
                 site_name, desc['owner'], desc['namespace'], [],
-                desc['rules'], registry_client)
+                [], registry_client)
             for site_name, desc in site_descriptions.items()}
 
 
@@ -81,6 +81,16 @@ def upload_assets(
         client = InternalSiteRestClient(server.internal_endpoint)
         for asset in desc['assets']:
             client.store_asset(asset)
+
+
+def add_rules(
+        site_descriptions: Dict[str, Any], servers: Dict[str, Site]) -> None:
+    """Add rules to sites using internal API."""
+    for site_name, desc in site_descriptions.items():
+        server = servers[site_name]
+        client = InternalSiteRestClient(server.internal_endpoint)
+        for rule in desc['rules']:
+            client.add_rule(rule)
 
 
 def register_sites(
@@ -130,6 +140,7 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     sites = create_sites(registry_client, scenario['sites'])
     servers = create_servers(sites)
     upload_assets(scenario['sites'], servers)
+    add_rules(scenario['sites'], servers)
     register_sites(registry_client, sites, servers)
 
     result = sites[scenario['user_site']].run_job(scenario['job'])

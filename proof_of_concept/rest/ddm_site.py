@@ -225,6 +225,38 @@ class AssetImageManagementHandler:
             response.body = 'Unknown asset id'
 
 
+class PolicyManagementHandler:
+    """A handler for the internal /rules endpoint."""
+    def __init__(
+            self, policy_store: PolicyStore, validator: Validator) -> None:
+        """Create a PolicyManagementHandler handler.
+
+        Args:
+            policy_store: A policy store to store rules in.
+            validator: A validator to validate rule JSON with.
+
+        """
+        self._policy_store = policy_store
+        self._validator = validator
+
+    def on_post(self, request: Request, response: Response) -> None:
+        """Handle request to add a rule.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+
+        """
+        try:
+            self._validator.validate('Rule', request.media)
+            rule = deserialize(Rule, request.media)
+            self._policy_store.insert(rule)
+        except ValidationError:
+            logger.warning(f'Invalid rule submitted: {request.media}')
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+
+
 class WorkflowExecutionHandler:
     """A handler for the external /jobs endpoint."""
     def __init__(
@@ -305,6 +337,9 @@ class SiteRestApi:
         asset_image_management = AssetImageManagementHandler(asset_store)
         self.app.add_route(
                 '/internal/assets/{asset_id}/image', asset_image_management)
+
+        policy_management = PolicyManagementHandler(policy_store, validator)
+        self.app.add_route('/internal/rules', policy_management)
 
 
 class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):

@@ -7,26 +7,22 @@ from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.workflows import JobSubmission
 from proof_of_concept.rest.serialization import deserialize, serialize
-from proof_of_concept.rest.validation import Validator
+from proof_of_concept.rest.validation import site_validator
 from proof_of_concept.components.registry_client import RegistryClient
 
 
 class SiteRestClient:
     """Handles connecting to other sites' runners and stores."""
     def __init__(
-            self, site: str, site_validator: Validator,
-            registry_client: RegistryClient
-            ) -> None:
+            self, site: str, registry_client: RegistryClient) -> None:
         """Create a SiteRestClient.
 
         Args:
             site: The site at which this client acts.
-            site_validator: A validator for the Site REST API.
             registry_client: A registry client to get sites from.
 
         """
         self._site = site
-        self._site_validator = site_validator
         self._registry_client = registry_client
 
     def retrieve_asset(self, site_id: Identifier, asset_id: Identifier
@@ -48,7 +44,7 @@ class SiteRestClient:
                 raise RuntimeError('Server error when retrieving asset')
 
             asset_json = r.json()
-            self._site_validator.validate('Asset', asset_json)
+            site_validator.validate('Asset', asset_json)
             return deserialize(Asset, asset_json)
 
         raise ValueError(f'Site {site_id} does not have a store')

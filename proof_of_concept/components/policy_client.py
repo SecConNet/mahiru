@@ -9,14 +9,12 @@ from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.policy.replication import RuleValidator
 from proof_of_concept.replication import Replica
 from proof_of_concept.rest.replication import PolicyRestClient
-from proof_of_concept.rest.validation import Validator
+from proof_of_concept.rest.validation import site_validator
 
 
 class PolicyClient(IPolicyCollection):
     """Ties together various sources of policies."""
-    def __init__(
-            self, registry_client: RegistryClient, site_validator: Validator
-            ) -> None:
+    def __init__(self, registry_client: RegistryClient) -> None:
         """Create a PolicyClient.
 
         This will automatically keep the replicas up-to-date as needed.
@@ -24,10 +22,8 @@ class PolicyClient(IPolicyCollection):
         Args:
             registry_client: A RegistryClient to use for getting
                 servers.
-            site_validator: A REST Validator for the Site API.
         """
         self._registry_client = registry_client
-        self._site_validator = site_validator
 
         self._policy_replicas = dict()  # type: Dict[str, Replica[Rule]]
         self._registry_client.register_callback(self.on_update)
@@ -57,7 +53,7 @@ class PolicyClient(IPolicyCollection):
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
                 client = PolicyRestClient(
-                        o.endpoint + '/rules/updates', self._site_validator)
+                        o.endpoint + '/rules/updates', site_validator)
 
                 key = self._registry_client.get_public_key_for_ns(o.namespace)
                 validator = RuleValidator(o.namespace, key)

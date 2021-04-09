@@ -62,8 +62,7 @@ def mock_empty_registry_client():
 def test_asset_download(
         temp_path, asset_id, image_server, mock_empty_registry_client):
 
-    client = SiteRestClient(
-            'site:ns:site', MagicMock(), mock_empty_registry_client)
+    client = SiteRestClient('site:ns:site', mock_empty_registry_client)
 
     download_path = temp_path / 'retrieved_image.tar.gz'
     client.retrieve_asset_image(

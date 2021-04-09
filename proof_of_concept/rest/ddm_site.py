@@ -23,7 +23,7 @@ from proof_of_concept.definitions.workflows import JobSubmission
 from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize, serialize
-from proof_of_concept.rest.validation import Validator, ValidationError
+from proof_of_concept.rest.validation import site_validator, ValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -145,16 +145,14 @@ class AssetImageAccessHandler:
 
 class AssetManagementHandler:
     """A handler for the internal /assets endpoint."""
-    def __init__(self, store: IAssetStore, validator: Validator) -> None:
+    def __init__(self, store: IAssetStore) -> None:
         """Create an AssetManagementHandler handler.
 
         Args:
             store: The asset store to send requests to.
-            validator: The validator to use on received objects.
 
         """
         self._store = store
-        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle adding an asset.
@@ -166,7 +164,7 @@ class AssetManagementHandler:
         """
         try:
             logger.info(f'Asset storage request')
-            self._validator.validate('Asset', request.media)
+            site_validator.validate('Asset', request.media)
             asset = deserialize(Asset, request.media)
             logger.info(f'Storing asset {asset}')
             self._store.store(asset)
@@ -227,17 +225,14 @@ class AssetImageManagementHandler:
 
 class PolicyManagementHandler:
     """A handler for the internal /rules endpoint."""
-    def __init__(
-            self, policy_store: PolicyStore, validator: Validator) -> None:
+    def __init__(self, policy_store: PolicyStore) -> None:
         """Create a PolicyManagementHandler handler.
 
         Args:
             policy_store: A policy store to store rules in.
-            validator: A validator to validate rule JSON with.
 
         """
         self._policy_store = policy_store
-        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle request to add a rule.
@@ -248,7 +243,7 @@ class PolicyManagementHandler:
 
         """
         try:
-            self._validator.validate('Rule', request.media)
+            site_validator.validate('Rule', request.media)
             rule = deserialize(Rule, request.media)
             self._policy_store.insert(rule)
         except ValidationError:
@@ -259,17 +254,13 @@ class PolicyManagementHandler:
 
 class WorkflowExecutionHandler:
     """A handler for the external /jobs endpoint."""
-    def __init__(
-            self, runner: IStepRunner, validator: Validator
-            ) -> None:
+    def __init__(self, runner: IStepRunner) -> None:
         """Create a WorkflowExecutionHandler handler.
 
         Args:
             runner: The runner to send requests to.
-            validator: A Validator to validate requests with.
         """
         self._runner = runner
-        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle request to execute part of a workflow.
@@ -281,7 +272,7 @@ class WorkflowExecutionHandler:
         """
         try:
             logger.info(f'Received execution request: {request.media}')
-            self._validator.validate('JobSubmission', request.media)
+            site_validator.validate('JobSubmission', request.media)
             submission = deserialize(JobSubmission, request.media)
             self._runner.execute_job(submission)
         except ValidationError:
@@ -316,8 +307,6 @@ class SiteRestApi:
         with open(site_api_file, 'r') as f:
             site_api_def = yaml.safe_load(f.read())
 
-        validator = Validator(site_api_def)
-
         rule_replication = ReplicationHandler[Rule](policy_store)
         self.app.add_route('/external/rules/updates', rule_replication)
 
@@ -328,17 +317,17 @@ class SiteRestApi:
         self.app.add_route(
                 '/external/assets/{asset_id}/image', asset_image_access)
 
-        workflow_execution = WorkflowExecutionHandler(runner, validator)
+        workflow_execution = WorkflowExecutionHandler(runner)
         self.app.add_route('/external/jobs', workflow_execution)
 
-        asset_management = AssetManagementHandler(asset_store, validator)
+        asset_management = AssetManagementHandler(asset_store)
         self.app.add_route('/internal/assets', asset_management)
 
         asset_image_management = AssetImageManagementHandler(asset_store)
         self.app.add_route(
                 '/internal/assets/{asset_id}/image', asset_image_management)
 
-        policy_management = PolicyManagementHandler(policy_store, validator)
+        policy_management = PolicyManagementHandler(policy_store)
         self.app.add_route('/internal/rules', policy_management)
 
 

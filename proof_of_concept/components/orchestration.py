@@ -143,8 +143,11 @@ class WorkflowExecutor:
         """
         self._site_rest_client = site_rest_client
 
-    def execute_workflow(self, submission: JobSubmission) -> Dict[str, Any]:
-        """Executes the given workflow execution plan.
+    def start_workflow(self, submission: JobSubmission) -> None:
+        """Starts the given workflow execution plan.
+
+        This sends requests to all the sites at which the job is to be
+        run to start executing the job.
 
         Args:
             submission: The job and plan to execute.
@@ -152,11 +155,39 @@ class WorkflowExecutor:
         Returns:
             A dictionary of results, indexed by workflow output name.
         """
-        # launch all the runners
         for site_id in set(submission.plan.step_sites.values()):
             self._site_rest_client.submit_job(site_id, submission)
 
-        # get workflow outputs whenever they're available
+    def is_done(self, submission: JobSubmission) -> bool:
+        """Checks whether a job is done.
+
+        Returns:
+            True iff the job is done.
+        """
+        wf = submission.job.workflow
+        id_hashes = submission.job.id_hashes()
+        for wf_outp_name, wf_outp_source in wf.outputs.items():
+            src_step_name, src_step_output = wf_outp_source.split('.')
+            src_site = submission.plan.step_sites[src_step_name]
+            outp_id_hash = id_hashes[wf_outp_name]
+            asset_id = Identifier.from_id_hash(outp_id_hash)
+            try:
+                self._site_rest_client.retrieve_asset(src_site, asset_id)
+            except KeyError:
+                return False
+        return True
+
+    def get_results(self, submission: JobSubmission) -> Dict[str, Any]:
+        """Downloads the results of a completed job.
+
+        This blocks until all results are available.
+
+        Args:
+            submission: The job that was submitted.
+
+        Returns:
+            A dictionary of results, indexed by workflow output name.
+        """
         wf = submission.job.workflow
         id_hashes = submission.job.id_hashes()
         results = dict()    # type: Dict[str, Any]
@@ -193,14 +224,19 @@ class WorkflowOrchestrator:
         """
         self._planner = WorkflowPlanner(registry_client, policy_evaluator)
         self._executor = WorkflowExecutor(site_rest_client)
+        self._next_id = 1
+        self._jobs = dict()     # type: Dict[str, JobSubmission]
+        self._results = dict()  # type: Dict[str, Dict[str, Any]]
 
-    def execute(
-            self, submitter: Identifier, job: Job) -> Dict[str, Any]:
+    def start_job(self, submitter: Identifier, job: Job) -> str:
         """Plans and executes the given workflow.
 
         Args:
             submitter: The site to submit this job.
             job: The job to execute.
+
+        Return:
+            A string containing the new job's id.
         """
         plans = self._planner.make_plans(submitter, job)
         if not plans:
@@ -211,5 +247,40 @@ class WorkflowOrchestrator:
             logger.info(f'Plan {i}: {plan}')
         selected_plan = plans[-1]
         submission = JobSubmission(job, selected_plan)
-        results = self._executor.execute_workflow(submission)
-        return results
+        self._executor.start_workflow(submission)
+
+        job_id = str(self._next_id)
+        self._next_id += 1
+        self._jobs[job_id] = submission
+        return job_id
+
+    def is_done(self, job_id: str) -> bool:
+        """Checks whether the given job is done.
+
+        Args:
+            job_id: The id of the job to check.
+
+        Returns:
+            True iff the job is done.
+
+        Raises:
+            KeyError: If the job id does not exist.
+        """
+        return self._executor.is_done(self._jobs[job_id])
+
+    def get_results(self, job_id: str) -> Dict[str, Any]:
+        """Returns results of a completed job.
+
+        This blocks until the results are available. You can check if
+        that is the case using :func:`is_done`.
+
+        Args:
+            job_id: The id of the job to check.
+
+        Returns:
+            True iff the job is done.
+
+        Raises:
+            KeyError: If the job id does not exist.
+        """
+        return self._executor.get_results(self._jobs[job_id])

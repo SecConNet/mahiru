@@ -99,4 +99,5 @@ class Site:
     def run_job(self, job: Job) -> Dict[str, Any]:
         """Run a workflow on behalf of the party running this site."""
         logger.info('Starting job execution')
-        return self._workflow_engine.execute(self.id, job)
+        job_id = self._workflow_engine.start_job(self.id, job)
+        return self._workflow_engine.get_results(job_id)

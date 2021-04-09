@@ -73,24 +73,27 @@ def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
             for site_name, site in sites.items()}
 
 
+def create_clients(servers: Dict[str, SiteServer]):
+    """Create internal REST clients for sites."""
+    return {
+            site_name: InternalSiteRestClient(server.internal_endpoint)
+            for site_name, server in servers.items()}
+
+
 def upload_assets(
-        site_descriptions: Dict[str, Any], servers: Dict[str, Site]) -> None:
+        site_descriptions: Dict[str, Any], clients: Dict[str, Site]) -> None:
     """Add assets to sites using internal API."""
     for site_name, desc in site_descriptions.items():
-        server = servers[site_name]
-        client = InternalSiteRestClient(server.internal_endpoint)
         for asset in desc['assets']:
-            client.store_asset(asset)
+            clients[site_name].store_asset(asset)
 
 
 def add_rules(
-        site_descriptions: Dict[str, Any], servers: Dict[str, Site]) -> None:
+        site_descriptions: Dict[str, Any], clients: Dict[str, Site]) -> None:
     """Add rules to sites using internal API."""
     for site_name, desc in site_descriptions.items():
-        server = servers[site_name]
-        client = InternalSiteRestClient(server.internal_endpoint)
         for rule in desc['rules']:
-            client.add_rule(rule)
+            clients[site_name].add_rule(rule)
 
 
 def register_sites(
@@ -139,8 +142,9 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     sign_rules(scenario['sites'], parties)
     sites = create_sites(registry_client, scenario['sites'])
     servers = create_servers(sites)
-    upload_assets(scenario['sites'], servers)
-    add_rules(scenario['sites'], servers)
+    clients = create_clients(servers)
+    upload_assets(scenario['sites'], clients)
+    add_rules(scenario['sites'], clients)
     register_sites(registry_client, sites, servers)
 
     result = sites[scenario['user_site']].run_job(scenario['job'])

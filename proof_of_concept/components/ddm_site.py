@@ -80,7 +80,7 @@ class Site:
                 self._policy_evaluator, self.store)
 
         # Client side
-        self._workflow_engine = WorkflowOrchestrator(
+        self.orchestrator = WorkflowOrchestrator(
                 self._policy_evaluator, self._registry_client,
                 self._site_rest_client)
 
@@ -96,8 +96,8 @@ class Site:
         """Return a string representation of this object."""
         return 'Site({})'.format(self.id)
 
-    def run_job(self, job: Job) -> Dict[str, Any]:
+    def run_job(self, job: Job) -> Dict[str, Asset]:
         """Run a workflow on behalf of the party running this site."""
         logger.info('Starting job execution')
-        job_id = self._workflow_engine.start_job(self.id, job)
-        return self._workflow_engine.get_results(job_id)
+        job_id = self.orchestrator.start_job(self.id, job)
+        return self.orchestrator.get_results(job_id)

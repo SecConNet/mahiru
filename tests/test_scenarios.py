@@ -314,7 +314,7 @@ def test_pii(registry_server):
     scenario['user_site'] = 'site2'
 
     output = run_scenario(scenario)
-    assert output['result'] == 12.5
+    assert output['result'].data == 12.5
 
 
 def test_saas_with_data(registry_server):
@@ -407,4 +407,4 @@ def test_saas_with_data(registry_server):
     scenario['user_site'] = 'site1'
 
     output = run_scenario(scenario)
-    assert output['y'] == 45
+    assert output['y'].data == 45

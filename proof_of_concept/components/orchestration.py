@@ -5,6 +5,7 @@ from time import sleep
 from typing import Any, Dict, Generator, List
 
 from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.workflows import (
         Job, JobSubmission, Plan, Workflow, WorkflowStep)
@@ -177,7 +178,7 @@ class WorkflowExecutor:
                 return False
         return True
 
-    def get_results(self, submission: JobSubmission) -> Dict[str, Any]:
+    def get_results(self, submission: JobSubmission) -> Dict[str, Asset]:
         """Downloads the results of a completed job.
 
         This blocks until all results are available.
@@ -201,7 +202,7 @@ class WorkflowExecutor:
                         asset_id = Identifier.from_id_hash(outp_id_hash)
                         asset = self._site_rest_client.retrieve_asset(
                                 src_site, asset_id)
-                        results[wf_outp_name] = asset.data
+                        results[wf_outp_name] = asset
                     except KeyError:
                         continue
             sleep(5)
@@ -210,7 +211,11 @@ class WorkflowExecutor:
 
 
 class WorkflowOrchestrator:
-    """Plans and runs workflows across sites in DDM."""
+    """Plans and runs workflows across sites in DDM.
+
+    Keeps track of jobs by an id, which is a URL-safe string.
+
+    """
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
             registry_client: RegistryClient, site_rest_client: SiteRestClient
@@ -254,6 +259,36 @@ class WorkflowOrchestrator:
         self._jobs[job_id] = submission
         return job_id
 
+    def get_submitted_job(self, job_id: str) -> Job:
+        """Returns the submitted job with the given id.
+
+        Args:
+            job_id: The id of the job to retrieve.
+
+        Returns:
+            The JobSubmission with that id.
+
+        Raises:
+            KeyError: If no job with this id was found.
+
+        """
+        return self._jobs[job_id].job
+
+    def get_plan(self, job_id: str) -> Plan:
+        """Returns the plan used to execute the given job.
+
+        Args:
+            job_id: The id of the job to get the plan for.
+
+        Returns:
+            The Plan for the job with that id.
+
+        Raises:
+            KeyError: If no job with this id was found.
+
+        """
+        return self._jobs[job_id].plan
+
     def is_done(self, job_id: str) -> bool:
         """Checks whether the given job is done.
 
@@ -268,7 +303,7 @@ class WorkflowOrchestrator:
         """
         return self._executor.is_done(self._jobs[job_id])
 
-    def get_results(self, job_id: str) -> Dict[str, Any]:
+    def get_results(self, job_id: str) -> Dict[str, Asset]:
         """Returns results of a completed job.
 
         This blocks until the results are available. You can check if
@@ -278,7 +313,7 @@ class WorkflowOrchestrator:
             job_id: The id of the job to check.
 
         Returns:
-            True iff the job is done.
+            The resulting assets, indexed by output name.
 
         Raises:
             KeyError: If the job id does not exist.

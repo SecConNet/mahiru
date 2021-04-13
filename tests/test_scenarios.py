@@ -1,5 +1,6 @@
 import logging
 from textwrap import indent
+import time
 from typing import Any, Dict
 
 from cryptography.hazmat.backends import default_backend
@@ -69,14 +70,17 @@ def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
     """Create REST servers for sites."""
     return {
             site_name: SiteServer(
-                    SiteRestApi(site.policy_store, site.store, site.runner))
+                    SiteRestApi(
+                        site.policy_store, site.store, site.runner,
+                        site.orchestrator))
             for site_name, site in sites.items()}
 
 
-def create_clients(servers: Dict[str, SiteServer]):
+def create_clients(servers: Dict[str, SiteServer], sites: Dict[str, Site]):
     """Create internal REST clients for sites."""
     return {
-            site_name: InternalSiteRestClient(server.internal_endpoint)
+            site_name: InternalSiteRestClient(
+                sites[site_name].id, server.internal_endpoint)
             for site_name, server in servers.items()}
 
 
@@ -142,19 +146,23 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     sign_rules(scenario['sites'], parties)
     sites = create_sites(registry_client, scenario['sites'])
     servers = create_servers(sites)
-    clients = create_clients(servers)
+    clients = create_clients(servers, sites)
     upload_assets(scenario['sites'], clients)
     add_rules(scenario['sites'], clients)
     register_sites(registry_client, sites, servers)
 
-    result = sites[scenario['user_site']].run_job(scenario['job'])
+    client = clients[scenario['user_site']]
+    job_id = client.submit_job(scenario['job'])
+    while not client.is_job_done(job_id):
+        time.sleep(0.1)
+    result = client.get_job_result(job_id)
 
     stop_servers(servers)
     deregister_sites(registry_client, sites)
     deregister_parties(registry_client, parties)
 
-    logger.info(f'Result: {result}')
-    return result
+    logger.info(f'Result: {result.outputs}')
+    return result.outputs
 
 
 def test_pii(registry_server):

@@ -5,21 +5,25 @@ from pathlib import Path
 from socketserver import ThreadingMixIn
 from tempfile import NamedTemporaryFile
 from threading import Thread
+from typing import Dict
 from urllib.parse import quote
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import (
-        App, HTTP_200, HTTP_204, HTTP_400, HTTP_404, Request, Response)
+        App, HTTP_200, HTTP_204, HTTP_303, HTTP_400, HTTP_404, Request,
+        Response)
 import ruamel.yaml as yaml
 import yatiml
 
 from proof_of_concept.components.ddm_site import Site
 from proof_of_concept.components.registry_client import RegistryClient
+from proof_of_concept.components.orchestration import WorkflowOrchestrator
 from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.execution import JobResult
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
 from proof_of_concept.definitions.policy import Rule
-from proof_of_concept.definitions.workflows import JobSubmission
+from proof_of_concept.definitions.workflows import Job, JobSubmission
 from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize, serialize
@@ -281,6 +285,97 @@ class WorkflowExecutionHandler:
             response.body = 'Invalid request'
 
 
+class WorkflowSubmissionHandler:
+    """A handler for the internal /jobs endpoint.
+
+    This lets internal users submit jobs, which are identified by a
+    unique URI.
+
+    """
+    def __init__(self, orchestrator: WorkflowOrchestrator) -> None:
+        """Create a WorkflowSubmissionHandler handler.
+
+        Args:
+            orchestrator: The orchestrator to send requests to.
+
+        """
+        self._orchestrator = orchestrator
+
+    def on_post(self, request: Request, response: Response) -> None:
+        """Handle request to orchestrate a workflow.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+
+        """
+        if 'requester' not in request.params:
+            logger.info(f'Invalid job submission')
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+            return
+
+        requester = request.params['requester']
+
+        try:
+            site_validator.validate('Job', request.media)
+            job = deserialize(Job, request.media)
+            job_id = self._orchestrator.start_job(requester, job)
+            logger.info(f'Received new job {job_id} from {requester}')
+            response.status = HTTP_303
+            response.location = (
+                    f'{request.forwarded_prefix}/internal/jobs/{job_id}')
+        except ValidationError:
+            logger.warning(f'Invalid execution request: {request.media}')
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+
+
+class WorkflowStatusHandler:
+    """A handler for the internal /jobs/{job_id} endpoint.
+
+    This lets internal users check up on their jobs and retrieve
+    results.
+
+    """
+    def __init__(self, orchestrator: WorkflowOrchestrator) -> None:
+        """Create a WorkflowStatusHandler handler.
+
+        Args:
+            orchestrator: The orchestrator to send requests to.
+
+        """
+        self._orchestrator = orchestrator
+
+    def on_get(
+            self, request: Request, response: Response, job_id: str) -> None:
+        """Handle request for job status update.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+            job_id: The orchestrator job id.
+
+        """
+        try:
+            job = self._orchestrator.get_submitted_job(job_id)
+            plan = self._orchestrator.get_plan(job_id)
+            is_done = self._orchestrator.is_done(job_id)
+        except KeyError:
+            logger.warning(f'Request for non-existent job {job_id}')
+            response.status = HTTP_404
+            response.body = 'Job not found'
+            return
+
+        outputs = dict()    # type: Dict[str, Asset]
+        if is_done:
+            outputs = self._orchestrator.get_results(job_id)
+
+        result = JobResult(job, plan, is_done, outputs)
+        response.status = HTTP_200
+        response.media = serialize(result)
+
+
 class SiteRestApi:
     """The complete Site REST API.
 
@@ -292,13 +387,16 @@ class SiteRestApi:
             self,
             policy_store: PolicyStore,
             asset_store: IAssetStore,
-            runner: IStepRunner) -> None:
+            runner: IStepRunner,
+            orchestrator: WorkflowOrchestrator) -> None:
         """Create a SiteRestApi instance.
 
         Args:
             policy_store: The store to offer policy updates from.
             asset_store: The store to serve assets from.
             runner: The workflow runner to send requests to.
+            orchestrator: The orchestrator to use to orchestrate
+                    user job submissions.
 
         """
         self.app = App()
@@ -329,6 +427,12 @@ class SiteRestApi:
 
         policy_management = PolicyManagementHandler(policy_store)
         self.app.add_route('/internal/rules', policy_management)
+
+        workflow_status = WorkflowStatusHandler(orchestrator)
+        self.app.add_route('/internal/jobs/{job_id}', workflow_status)
+
+        workflow_submission = WorkflowSubmissionHandler(orchestrator)
+        self.app.add_route('/internal/jobs', workflow_submission)
 
 
 class ThreadingWSGIServer (ThreadingMixIn, WSGIServer):
@@ -422,4 +526,5 @@ def wsgi_app() -> App:
     site = Site(
             settings.name, settings.owner, settings.namespace, [], [],
             registry_client)
-    return SiteRestApi(site.policy_store, site.store, site.runner).app
+    return SiteRestApi(
+            site.policy_store, site.store, site.runner, site.orchestrator).app

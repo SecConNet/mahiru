@@ -11,6 +11,7 @@ from dateutil import parser as dateparser
 from proof_of_concept.definitions.assets import (
         Asset, ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IReplicaUpdate
+from proof_of_concept.definitions.execution import JobResult
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
@@ -31,8 +32,8 @@ T = TypeVar('T')
 
 
 Serializable = Union[
-        Asset, Job, JobSubmission, Metadata, Plan, RegisteredObject,
-        IReplicaUpdate, Rule, Workflow, WorkflowStep]
+        Asset, Job, JobResult, JobSubmission, Metadata, Plan,
+        RegisteredObject, IReplicaUpdate, Rule, Workflow, WorkflowStep]
 
 
 _SerializableT = TypeVar('_SerializableT', bound=Serializable)
@@ -290,6 +291,30 @@ def _serialize_data_asset(asset: DataAsset) -> JSON:
     return _serialize_asset(asset)
 
 
+# Results
+
+def _serialize_job_result(result: JobResult) -> JSON:
+    """Serialize a JobResult to JSON."""
+    return {
+            'job': _serialize_job(result.job),
+            'plan': _serialize_plan(result.plan),
+            'is_done': result.is_done,
+            'outputs': {
+                name: _serialize_asset(asset)
+                for name, asset in result.outputs.items()}}
+
+
+def _deserialize_job_result(user_input: JSON) -> JobResult:
+    """Deserialize a JobResult from JSON."""
+    job = _deserialize_job(user_input['job'])
+    plan = _deserialize_plan(user_input['plan'])
+    is_done = user_input['is_done']
+    outputs = dict()    # type: Dict[str, Asset]
+    for name, asset in user_input['outputs'].items():
+        outputs[name] = _deserialize_asset(asset)
+    return JobResult(job, plan, is_done, outputs)
+
+
 # Replica updates
 
 
@@ -348,6 +373,7 @@ _serializers = {
         Metadata: _serialize_metadata,
         ComputeAsset: _serialize_compute_asset,
         DataAsset: _serialize_data_asset,
+        JobResult: _serialize_job_result,
         PolicyUpdate: _serialize_replica_update,
         RegistryUpdate: _serialize_replica_update,
         }
@@ -377,6 +403,7 @@ _deserialize = {
         JobSubmission: _deserialize_job_submission,
         Metadata: _deserialize_metadata,
         Asset: _deserialize_asset,
+        JobResult: _deserialize_job_result,
         PolicyUpdate: _deserialize_policy_update,
         RegistryUpdate: _deserialize_registry_update,
         }

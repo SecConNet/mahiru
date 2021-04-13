@@ -439,3 +439,30 @@ components:
           type: object
           additionalProperties:
             type: string
+
+    JobResult:
+      type: object
+      required:
+        - job
+        - plan
+        - is_done
+        - outputs
+      properties:
+        job:
+          description: The job as submitted
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Job"
+        plan:
+          description: The plan according to which the job is executed
+          type: object
+          schema:
+            "$ref": "#/components/schemas/Plan"
+        is_done:
+          description: Whether the job has finished running
+          type: boolean
+        outputs:
+          description: The job's outputs by name
+          type: object
+          additionalProperties:
+            "$ref": "#/components/schemas/Asset"

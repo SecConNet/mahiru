@@ -1,5 +1,6 @@
 import logging
 from textwrap import indent
+import time
 from typing import Any, Dict
 
 from cryptography.hazmat.backends import default_backend
@@ -69,28 +70,34 @@ def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
     """Create REST servers for sites."""
     return {
             site_name: SiteServer(
-                    SiteRestApi(site.policy_store, site.store, site.runner))
+                    SiteRestApi(
+                        site.policy_store, site.store, site.runner,
+                        site.orchestrator))
             for site_name, site in sites.items()}
 
 
+def create_clients(servers: Dict[str, SiteServer], sites: Dict[str, Site]):
+    """Create internal REST clients for sites."""
+    return {
+            site_name: InternalSiteRestClient(
+                sites[site_name].id, server.internal_endpoint)
+            for site_name, server in servers.items()}
+
+
 def upload_assets(
-        site_descriptions: Dict[str, Any], servers: Dict[str, Site]) -> None:
+        site_descriptions: Dict[str, Any], clients: Dict[str, Site]) -> None:
     """Add assets to sites using internal API."""
     for site_name, desc in site_descriptions.items():
-        server = servers[site_name]
-        client = InternalSiteRestClient(server.internal_endpoint)
         for asset in desc['assets']:
-            client.store_asset(asset)
+            clients[site_name].store_asset(asset)
 
 
 def add_rules(
-        site_descriptions: Dict[str, Any], servers: Dict[str, Site]) -> None:
+        site_descriptions: Dict[str, Any], clients: Dict[str, Site]) -> None:
     """Add rules to sites using internal API."""
     for site_name, desc in site_descriptions.items():
-        server = servers[site_name]
-        client = InternalSiteRestClient(server.internal_endpoint)
         for rule in desc['rules']:
-            client.add_rule(rule)
+            clients[site_name].add_rule(rule)
 
 
 def register_sites(
@@ -139,18 +146,23 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     sign_rules(scenario['sites'], parties)
     sites = create_sites(registry_client, scenario['sites'])
     servers = create_servers(sites)
-    upload_assets(scenario['sites'], servers)
-    add_rules(scenario['sites'], servers)
+    clients = create_clients(servers, sites)
+    upload_assets(scenario['sites'], clients)
+    add_rules(scenario['sites'], clients)
     register_sites(registry_client, sites, servers)
 
-    result = sites[scenario['user_site']].run_job(scenario['job'])
+    client = clients[scenario['user_site']]
+    job_id = client.submit_job(scenario['job'])
+    while not client.is_job_done(job_id):
+        time.sleep(0.1)
+    result = client.get_job_result(job_id)
 
     stop_servers(servers)
     deregister_sites(registry_client, sites)
     deregister_parties(registry_client, parties)
 
-    logger.info(f'Result: {result}')
-    return result
+    logger.info(f'Result: {result.outputs}')
+    return result.outputs
 
 
 def test_pii(registry_server):
@@ -310,7 +322,7 @@ def test_pii(registry_server):
     scenario['user_site'] = 'site2'
 
     output = run_scenario(scenario)
-    assert output['result'] == 12.5
+    assert output['result'].data == 12.5
 
 
 def test_saas_with_data(registry_server):
@@ -403,4 +415,4 @@ def test_saas_with_data(registry_server):
     scenario['user_site'] = 'site1'
 
     output = run_scenario(scenario)
-    assert output['y'] == 45
+    assert output['y'].data == 45

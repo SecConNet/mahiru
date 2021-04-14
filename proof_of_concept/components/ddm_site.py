@@ -59,12 +59,9 @@ class Site:
         with open(site_api_file, 'r') as f:
             site_api_def = yaml.safe_load(f.read())
 
-        self._site_validator = Validator(site_api_def)
-
         # Create clients for talking to the DDM
         self._registry_client = registry_client
-        self._site_rest_client = SiteRestClient(
-                self.id, self._site_validator, self._registry_client)
+        self._site_rest_client = SiteRestClient(self.id, self._registry_client)
 
         # Policy support
         self._policy_archive = ReplicableArchive[Rule]()
@@ -72,8 +69,7 @@ class Site:
         for rule in rules:
             self.policy_store.insert(rule)
 
-        self._policy_client = PolicyClient(
-                self._registry_client, self._site_validator)
+        self._policy_client = PolicyClient(self._registry_client)
         self._policy_evaluator = PolicyEvaluator(self._policy_client)
 
         # Server side
@@ -84,7 +80,7 @@ class Site:
                 self._policy_evaluator, self.store)
 
         # Client side
-        self._workflow_engine = WorkflowOrchestrator(
+        self.orchestrator = WorkflowOrchestrator(
                 self._policy_evaluator, self._registry_client,
                 self._site_rest_client)
 
@@ -100,7 +96,8 @@ class Site:
         """Return a string representation of this object."""
         return 'Site({})'.format(self.id)
 
-    def run_job(self, job: Job) -> Dict[str, Any]:
+    def run_job(self, job: Job) -> Dict[str, Asset]:
         """Run a workflow on behalf of the party running this site."""
         logger.info('Starting job execution')
-        return self._workflow_engine.execute(self.id, job)
+        job_id = self.orchestrator.start_job(self.id, job)
+        return self.orchestrator.get_results(job_id)

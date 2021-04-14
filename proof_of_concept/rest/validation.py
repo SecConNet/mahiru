@@ -1,5 +1,7 @@
 """Tools for validating untrusted JSON against an OpenAPI schema."""
+from pathlib import Path
 from typing import Dict
+import ruamel.yaml as yaml
 
 import jsonschema
 from jsonschema.validators import RefResolver
@@ -39,3 +41,15 @@ class Validator:
             ValidationError: If the input was invalid.
         """
         self._validator[class_].validate(user_input)
+
+
+# This is a sort-of singleton, which in this case is actually not a
+# problem. It's not the best possible solution however, so this is
+# temporary. Later, we'll TODO refactor the YAML files and have a
+# plain function as the API of this module.
+
+_site_api_file = Path(__file__).parent / 'site_api.yaml'
+with open(_site_api_file, 'r') as f:
+    _site_api_def = yaml.safe_load(f.read())
+
+site_validator = Validator(_site_api_def)

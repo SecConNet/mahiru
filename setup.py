@@ -56,6 +56,7 @@ setup(
         'pytest-pydocstyle',
         'pytest-mypy',
         # dependencies for `python setup.py build_sphinx`
+        'docutils<0.17',
         'sphinx',
         'sphinx_rtd_theme',
         'recommonmark'

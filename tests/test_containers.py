@@ -169,9 +169,10 @@ def test_container_step(
             [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
-        site.policy_store, site.store, site.runner))
+        site.policy_store, site.store, site.runner, site.orchestrator))
 
-    internal_client = InternalSiteRestClient(site_server.internal_endpoint)
+    internal_client = InternalSiteRestClient(
+            site.id, site_server.internal_endpoint)
     for asset in assets:
         internal_client.store_asset(asset)
 

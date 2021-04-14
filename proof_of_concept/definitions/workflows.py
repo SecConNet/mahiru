@@ -165,7 +165,10 @@ class Workflow:
 
 
 class Job:
-    """Represents a job to the system from a user."""
+    """Represents a job to the system from a user.
+
+    A Job is a workflow together with a set of inputs for it.
+    """
     def __init__(
             self, workflow: Workflow,
             inputs: Mapping[str, Union[str, Identifier]]

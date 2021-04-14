@@ -296,7 +296,8 @@ class WorkflowSubmissionHandler:
         """Create a WorkflowSubmissionHandler handler.
 
         Args:
-            orchestrator: The orchestrator to send requests to.
+            orchestrator: The orchestrator to use to execute the
+                    submitted workflows.
 
         """
         self._orchestrator = orchestrator
@@ -342,7 +343,8 @@ class WorkflowStatusHandler:
         """Create a WorkflowStatusHandler handler.
 
         Args:
-            orchestrator: The orchestrator to send requests to.
+            orchestrator: The orchestrator to use to retrieve the
+                    requested results from.
 
         """
         self._orchestrator = orchestrator

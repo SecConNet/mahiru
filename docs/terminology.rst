@@ -95,6 +95,12 @@ Workflow item
   workflow outputs, and steps, so that these are unique within the context of a
   specific workflow.
 
+Orchestrator
+  The orchestrator is a component at a site which receives workflows from users,
+  and which plans where to execute each step of the workflow, then coordinates
+  those sites on the actual execution.
+
+
 Class names
 ===========
 
@@ -118,7 +124,7 @@ able to see what is what. Here's a key to class names:
   contains an App object which can be used when running in a UWSGI server.
 
 ...Server
-  A simple HTTP server for serving Apis in the test environment.
+  A simple HTTP server for serving APIs in the test environment.
 
 ...RestClient
   Used to connect to a Server serving a RestApi.

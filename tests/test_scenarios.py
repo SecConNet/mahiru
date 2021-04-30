@@ -6,6 +6,7 @@ from typing import Any, Dict
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import (
         generate_private_key, RSAPrivateKey)
+import requests
 
 from proof_of_concept.components.ddm_site import Site
 from proof_of_concept.components.registry_client import RegistryClient
@@ -70,12 +71,18 @@ def create_sites(
 
 def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
     """Create REST servers for sites."""
-    return {
+    servers = {
             site_name: SiteServer(
                     SiteRestApi(
                         site.policy_store, site.store, site.runner,
                         site.orchestrator))
             for site_name, site in sites.items()}
+
+    # wait for them to come up
+    for server in servers.values():
+        requests.get(server.internal_endpoint, timeout=(600.0, 1.0))
+
+    return servers
 
 
 def create_clients(servers: Dict[str, SiteServer], sites: Dict[str, Site]):

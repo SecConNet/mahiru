@@ -23,7 +23,7 @@ from proof_of_concept.definitions.execution import JobResult
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
 from proof_of_concept.definitions.policy import Rule
-from proof_of_concept.definitions.workflows import Job, JobSubmission
+from proof_of_concept.definitions.workflows import ExecutionRequest, Job
 from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize, serialize
@@ -276,9 +276,9 @@ class WorkflowExecutionHandler:
         """
         try:
             logger.info(f'Received execution request: {request.media}')
-            site_validator.validate('JobSubmission', request.media)
-            submission = deserialize(JobSubmission, request.media)
-            self._runner.execute_job(submission)
+            site_validator.validate('ExecutionRequest', request.media)
+            request = deserialize(ExecutionRequest, request.media)
+            self._runner.execute_request(request)
         except ValidationError:
             logger.warning(f'Invalid execution request: {request.media}')
             response.status = HTTP_400

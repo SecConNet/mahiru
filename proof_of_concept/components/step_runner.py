@@ -9,7 +9,8 @@ from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
         Asset, ComputeAsset, DataAsset, Metadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
-from proof_of_concept.definitions.workflows import JobSubmission, WorkflowStep
+from proof_of_concept.definitions.workflows import (
+        ExecutionRequest, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
 from proof_of_concept.rest.client import SiteRestClient
@@ -30,7 +31,7 @@ class JobRun(Thread):
             this_site: Identifier,
             registry_client: RegistryClient,
             site_rest_client: SiteRestClient,
-            submission: JobSubmission,
+            request: ExecutionRequest,
             target_store: AssetStore
             ) -> None:
         """Creates a JobRun object.
@@ -43,7 +44,7 @@ class JobRun(Thread):
             this_site: The site we're running at.
             registry_client: A RegistryClient to use.
             site_rest_client: A SiteRestClient to use.
-            submission: The job to execute and plan to do it.
+            request: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
         """
@@ -53,11 +54,11 @@ class JobRun(Thread):
         self._this_site = this_site
         self._registry_client = registry_client
         self._site_rest_client = site_rest_client
-        self._job = submission.job
-        self._workflow = submission.job.workflow
-        self._inputs = submission.job.inputs
-        self._plan = submission.plan
-        self._sites = submission.plan.step_sites
+        self._job = request.job
+        self._workflow = request.job.workflow
+        self._inputs = request.job.inputs
+        self._plan = request.plan
+        self._sites = request.plan.step_sites
         self._target_store = target_store
         self._domain_administrator = PlainDockerDA(
                 site_rest_client, target_store)
@@ -279,16 +280,16 @@ class StepRunner(IStepRunner):
         self._policy_evaluator = policy_evaluator
         self._target_store = target_store
 
-    def execute_job(self, submission: JobSubmission) -> None:
+    def execute_request(self, request: ExecutionRequest) -> None:
         """Start a job in a separate thread.
 
         Args:
-            submission: The job to execute and plan to do it.
+            request: The job to execute and plan to do it.
 
         """
         run = JobRun(
                 self._policy_evaluator, self._site,
                 self._registry_client, self._site_rest_client,
-                submission,
+                request,
                 self._target_store)
         run.start()

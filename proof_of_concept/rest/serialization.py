@@ -16,7 +16,7 @@ from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.definitions.workflows import (
-        Job, JobSubmission, Plan, Workflow, WorkflowStep)
+        ExecutionRequest, Job, Plan, Workflow, WorkflowStep)
 
 from proof_of_concept.policy.definitions import PolicyUpdate
 from proof_of_concept.policy.rules import (
@@ -32,7 +32,7 @@ T = TypeVar('T')
 
 
 Serializable = Union[
-        Asset, Job, JobResult, JobSubmission, Metadata, Plan,
+        Asset, ExecutionRequest, Job, JobResult, Metadata, Plan,
         RegisteredObject, IReplicaUpdate, Rule, Workflow, WorkflowStep]
 
 
@@ -225,18 +225,18 @@ def _deserialize_plan(user_input: JSON) -> Plan:
     return Plan(user_input['step_sites'])
 
 
-def _serialize_job_submission(submission: JobSubmission) -> JSON:
-    """Serialize a job submission to JSON."""
+def _serialize_execution_request(request: ExecutionRequest) -> JSON:
+    """Serialize an execution request to JSON."""
     return {
-            'job': _serialize_job(submission.job),
-            'plan': _serialize_plan(submission.plan)}
+            'job': _serialize_job(request.job),
+            'plan': _serialize_plan(request.plan)}
 
 
-def _deserialize_job_submission(user_input: JSON) -> JobSubmission:
-    """Deserialize a JobSubmission from JSON."""
+def _deserialize_execution_request(user_input: JSON) -> ExecutionRequest:
+    """Deserialize an ExecutionRequest from JSON."""
     job = _deserialize_job(user_input['job'])
     plan = _deserialize_plan(user_input['plan'])
-    return JobSubmission(job, plan)
+    return ExecutionRequest(job, plan)
 
 
 # Assets and metadata
@@ -369,7 +369,7 @@ _serializers = {
         Workflow: _serialize_workflow,
         Job: _serialize_job,
         Plan: _serialize_plan,
-        JobSubmission: _serialize_job_submission,
+        ExecutionRequest: _serialize_execution_request,
         Metadata: _serialize_metadata,
         ComputeAsset: _serialize_compute_asset,
         DataAsset: _serialize_data_asset,
@@ -400,7 +400,7 @@ _deserialize = {
         Workflow: _deserialize_workflow,
         Job: _deserialize_job,
         Plan: _deserialize_plan,
-        JobSubmission: _deserialize_job_submission,
+        ExecutionRequest: _deserialize_execution_request,
         Metadata: _deserialize_metadata,
         Asset: _deserialize_asset,
         JobResult: _deserialize_job_result,

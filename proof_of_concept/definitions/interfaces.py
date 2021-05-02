@@ -6,6 +6,8 @@ from typing import Dict, Generic, Iterable, Set, Type, TypeVar
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import Asset, ComputeAsset
 from proof_of_concept.definitions.policy import Rule
+from proof_of_concept.definitions.registry import (
+        PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.definitions.workflows import (
         ExecutionRequest, Job, WorkflowStep)
 
@@ -44,6 +46,47 @@ class IReplicationService(Generic[T]):
 
         Return:
             An update from the given version to a newer version.
+        """
+        raise NotImplementedError()
+
+
+class IRegistry(IReplicationService[RegisteredObject]):
+    """Interface for the central registry.
+
+    This is equivalent to the registry REST API, and is implemented
+    by the Registry class and the RegistryRestClient class.
+    """
+    def register_party(
+            self, description: PartyDescription) -> None:
+        """Register a party with the DDM.
+
+        Args:
+            description: A description of the party
+        """
+        raise NotImplementedError()
+
+    def deregister_party(self, party_id: Identifier) -> None:
+        """Deregister a party with the DDM.
+
+        Args:
+            party_id: Identifier of the party to deregister.
+        """
+        raise NotImplementedError()
+
+    def register_site(self, description: SiteDescription) -> None:
+        """Register a Site with the Registry.
+
+        Args:
+            description: Description of the site.
+
+        """
+        raise NotImplementedError()
+
+    def deregister_site(self, site_id: Identifier) -> None:
+        """Deregister a site with the DDM.
+
+        Args:
+            site_id: Identifer of the site to deregister.
         """
         raise NotImplementedError()
 

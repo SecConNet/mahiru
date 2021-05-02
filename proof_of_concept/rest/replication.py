@@ -100,8 +100,3 @@ class ReplicationRestClient(IReplicationService[T]):
 class PolicyRestClient(ReplicationRestClient[Rule]):
     """A client for policy servers."""
     UpdateType = PolicyUpdate
-
-
-class RegistryRestClient(ReplicationRestClient[RegisteredObject]):
-    """A client for the registry."""
-    UpdateType = RegistryUpdate

@@ -11,8 +11,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 import pytest
 
+from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.registry.registry import Registry
 from proof_of_concept.rest.registry import RegistryRestApi, RegistryServer
+from proof_of_concept.rest.registry_client import RegistryRestClient
+
 
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -41,6 +44,17 @@ def registry_server():
     yield
 
     server.close()
+
+
+@pytest.fixture
+def registry_client():
+    """Create a registry REST API client.
+
+    Connects to the default service endpoint.
+
+    """
+    registry_rest_client = RegistryRestClient()
+    return RegistryClient(registry_rest_client)
 
 
 @pytest.fixture

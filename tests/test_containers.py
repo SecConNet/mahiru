@@ -120,11 +120,10 @@ def compute_asset_tar(dcli, docker_dir):
         'proof_of_concept.components.domain_administrator.OUTPUT_ASSET_ID',
         Identifier('asset:ns:output_base:ns:test_site'))
 def test_container_step(
-        registry_server, data_asset_tars, compute_asset_tar, caplog):
+        registry_server, registry_client, data_asset_tars, compute_asset_tar,
+        caplog):
 
     caplog.set_level(logging.DEBUG)
-
-    registry_client = RegistryClient()
 
     # create party
     party_key = generate_private_key(

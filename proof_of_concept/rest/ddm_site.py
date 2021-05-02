@@ -25,6 +25,7 @@ from proof_of_concept.definitions.interfaces import IAssetStore, IStepRunner
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.workflows import ExecutionRequest, Job
 from proof_of_concept.policy.replication import PolicyStore
+from proof_of_concept.rest.registry_client import RegistryRestClient
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize, serialize
 from proof_of_concept.rest.validation import site_validator, ValidationError
@@ -524,7 +525,8 @@ def wsgi_app() -> App:
     """Creates a WSGI app for a WSGI runner."""
     settings = load_settings(default_config_location)
 
-    registry_client = RegistryClient(settings.registry_endpoint)
+    registry_rest_client = RegistryRestClient(settings.registry_endpoint)
+    registry_client = RegistryClient(registry_rest_client)
     site = Site(
             settings.name, settings.owner, settings.namespace, [], [],
             registry_client)

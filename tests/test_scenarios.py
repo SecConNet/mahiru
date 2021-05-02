@@ -133,12 +133,12 @@ def deregister_parties(
         registry_client.deregister_party(party_id)
 
 
-def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
+def run_scenario(
+        scenario: Dict[str, Any], registry_client: RegistryClient
+        ) -> Dict[str, Any]:
     logger.info('Running test scenario on behalf of {}'.format(
         scenario['user_site']))
     logger.info('Job:\n{}'.format(indent(str(scenario["job"]), " "*4)))
-
-    registry_client = RegistryClient()
 
     parties = create_parties(scenario['sites'])
     register_parties(registry_client, parties)
@@ -165,7 +165,7 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     return result.outputs
 
 
-def test_pii(registry_server):
+def test_pii(registry_server, registry_client):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [
@@ -321,11 +321,11 @@ def test_pii(registry_server):
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = 'site2'
 
-    output = run_scenario(scenario)
+    output = run_scenario(scenario, registry_client)
     assert output['result'].data == 12.5
 
 
-def test_saas_with_data(registry_server):
+def test_saas_with_data(registry_server, registry_client):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [
@@ -414,5 +414,5 @@ def test_saas_with_data(registry_server):
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = 'site1'
 
-    output = run_scenario(scenario)
+    output = run_scenario(scenario, registry_client)
     assert output['y'].data == 45

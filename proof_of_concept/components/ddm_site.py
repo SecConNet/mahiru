@@ -32,8 +32,6 @@ class Site:
             rules: List[Rule], registry_client: RegistryClient) -> None:
         """Create a Site.
 
-        Also registers its runner and store in the global registry.
-
         Args:
             name: Name of the site
             owner: Party which owns this site.

@@ -26,7 +26,7 @@ logger = logging.getLogger(__file__)
 def create_parties(
         site_descriptions: Dict[str, Any]
         ) -> Dict[str, RSAPrivateKey]:
-    """Creates parties with private keys and registers them."""
+    """Creates parties with private keys."""
     return {
             desc['owner']: generate_private_key(
                 public_exponent=65537,

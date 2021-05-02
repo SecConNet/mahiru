@@ -165,8 +165,7 @@ class RegistryRestApi:
         self.app.add_route('/sites', site_registration)
         self.app.add_route('/sites/{id}', site_registration)
 
-        registry_replication = ReplicationHandler[RegisteredObject](
-                registry.store)
+        registry_replication = ReplicationHandler[RegisteredObject](registry)
         self.app.add_route('/updates', registry_replication)
 
 

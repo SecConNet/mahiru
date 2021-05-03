@@ -8,7 +8,7 @@ from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.workflows import (
-        Job, JobSubmission, Plan, Workflow, WorkflowStep)
+        ExecutionRequest, Job, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
         PermissionCalculator, Permissions, PolicyEvaluator)
 from proof_of_concept.rest.client import SiteRestClient
@@ -144,32 +144,32 @@ class WorkflowExecutor:
         """
         self._site_rest_client = site_rest_client
 
-    def start_workflow(self, submission: JobSubmission) -> None:
-        """Starts the given workflow execution plan.
+    def start_workflow(self, request: ExecutionRequest) -> None:
+        """Starts the given workflow execution request.
 
-        This sends requests to all the sites at which the job is to be
-        run to start executing the job.
+        This sends requests to all the sites at which the request is to
+        be run to start executing the request.
 
         Args:
-            submission: The job and plan to execute.
+            request: The job and plan to execute.
 
         Returns:
             A dictionary of results, indexed by workflow output name.
         """
-        for site_id in set(submission.plan.step_sites.values()):
-            self._site_rest_client.submit_job(site_id, submission)
+        for site_id in set(request.plan.step_sites.values()):
+            self._site_rest_client.submit_request(site_id, request)
 
-    def is_done(self, submission: JobSubmission) -> bool:
-        """Checks whether a job is done.
+    def is_done(self, request: ExecutionRequest) -> bool:
+        """Checks whether a request is done.
 
         Returns:
-            True iff the job is done.
+            True iff the request is done.
         """
-        wf = submission.job.workflow
-        id_hashes = submission.job.id_hashes()
+        wf = request.job.workflow
+        id_hashes = request.job.id_hashes()
         for wf_outp_name, wf_outp_source in wf.outputs.items():
             src_step_name, src_step_output = wf_outp_source.split('.')
-            src_site = submission.plan.step_sites[src_step_name]
+            src_site = request.plan.step_sites[src_step_name]
             outp_id_hash = id_hashes[wf_outp_name]
             asset_id = Identifier.from_id_hash(outp_id_hash)
             try:
@@ -178,25 +178,25 @@ class WorkflowExecutor:
                 return False
         return True
 
-    def get_results(self, submission: JobSubmission) -> Dict[str, Asset]:
-        """Downloads the results of a completed job.
+    def get_results(self, request: ExecutionRequest) -> Dict[str, Asset]:
+        """Downloads the results of a completed request.
 
         This blocks until all results are available.
 
         Args:
-            submission: The job that was submitted.
+            request: The job that was submitted.
 
         Returns:
             A dictionary of results, indexed by workflow output name.
         """
-        wf = submission.job.workflow
-        id_hashes = submission.job.id_hashes()
+        wf = request.job.workflow
+        id_hashes = request.job.id_hashes()
         results = dict()    # type: Dict[str, Any]
         while len(results) < len(wf.outputs):
             for wf_outp_name, wf_outp_source in wf.outputs.items():
                 if wf_outp_name not in results:
                     src_step_name, src_step_output = wf_outp_source.split('.')
-                    src_site = submission.plan.step_sites[src_step_name]
+                    src_site = request.plan.step_sites[src_step_name]
                     outp_id_hash = id_hashes[wf_outp_name]
                     try:
                         asset_id = Identifier.from_id_hash(outp_id_hash)
@@ -230,7 +230,7 @@ class WorkflowOrchestrator:
         self._planner = WorkflowPlanner(registry_client, policy_evaluator)
         self._executor = WorkflowExecutor(site_rest_client)
         self._next_id = 1
-        self._jobs = dict()     # type: Dict[str, JobSubmission]
+        self._jobs = dict()     # type: Dict[str, ExecutionRequest]
         self._results = dict()  # type: Dict[str, Dict[str, Any]]
 
     def start_job(self, submitter: Identifier, job: Job) -> str:
@@ -251,12 +251,12 @@ class WorkflowOrchestrator:
         for i, plan in enumerate(plans):
             logger.info(f'Plan {i}: {plan}')
         selected_plan = plans[-1]
-        submission = JobSubmission(job, selected_plan)
-        self._executor.start_workflow(submission)
+        request = ExecutionRequest(job, selected_plan)
+        self._executor.start_workflow(request)
 
         job_id = str(self._next_id)
         self._next_id += 1
-        self._jobs[job_id] = submission
+        self._jobs[job_id] = request
         return job_id
 
     def get_submitted_job(self, job_id: str) -> Job:

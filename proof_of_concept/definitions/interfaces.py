@@ -7,7 +7,7 @@ from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import Asset, ComputeAsset
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.workflows import (
-        Job, JobSubmission, WorkflowStep)
+        ExecutionRequest, Job, WorkflowStep)
 
 
 T = TypeVar('T')
@@ -107,9 +107,9 @@ class IAssetStore:
 class IStepRunner:
     """Interface for services for running steps at a given site."""
 
-    def execute_job(
+    def execute_request(
             self,
-            submission: JobSubmission
+            request: ExecutionRequest
             ) -> None:
         """Executes the local part of a plan.
 
@@ -117,7 +117,7 @@ class IStepRunner:
         executed by this runner according to the given plan.
 
         Args:
-            submission: the job to execute and plan to do it.
+            request: the job to execute and plan to do it.
 
         """
         raise NotImplementedError()

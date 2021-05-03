@@ -309,19 +309,19 @@ class Plan:
         return result
 
 
-class JobSubmission:
-    """A submission of a job and execution plan to a site.
+class ExecutionRequest:
+    """A request to execute a job according to a plan.
 
     Attributes:
-        job: The job we're executing.
+        job: The job we're asking to execute.
         plan: The plan according to which it should be executed.
 
     """
     def __init__(self, job: Job, plan: Plan) -> None:
-        """Create a JobSubmission.
+        """Create an ExecutionRequest.
 
         Args:
-            job: The job we're executing.
+            job: The job we're asking to execute.
             plan: The plan according to which it should be executed.
         """
         self.job = job

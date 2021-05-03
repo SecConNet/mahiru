@@ -127,7 +127,7 @@ paths:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/JobSubmission"
+              "$ref": "#/components/schemas/ExecutionRequest"
         required: true
       responses:
         "201":
@@ -342,7 +342,7 @@ components:
           schema:
             "$ref": "#/components/schemas/Metadata"
 
-    JobSubmission:
+    ExecutionRequest:
       type: object
       required:
         - job

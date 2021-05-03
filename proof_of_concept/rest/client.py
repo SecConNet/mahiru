@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import Asset
-from proof_of_concept.definitions.workflows import JobSubmission
+from proof_of_concept.definitions.workflows import ExecutionRequest
 from proof_of_concept.rest.serialization import deserialize, serialize
 from proof_of_concept.rest.validation import site_validator
 from proof_of_concept.components.registry_client import RegistryClient
@@ -78,13 +78,13 @@ class SiteRestClient:
                     if chunk:
                         f.write(chunk)
 
-    def submit_job(
-            self, site_id: Identifier, submission: JobSubmission) -> None:
-        """Submits a job for execution to a local runner.
+    def submit_request(
+            self, site_id: Identifier, request: ExecutionRequest) -> None:
+        """Submits a request for execution to a local runner.
 
         Args:
             site_id: The site to submit to.
-            submission: The job submision to send.
+            request: The execution request to send.
 
         """
         try:
@@ -93,6 +93,6 @@ class SiteRestClient:
             raise RuntimeError(f'Site or runner at site {site_id} not found')
 
         if site.runner:
-            requests.post(f'{site.endpoint}/jobs', json=serialize(submission))
+            requests.post(f'{site.endpoint}/jobs', json=serialize(request))
         else:
             raise ValueError(f'Site {site_id} does not have a runner')

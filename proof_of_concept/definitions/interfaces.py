@@ -50,12 +50,11 @@ class IReplicationService(Generic[T]):
         raise NotImplementedError()
 
 
-class IRegistry(IReplicationService[RegisteredObject]):
-    """Interface for the central registry.
+IRegistryService = IReplicationService[RegisteredObject]
 
-    This is equivalent to the registry REST API, and is implemented
-    by the Registry class and the RegistryRestClient class.
-    """
+
+class IRegistration:
+    """Interface for registering with the central registry."""
     def register_party(
             self, description: PartyDescription) -> None:
         """Register a party with the DDM.

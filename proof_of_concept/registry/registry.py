@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Type, TypeVar
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import (
-        IAssetStore, IRegistry, IReplicaUpdate)
+        IAssetStore, IRegistration, IRegistryService, IReplicaUpdate)
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.registry.replication import RegistryStore, RegistryUpdate
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
 
 
-class Registry(IRegistry):
+class Registry(IRegistration, IRegistryService):
     """Global registry of remote-accessible things.
 
     Registers runners, stores, and assets. In a real system, runners

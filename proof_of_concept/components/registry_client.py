@@ -5,7 +5,7 @@ from typing import Any, Callable, List, Optional, Set
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions.identifier import Identifier
-from proof_of_concept.definitions.interfaces import IRegistry
+from proof_of_concept.definitions.interfaces import IRegistryService
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.replication import Replica
@@ -21,8 +21,13 @@ class _RegistryReplica(Replica[RegisteredObject]):
 
 
 class RegistryClient:
-    """Local interface to the global registry."""
-    def __init__(self, registry: IRegistry) -> None:
+    """Local client for the global registry.
+
+    This provides read-only access to the global registry via several
+    utility functions, based on a local replica it keeps.
+
+    """
+    def __init__(self, registry: IRegistryService) -> None:
         """Create a RegistryClient.
 
         Note that this class can use either a Registry object to
@@ -32,7 +37,6 @@ class RegistryClient:
         Args:
             registry: The registry to connect to.
         """
-        self._registry = registry
         self._callbacks = list()    # type: List[RegistryCallback]
         self._registry_replica = _RegistryReplica(
                 registry, on_update=self._on_registry_update)
@@ -64,48 +68,6 @@ class RegistryClient:
 
         """
         self._registry_replica.update()
-
-    def register_party(self, description: PartyDescription) -> None:
-        """Register a party with the Registry.
-
-        Args:
-            description: Description of the party.
-
-        """
-        self._registry.register_party(description)
-
-    def deregister_party(self, party: Identifier) -> None:
-        """Deregister a party with the Registry.
-
-        Args:
-            party: The party to deregister.
-
-        Raises:
-            KeyError: If the party could not be found
-
-        """
-        self._registry.deregister_party(party)
-
-    def register_site(self, description: SiteDescription) -> None:
-        """Register a site with the Registry.
-
-        Args:
-            description: Description of the site.
-
-        """
-        self._registry.register_site(description)
-
-    def deregister_site(self, site: Identifier) -> None:
-        """Deregister a site with the Registry.
-
-        Args:
-            site: The site to deregister.
-
-        Raises:
-            KeyError: If the site could not be found
-
-        """
-        self._registry.deregister_site(site)
 
     def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
         """Get the public key of the owner of a namespace."""

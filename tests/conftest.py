@@ -14,7 +14,8 @@ import pytest
 from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.registry.registry import Registry
 from proof_of_concept.rest.registry import RegistryRestApi, RegistryServer
-from proof_of_concept.rest.registry_client import RegistryRestClient
+from proof_of_concept.rest.registry_client import (
+        RegistrationRestClient, RegistryRestClient)
 
 
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -48,13 +49,23 @@ def registry_server():
 
 @pytest.fixture
 def registry_client():
-    """Create a registry REST API client.
+    """Create a registry REST API replication client.
 
     Connects to the default service endpoint.
 
     """
     registry_rest_client = RegistryRestClient()
     return RegistryClient(registry_rest_client)
+
+
+@pytest.fixture
+def registration_client():
+    """Create a registration REST API registration client.
+
+    Connects to the default service endpoint.
+
+    """
+    return RegistrationRestClient()
 
 
 @pytest.fixture

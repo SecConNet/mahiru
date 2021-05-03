@@ -38,15 +38,16 @@ class InternalSiteRestClient:
 
         """
         r = requests.post(f'{self._endpoint}/assets', json=serialize(asset))
-        if r.status_code != 200:
+        if r.status_code != 201:
             raise RuntimeError('Error uploading asset to site')
 
         if asset.image_location is not None:
             with Path(asset.image_location).open('rb') as f:
                 r = requests.put(
                         f'{self._endpoint}/assets/{quote(asset.id)}/image',
+                        headers={'Content-Type': 'application/octet-stream'},
                         data=f)
-                if r.status_code != 204:
+                if r.status_code != 201:
                     raise RuntimeError('Error uploading asset image to site')
 
     def add_rule(self, rule: Rule) -> None:
@@ -57,7 +58,7 @@ class InternalSiteRestClient:
 
         """
         r = requests.post(f'{self._endpoint}/rules', json=serialize(rule))
-        if r.status_code != 200:
+        if r.status_code != 201:
             raise RuntimeError(f'Error adding rule to site: {r.text}')
 
     def submit_job(self, job: Job) -> str:

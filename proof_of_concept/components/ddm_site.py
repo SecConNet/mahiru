@@ -51,11 +51,6 @@ class Site:
         self.administrator = owner
         self.namespace = namespace
 
-        # Load API definitions
-        site_api_file = Path(__file__).parents[1] / 'rest' / 'site_api.yaml'
-        with open(site_api_file, 'r') as f:
-            site_api_def = yaml.safe_load(f.read())
-
         # Create clients for talking to the DDM
         self._registry_client = registry_client
         self._site_rest_client = SiteRestClient(self.id, self._registry_client)

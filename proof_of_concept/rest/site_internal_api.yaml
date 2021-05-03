@@ -1,0 +1,170 @@
+openapi: "3.0.0"
+
+info:
+    version: 0.1.0
+    title: Mahiru Site internal API
+
+paths:
+  /assets:
+    post:
+      summary: Store an asset (metadata) in the site.
+      operationId: storeAsset
+      requestBody:
+        description: The asset to store.
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Asset"
+        required: true
+      responses:
+        "201":
+          description: Successfully stored the asset
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /assets/{assetId}/image:
+    put:
+      summary: Store an asset image in the site.
+      operationId: storeAssetImage
+      requestBody:
+        description: The asset image to store
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+        "201":
+          description: Successfully stored the asset image
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "404":
+          description: The asset with assetId was not found
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /rules:
+    post:
+      summary: Store a new rule at the site
+      operationId: storeRule
+      requestBody:
+        description: The rule to store.
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Rule"
+        required: true
+      responses:
+        "201":
+          description: Successfully stored the rule
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /jobs:
+    post:
+      summary: Submit a new job to be run on the DDM
+      operationId: submitJob
+      requestBody:
+        description: The execution request to submit
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ExecutionRequest"
+        required: true
+      responses:
+        "303":
+          description: Success, see the resulting job
+          headers:
+            Location:
+              description: URL at which to retrieve the job's status
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /jobs/{jobId}:
+    get:
+      summary: Retrieve the result of a job, with outputs if available
+      operationId: getJob
+      responses:
+        "200":
+          description: The job's (partial) result
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/JobResult"
+        "404":
+          description: The job with the given id was not found
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+$ref: "./schemas.yaml/"
+

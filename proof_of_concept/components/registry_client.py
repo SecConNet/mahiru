@@ -1,50 +1,45 @@
 """Functionality for connecting to the central registry."""
 from pathlib import Path
-import requests
 from typing import Any, Callable, List, Optional, Set
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-import ruamel.yaml as yaml
 
 from proof_of_concept.definitions.identifier import Identifier
+from proof_of_concept.definitions.interfaces import IRegistryService
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
-from proof_of_concept.rest.serialization import serialize
 from proof_of_concept.replication import Replica
-from proof_of_concept.rest.replication import RegistryRestClient
-from proof_of_concept.rest.validation import Validator
 
 
 RegistryCallback = Callable[
         [Set[RegisteredObject], Set[RegisteredObject]], None]
 
 
-class RegistryReplica(Replica[RegisteredObject]):
+class _RegistryReplica(Replica[RegisteredObject]):
     """Local replica of the global registry."""
     pass
 
 
 class RegistryClient:
-    """Local interface to the global registry."""
-    def __init__(self, endpoint: str = 'http://localhost:4413') -> None:
-        """Create a RegistryClient."""
-        self._registry_endpoint = endpoint
+    """Local client for the global registry.
 
+    This provides read-only access to the global registry via several
+    utility functions, based on a local replica it keeps.
+
+    """
+    def __init__(self, registry: IRegistryService) -> None:
+        """Create a RegistryClient.
+
+        Note that this class can use either a Registry object to
+        call directly, or a RegistryRestClient to connect to a
+        registry via a REST API.
+
+        Args:
+            registry: The registry to connect to.
+        """
         self._callbacks = list()    # type: List[RegistryCallback]
-
-        # Set up connection to registry
-        registry_api_file = (
-                Path(__file__).parents[1] / 'rest' / 'registry_api.yaml')
-        with open(registry_api_file, 'r') as f:
-            registry_api_def = yaml.safe_load(f.read())
-
-        registry_validator = Validator(registry_api_def)
-
-        registry_client = RegistryRestClient(
-                self._registry_endpoint + '/updates', registry_validator)
-
-        self._registry_replica = RegistryReplica(
-                registry_client, on_update=self._on_registry_update)
+        self._registry_replica = _RegistryReplica(
+                registry, on_update=self._on_registry_update)
 
         # Get initial data
         self._registry_replica.update()
@@ -73,50 +68,6 @@ class RegistryClient:
 
         """
         self._registry_replica.update()
-
-    def register_party(self, description: PartyDescription) -> None:
-        """Register a party with the Registry.
-
-        Args:
-            description: Description of the party.
-
-        """
-        requests.post(
-                self._registry_endpoint + '/parties',
-                json=serialize(description))
-
-    def deregister_party(self, party: Identifier) -> None:
-        """Deregister a party with the Registry.
-
-        Args:
-            party: The party to deregister.
-
-        """
-        r = requests.delete(f'{self._registry_endpoint}/parties/{party}')
-        if r.status_code == 404:
-            raise KeyError('Party not found')
-
-    def register_site(self, description: SiteDescription) -> None:
-        """Register a site with the Registry.
-
-        Args:
-            description: Description of the site.
-
-        """
-        requests.post(
-                self._registry_endpoint + '/sites',
-                json=serialize(description))
-
-    def deregister_site(self, site: Identifier) -> None:
-        """Deregister a site with the Registry.
-
-        Args:
-            site: The site to deregister.
-
-        """
-        r = requests.delete(f'{self._registry_endpoint}/sites/{site}')
-        if r.status_code == 404:
-            raise KeyError('Site not found')
 
     def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
         """Get the public key of the owner of a namespace."""

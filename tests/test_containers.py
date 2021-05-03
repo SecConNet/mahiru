@@ -10,7 +10,6 @@ import pytest
 import time
 
 from proof_of_concept.components.ddm_site import Site
-from proof_of_concept.components.registry_client import RegistryClient
 from proof_of_concept.definitions.assets import ComputeAsset, DataAsset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.registry import (
@@ -120,17 +119,16 @@ def compute_asset_tar(dcli, docker_dir):
         'proof_of_concept.components.domain_administrator.OUTPUT_ASSET_ID',
         Identifier('asset:ns:output_base:ns:test_site'))
 def test_container_step(
-        registry_server, data_asset_tars, compute_asset_tar, caplog):
+        registry_server, registry_client, registration_client,
+        data_asset_tars, compute_asset_tar, caplog):
 
     caplog.set_level(logging.DEBUG)
-
-    registry_client = RegistryClient()
 
     # create party
     party_key = generate_private_key(
             public_exponent=65537, key_size=2048, backend=default_backend())
 
-    registry_client.register_party(
+    registration_client.register_party(
             PartyDescription('party:ns:test_party', party_key.public_key()))
 
     # create assets
@@ -179,7 +177,7 @@ def test_container_step(
     for rule in rules:
         internal_client.add_rule(rule)
 
-    registry_client.register_site(
+    registration_client.register_site(
         SiteDescription(
                 site.id, site.owner, site.administrator,
                 site_server.external_endpoint,
@@ -204,6 +202,6 @@ def test_container_step(
         result = site.run_job(Job(workflow, inputs))
     finally:
         site_server.close()
-        registry_client.deregister_site(site.id)
-        registry_client.deregister_party('party:ns:test_party')
+        registration_client.deregister_site(site.id)
+        registration_client.deregister_party('party:ns:test_party')
         site.close()

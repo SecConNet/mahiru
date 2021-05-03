@@ -18,6 +18,7 @@ from proof_of_concept.policy.rules import (
     ResultOfComputeIn)
 from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
 from proof_of_concept.rest.internal_client import InternalSiteRestClient
+from proof_of_concept.rest.registry_client import RegistrationRestClient
 
 
 logger = logging.getLogger(__file__)
@@ -26,7 +27,7 @@ logger = logging.getLogger(__file__)
 def create_parties(
         site_descriptions: Dict[str, Any]
         ) -> Dict[str, RSAPrivateKey]:
-    """Creates parties with private keys and registers them."""
+    """Creates parties with private keys."""
     return {
             desc['owner']: generate_private_key(
                 public_exponent=65537,
@@ -36,11 +37,12 @@ def create_parties(
 
 
 def register_parties(
-        registry_client: RegistryClient, parties: Dict[str, RSAPrivateKey]
+        registration_client: RegistrationRestClient,
+        parties: Dict[str, RSAPrivateKey]
         ) -> None:
     """Register parties with their public keys."""
     for party_id, private_key in parties.items():
-        registry_client.register_party(
+        registration_client.register_party(
                 PartyDescription(party_id, private_key.public_key()))
 
 
@@ -101,11 +103,11 @@ def add_rules(
 
 
 def register_sites(
-        registry_client: RegistryClient, sites: Dict[str, Site],
+        registration_client: RegistrationRestClient, sites: Dict[str, Site],
         servers: Dict[str, SiteServer]) -> None:
     """Register sites with the registry."""
     for site_name, site in sites.items():
-        registry_client.register_site(
+        registration_client.register_site(
                 SiteDescription(
                     site.id, site.owner, site.administrator,
                     servers[site_name].external_endpoint,
@@ -119,29 +121,32 @@ def stop_servers(servers: Dict[str, SiteServer]):
 
 
 def deregister_sites(
-        registry_client: RegistryClient, sites: Dict[str, Site]) -> None:
+        registration_client: RegistrationRestClient, sites: Dict[str, Site]
+        ) -> None:
     """Deregisters sites from the registry."""
     for site in sites.values():
-        registry_client.deregister_site(site.id)
+        registration_client.deregister_site(site.id)
 
 
 def deregister_parties(
-        registry_client: RegistryClient, parties: Dict[str, RSAPrivateKey]
+        registration_client: RegistrationRestClient,
+        parties: Dict[str, RSAPrivateKey]
         ) -> None:
     """Deregisters parties from the registry."""
     for party_id in parties:
-        registry_client.deregister_party(party_id)
+        registration_client.deregister_party(party_id)
 
 
-def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
+def run_scenario(
+        scenario: Dict[str, Any], registry_client: RegistryClient,
+        registration_client: RegistrationRestClient
+        ) -> Dict[str, Any]:
     logger.info('Running test scenario on behalf of {}'.format(
         scenario['user_site']))
     logger.info('Job:\n{}'.format(indent(str(scenario["job"]), " "*4)))
 
-    registry_client = RegistryClient()
-
     parties = create_parties(scenario['sites'])
-    register_parties(registry_client, parties)
+    register_parties(registration_client, parties)
 
     sign_rules(scenario['sites'], parties)
     sites = create_sites(registry_client, scenario['sites'])
@@ -149,7 +154,7 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     clients = create_clients(servers, sites)
     upload_assets(scenario['sites'], clients)
     add_rules(scenario['sites'], clients)
-    register_sites(registry_client, sites, servers)
+    register_sites(registration_client, sites, servers)
 
     client = clients[scenario['user_site']]
     job_id = client.submit_job(scenario['job'])
@@ -158,14 +163,14 @@ def run_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     result = client.get_job_result(job_id)
 
     stop_servers(servers)
-    deregister_sites(registry_client, sites)
-    deregister_parties(registry_client, parties)
+    deregister_sites(registration_client, sites)
+    deregister_parties(registration_client, parties)
 
     logger.info(f'Result: {result.outputs}')
     return result.outputs
 
 
-def test_pii(registry_server):
+def test_pii(registry_server, registry_client, registration_client):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [
@@ -321,11 +326,11 @@ def test_pii(registry_server):
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = 'site2'
 
-    output = run_scenario(scenario)
+    output = run_scenario(scenario, registry_client, registration_client)
     assert output['result'].data == 12.5
 
 
-def test_saas_with_data(registry_server):
+def test_saas_with_data(registry_server, registry_client, registration_client):
     scenario = dict()     # type: Dict[str, Any]
 
     scenario['rules-party1'] = [
@@ -414,5 +419,5 @@ def test_saas_with_data(registry_server):
     scenario['job'] = Job(workflow, inputs)
     scenario['user_site'] = 'site1'
 
-    output = run_scenario(scenario)
+    output = run_scenario(scenario, registry_client, registration_client)
     assert output['y'].data == 45

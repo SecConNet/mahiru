@@ -3,7 +3,8 @@ import logging
 from typing import Any, Dict, Optional, Type, TypeVar
 
 from proof_of_concept.definitions.identifier import Identifier
-from proof_of_concept.definitions.interfaces import IAssetStore
+from proof_of_concept.definitions.interfaces import (
+        IAssetStore, IRegistration, IRegistryService, IReplicaUpdate)
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.registry.replication import RegistryStore, RegistryUpdate
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 _ReplicatedClass = TypeVar('_ReplicatedClass', bound=RegisteredObject)
 
 
-class Registry:
+class Registry(IRegistration, IRegistryService):
     """Global registry of remote-accessible things.
 
     Registers runners, stores, and assets. In a real system, runners
@@ -28,7 +29,21 @@ class Registry:
         self._asset_locations = dict()           # type: Dict[Identifier, str]
 
         archive = ReplicableArchive[RegisteredObject]()
-        self.store = RegistryStore(archive, 0.1)
+        self._store = RegistryStore(archive, 0.1)
+
+    def get_updates_since(
+            self, from_version: int) -> IReplicaUpdate[RegisteredObject]:
+        """Return a set of objects modified since the given version.
+
+        Args:
+            from_version: A version received from a previous call to
+                    this function, or 0 to get an update for a
+                    fresh replica.
+
+        Return:
+            An update from the given version to a newer version.
+        """
+        return self._store.get_updates_since(from_version)
 
     def register_party(
             self, description: PartyDescription) -> None:
@@ -41,7 +56,7 @@ class Registry:
             raise RuntimeError(
                     f'There is already a party called {description.id}')
 
-        self.store.insert(description)
+        self._store.insert(description)
         logger.info(f'Registered party {description}')
 
     def deregister_party(self, party_id: Identifier) -> None:
@@ -53,7 +68,7 @@ class Registry:
         description = self._get_object(PartyDescription, 'id', party_id)
         if description is None:
             raise KeyError('Party not found')
-        self.store.delete(description)
+        self._store.delete(description)
 
     def register_site(self, description: SiteDescription) -> None:
         """Register a Site with the Registry.
@@ -76,7 +91,7 @@ class Registry:
         if admin is None:
             raise RuntimeError(f'Party {description.admin_id} not found')
 
-        self.store.insert(description)
+        self._store.insert(description)
         logger.info(f'{self} Registered site {description}')
 
     def deregister_site(self, site_id: Identifier) -> None:
@@ -88,7 +103,7 @@ class Registry:
         description = self._get_object(SiteDescription, 'id', site_id)
         if description is None:
             raise KeyError('Site not found')
-        self.store.delete(description)
+        self._store.delete(description)
 
     def _get_object(
             self, typ: Type[_ReplicatedClass], attr_name: str, value: Any
@@ -113,7 +128,7 @@ class Registry:
                 in the store which does not have an attribute named
                 `attr_name`.
         """
-        for o in self.store.objects():
+        for o in self._store.objects():
             if isinstance(o, typ):
                 if getattr(o, attr_name) == value:
                     return o

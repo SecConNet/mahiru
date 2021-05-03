@@ -16,7 +16,7 @@ from proof_of_concept.definitions.registry import (
 from proof_of_concept.registry.registry import Registry
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize
-from proof_of_concept.rest.validation import Validator, ValidationError
+from proof_of_concept.rest.validation import validate_json, ValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -26,16 +26,13 @@ class PartyRegistrationHandler:
     """A handler for the /parties endpoint."""
     def __init__(
             self,
-            registry: Registry,
-            validator: Validator) -> None:
+            registry: Registry) -> None:
         """Create a PartyRegistrationHandler handler.
 
         Args:
             registry: The registry to send requests to.
-            validator: A validator to validate input with.
         """
         self._registry = registry
-        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle a party registration request.
@@ -46,7 +43,7 @@ class PartyRegistrationHandler:
 
         """
         try:
-            self._validator.validate('Party', request.media)
+            validate_json('Party', request.media)
             self._registry.register_party(
                     deserialize(PartyDescription, request.media))
             response.status = HTTP_201
@@ -82,15 +79,13 @@ class PartyRegistrationHandler:
 
 class SiteRegistrationHandler:
     """A handler for the /sites endpoint."""
-    def __init__(self, registry: Registry, validator: Validator) -> None:
+    def __init__(self, registry: Registry) -> None:
         """Create a SiteRegistrationHandler handler.
 
         Args:
             registry: The registry to send requests to.
-            validator: A Validator to validate objects with.
         """
         self._registry = registry
-        self._validator = validator
 
     def on_post(self, request: Request, response: Response) -> None:
         """Handle a site registration request.
@@ -101,7 +96,7 @@ class SiteRegistrationHandler:
 
         """
         try:
-            self._validator.validate('Site', request.media)
+            validate_json('Site', request.media)
             self._registry.register_site(
                     deserialize(SiteDescription, request.media))
             response.status = HTTP_201
@@ -155,13 +150,11 @@ class RegistryRestApi:
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
 
-        validator = Validator(registry_api_def)
-
-        party_registration = PartyRegistrationHandler(registry, validator)
+        party_registration = PartyRegistrationHandler(registry)
         self.app.add_route('/parties', party_registration)
         self.app.add_route('/parties/{id}', party_registration)
 
-        site_registration = SiteRegistrationHandler(registry, validator)
+        site_registration = SiteRegistrationHandler(registry)
         self.app.add_route('/sites', site_registration)
         self.app.add_route('/sites/{id}', site_registration)
 

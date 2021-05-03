@@ -16,7 +16,6 @@ from proof_of_concept.components.step_runner import StepRunner
 from proof_of_concept.policy.evaluation import PolicyEvaluator
 from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.replication import ReplicableArchive
-from proof_of_concept.rest.validation import Validator
 from proof_of_concept.components.orchestration import WorkflowOrchestrator
 from proof_of_concept.components.policy_client import PolicyClient
 

@@ -11,7 +11,6 @@ from proof_of_concept.definitions.interfaces import (
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.rest.replication import ReplicationRestClient
-from proof_of_concept.rest.validation import Validator
 from proof_of_concept.registry.replication import RegistryUpdate
 from proof_of_concept.rest.serialization import serialize
 
@@ -41,10 +40,7 @@ class RegistryRestClient(IRegistryService):
         with open(registry_api_file, 'r') as f:
             registry_api_def = yaml.safe_load(f.read())
 
-        registry_validator = Validator(registry_api_def)
-
-        self._registry_client = _ReplicationRestClient(
-                endpoint + '/updates', registry_validator)
+        self._registry_client = _ReplicationRestClient(endpoint + '/updates')
 
     def get_updates_since(self, from_version: int) -> RegistryUpdate:
         """Return a set of objects modified since the given version.

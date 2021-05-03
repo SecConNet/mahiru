@@ -9,7 +9,7 @@ from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.policy.replication import RuleValidator
 from proof_of_concept.replication import Replica
 from proof_of_concept.rest.replication import PolicyRestClient
-from proof_of_concept.rest.validation import site_validator
+from proof_of_concept.rest.validation import validate_json
 
 
 class PolicyClient(IPolicyCollection):
@@ -52,8 +52,7 @@ class PolicyClient(IPolicyCollection):
         """
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
-                client = PolicyRestClient(
-                        o.endpoint + '/rules/updates', site_validator)
+                client = PolicyRestClient(o.endpoint + '/rules/updates')
 
                 key = self._registry_client.get_public_key_for_ns(o.namespace)
                 validator = RuleValidator(o.namespace, key)

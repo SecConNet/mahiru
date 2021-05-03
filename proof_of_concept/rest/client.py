@@ -7,7 +7,7 @@ from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.workflows import ExecutionRequest
 from proof_of_concept.rest.serialization import deserialize, serialize
-from proof_of_concept.rest.validation import site_validator
+from proof_of_concept.rest.validation import validate_json
 from proof_of_concept.components.registry_client import RegistryClient
 
 
@@ -44,7 +44,7 @@ class SiteRestClient:
                 raise RuntimeError('Server error when retrieving asset')
 
             asset_json = r.json()
-            site_validator.validate('Asset', asset_json)
+            validate_json('Asset', asset_json)
             return deserialize(Asset, asset_json)
 
         raise ValueError(f'Site {site_id} does not have a store')

@@ -10,11 +10,11 @@ from proof_of_concept.definitions.execution import JobResult
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.workflows import Job
 from proof_of_concept.rest.serialization import deserialize, serialize
-from proof_of_concept.rest.validation import site_validator
+from proof_of_concept.rest.validation import validate_json
 
 
 _CHUNK_SIZE = 1024 * 1024
-_JOB_RESULT_WAIT_TIME = 0.5     # s
+_JOB_RESULT_WAIT_TIME = 0.5     # seconds
 
 
 class InternalSiteRestClient:
@@ -128,5 +128,5 @@ class InternalSiteRestClient:
             raise KeyError('Job not found')
         if r.status_code != 200:
             raise RuntimeError(f'Error getting job status: {r.text}')
-        site_validator.validate('JobResult', r.json())
+        validate_json('JobResult', r.json())
         return deserialize(JobResult, r.json())

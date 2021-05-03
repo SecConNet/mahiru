@@ -28,7 +28,7 @@ from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.rest.registry_client import RegistryRestClient
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize, serialize
-from proof_of_concept.rest.validation import site_validator, ValidationError
+from proof_of_concept.rest.validation import validate_json, ValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class AssetManagementHandler:
         """
         try:
             logger.info(f'Asset storage request')
-            site_validator.validate('Asset', request.media)
+            validate_json('Asset', request.media)
             asset = deserialize(Asset, request.media)
             logger.info(f'Storing asset {asset}')
             self._store.store(asset)
@@ -248,7 +248,7 @@ class PolicyManagementHandler:
 
         """
         try:
-            site_validator.validate('Rule', request.media)
+            validate_json('Rule', request.media)
             rule = deserialize(Rule, request.media)
             self._policy_store.insert(rule)
         except ValidationError:
@@ -277,7 +277,7 @@ class WorkflowExecutionHandler:
         """
         try:
             logger.info(f'Received execution request: {request.media}')
-            site_validator.validate('ExecutionRequest', request.media)
+            validate_json('ExecutionRequest', request.media)
             request = deserialize(ExecutionRequest, request.media)
             self._runner.execute_request(request)
         except ValidationError:
@@ -320,7 +320,7 @@ class WorkflowSubmissionHandler:
         requester = request.params['requester']
 
         try:
-            site_validator.validate('Job', request.media)
+            validate_json('Job', request.media)
             job = deserialize(Job, request.media)
             job_id = self._orchestrator.start_job(requester, job)
             logger.info(f'Received new job {job_id} from {requester}')

@@ -6,6 +6,7 @@ from wsgiref.simple_server import WSGIRequestHandler
 
 from falcon import App
 import pytest
+import requests
 
 from proof_of_concept.components.asset_store import AssetStore
 from proof_of_concept.definitions.assets import DataAsset
@@ -43,7 +44,12 @@ def image_server(asset_store):
             name='TestServer')
     thread.start()
 
-    yield f'http://{server.server_name}:{server.server_port}'
+    server_address = f'http://{server.server_name}:{server.server_port}'
+
+    # wait for server to come up
+    requests.get(server_address, timeout=(600.0, 1.0))
+
+    yield server_address
 
     server.shutdown()
     server.server_close()

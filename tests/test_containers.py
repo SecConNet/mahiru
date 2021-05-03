@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import (
         generate_private_key, RSAPrivateKey)
 import docker
 import pytest
+import requests
 import time
 
 from proof_of_concept.components.ddm_site import Site
@@ -169,6 +170,10 @@ def test_container_step(
     site_server = SiteServer(SiteRestApi(
         site.policy_store, site.store, site.runner, site.orchestrator))
 
+    # wait for it to come up
+    requests.get(site_server.internal_endpoint, timeout=(600.0, 1.0))
+
+    # initialise site
     internal_client = InternalSiteRestClient(
             site.id, site_server.internal_endpoint)
     for asset in assets:

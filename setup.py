@@ -48,15 +48,5 @@ setup(
         'retrying',
         'ruamel.yaml<=0.16.10',
         'yatiml'
-    ],
-    setup_requires=[
-        # dependencies for `python setup.py build_sphinx`
-        'docutils<0.17',
-        'sphinx',
-        'sphinx_rtd_theme',
-        'recommonmark'
-    ],
-    extras_require={
-        'dev':  ['prospector[with_pyroma]', 'yapf', 'isort'],
-    }
+    ]
 )

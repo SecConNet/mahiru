@@ -50,20 +50,11 @@ setup(
         'yatiml'
     ],
     setup_requires=[
-        # dependency for `python setup.py test`
-        'pytest-runner',
-        'pytest-pycodestyle',
-        'pytest-pydocstyle',
-        'pytest-mypy',
         # dependencies for `python setup.py build_sphinx`
         'docutils<0.17',
         'sphinx',
         'sphinx_rtd_theme',
         'recommonmark'
-    ],
-    tests_require=[
-        'pytest',
-        'pytest-cov',
     ],
     extras_require={
         'dev':  ['prospector[with_pyroma]', 'yapf', 'isort'],

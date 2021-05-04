@@ -4,6 +4,7 @@
 *.eggs
 .ipynb_checkpoints
 .mypy_cache
+.tox
 
 build
 dist

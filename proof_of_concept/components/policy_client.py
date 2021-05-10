@@ -9,7 +9,6 @@ from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.policy.replication import RuleValidator
 from proof_of_concept.replication import Replica
 from proof_of_concept.rest.replication import PolicyRestClient
-from proof_of_concept.rest.validation import validate_json
 
 
 class PolicyClient(IPolicyCollection):

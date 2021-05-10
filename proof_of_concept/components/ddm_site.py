@@ -16,7 +16,6 @@ from proof_of_concept.components.step_runner import StepRunner
 from proof_of_concept.policy.evaluation import PolicyEvaluator
 from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.replication import ReplicableArchive
-from proof_of_concept.rest.validation import Validator
 from proof_of_concept.components.orchestration import WorkflowOrchestrator
 from proof_of_concept.components.policy_client import PolicyClient
 
@@ -51,11 +50,6 @@ class Site:
         # differ semantically, so we have both here to make that clear.
         self.administrator = owner
         self.namespace = namespace
-
-        # Load API definitions
-        site_api_file = Path(__file__).parents[1] / 'rest' / 'site_api.yaml'
-        with open(site_api_file, 'r') as f:
-            site_api_def = yaml.safe_load(f.read())
 
         # Create clients for talking to the DDM
         self._registry_client = registry_client

@@ -1,0 +1,156 @@
+openapi: "3.0.0"
+
+info:
+    version: 0.1.0
+    title: Mahiru Site external API
+
+paths:
+  /rules/updates:
+    get:
+      summary: Get rule updates
+      operationId: getUpdates
+      parameters:
+        - name: from_version
+          in: query
+          description: >-
+            Current version of the replica the update is for. If zero,
+            returns an update from the beginning.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A replica update starting from the given version
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RulesUpdate"
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /assets/{assetId}:
+    get:
+      summary: Download an asset
+      operationId: downloadAsset
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The id of the asset to retrieve
+          schema:
+            type: string
+        # TODO: The below will be replaced with an HTTPS client-side
+        # certificate eventually, but we'll just pass it insecurely for now.
+        - name: requester
+          in: query
+          description: Name of the requesting site
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested asset
+          context:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Asset"
+        "404":
+          description: The asset does not exist or is not available to you.
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /assets/{assetId}/image:
+    get:
+      summary: Download an asset container image
+      operationId: downloadAssetImage
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          type: string
+          description: The id of the asset whose image to retrieve
+        # TODO: The below will be replaced with an HTTPS client-side
+        # certificate eventually, but we'll just pass it insecurely for now.
+        - name: requester
+          in: query
+          description: Name of the requesting site
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested image
+          content:
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: The asset does not exist or is not available to you.
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /jobs:
+    post:
+      summary: Submit a job for the site to run
+      operatiorId: submitJob
+      requestBody:
+        description: Description of the site to register
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ExecutionRequest"
+        required: true
+      responses:
+        "201":
+          description: Successfully submitted the job
+          # TODO: return job id and let submitter check status/progress
+          content:
+            text/plain:
+              schema:
+                description: A message signalling success
+                type: string
+        "400":
+          description: The request was not formatted correctly
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+$ref: "./schemas.yaml/"
+

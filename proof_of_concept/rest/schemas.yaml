@@ -4,154 +4,6 @@ info:
     version: 0.1.0
     title: EFDDM Site external API
 
-paths:
-  /rules/updates:
-    get:
-      summary: Get rule updates
-      operationId: getUpdates
-      parameters:
-        - name: from_version
-          in: query
-          description: >-
-            Current version of the replica the update is for. If zero,
-            returns an update from the beginning.
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: A replica update starting from the given version
-          context:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/RulesUpdate"
-        "400":
-          description: The request was not formatted correctly
-          content:
-            text/plain:
-              schema:
-                description: An error message
-                type: string
-        default:
-          description: A technical problem was encountered
-          content:
-            text/plain:
-              schema:
-                type: string
-
-  /assets/{assetId}:
-    get:
-      summary: Download an asset
-      operationId: downloadAsset
-      parameters:
-        - name: assetId
-          in: path
-          required: true
-          description: The id of the asset to retrieve
-          schema:
-            type: string
-        # TODO: The below will be replaced with an HTTPS client-side
-        # certificate eventually, but we'll just pass it insecurely for now.
-        - name: requester
-          in: query
-          description: Name of the requesting site
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: The requested asset
-          context:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Asset"
-        "404":
-          description: The asset does not exist or is not available to you.
-          content:
-            text/plain:
-              schema:
-                description: An error message
-                type: string
-        default:
-          description: A technical problem was encountered
-          content:
-            text/plain:
-              schema:
-                type: string
-
-  /assets/{assetId}/image:
-    get:
-      summary: Download an asset container image
-      operationId: downloadAssetImage
-      parameters:
-        - name: assetId
-          in: path
-          required: true
-          type: string
-          description: The id of the asset whose image to retrieve
-        # TODO: The below will be replaced with an HTTPS client-side
-        # certificate eventually, but we'll just pass it insecurely for now.
-        - name: requester
-          in: query
-          description: Name of the requesting site
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: The requested image
-          content:
-            application/x-tar:
-              schema:
-                type: string
-                format: binary
-        "404":
-          description: The asset does not exist or is not available to you.
-          content:
-            text/plain:
-              schema:
-                description: An error message
-                type: string
-        default:
-          description: A technical problem was encountered
-          content:
-            text/plain:
-              schema:
-                type: string
-
-  /jobs:
-    post:
-      summary: Submit a job for the site to run
-      operatiorId: submitJob
-      requestBody:
-        description: Description of the site to register
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/ExecutionRequest"
-        required: true
-      responses:
-        "201":
-          description: Successfully submitted the job
-          # TODO: return job id and let submitter check status/progress
-          content:
-            text/plain:
-              schema:
-                description: A message signalling success
-                type: string
-        "400":
-          description: The request was not formatted correctly
-          content:
-            text/plain:
-              schema:
-                description: An error message
-                type: string
-        default:
-          description: A technical problem was encountered
-          content:
-            text/plain:
-              schema:
-                type: string
-
 components:
   schemas:
     # Decided not to use OpenAPI polymorphism support, this is simpler
@@ -466,3 +318,89 @@ components:
           type: object
           additionalProperties:
             "$ref": "#/components/schemas/Asset"
+
+    # Definitions for the registry
+    Party:
+      type: object
+      required:
+        - id
+        - public_key
+      properties:
+        id:
+          description: Identifier of the party
+          type: string
+        public_key:
+          description: The party's PEM-encoded RSA public key
+          type: string
+
+    Site:
+      type: object
+      required:
+        - id
+        - owner_id
+        - admin_id
+        - endpoint
+        - runner
+        - store
+        - namespace
+      properties:
+        id:
+          description: Identifier of the site
+          type: string
+        owner_id:
+          description: Identifier of the party which owns this site
+          type: string
+        admin_id:
+          description: Identifier of the party which administrates this site
+          type: string
+        endpoint:
+          description: >-
+            REST endpoint at which the site may be contacted.
+          type: string
+          format: uri
+        runner:
+          description: Whether the site has a runner
+          type: boolean
+        store:
+          description: Whether the site has a store
+          type: boolean
+        namespace:
+          description: >-
+            Namespace for which the policy server serves policy, if there
+            is a policy server at this site, otherwise null.
+          type: string
+          nullable: true
+
+    RegistryUpdate:
+      type: object
+      required:
+        - from_version
+        - to_version
+        - valid_until
+        - created
+        - deleted
+      properties:
+        from_version:
+          description: Version this update applies to
+          type: integer
+        to_version:
+          description: Version this update updates to
+          type: integer
+        valid_until:
+          description: Time until which the new version is valid
+          type: string
+          format: date-time
+        created:
+          description: Objects that were created since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/Party"
+              - "$ref": "#/components/schemas/Site"
+        deleted:
+          description: Objects that were deleted since the last version
+          type: array
+          items:
+            oneOf:
+              - "$ref": "#/components/schemas/Party"
+              - "$ref": "#/components/schemas/Site"

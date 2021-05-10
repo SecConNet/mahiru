@@ -10,8 +10,8 @@ from urllib.parse import quote
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import (
-        App, HTTP_200, HTTP_204, HTTP_303, HTTP_400, HTTP_404, Request,
-        Response)
+        App, HTTP_200, HTTP_201, HTTP_204, HTTP_303, HTTP_400, HTTP_404,
+        Request, Response)
 import ruamel.yaml as yaml
 import yatiml
 
@@ -28,7 +28,7 @@ from proof_of_concept.policy.replication import PolicyStore
 from proof_of_concept.rest.registry_client import RegistryRestClient
 from proof_of_concept.rest.replication import ReplicationHandler
 from proof_of_concept.rest.serialization import deserialize, serialize
-from proof_of_concept.rest.validation import site_validator, ValidationError
+from proof_of_concept.rest.validation import validate_json, ValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -169,10 +169,12 @@ class AssetManagementHandler:
         """
         try:
             logger.info(f'Asset storage request')
-            site_validator.validate('Asset', request.media)
+            validate_json('Asset', request.media)
             asset = deserialize(Asset, request.media)
             logger.info(f'Storing asset {asset}')
             self._store.store(asset)
+            response.status = HTTP_201
+            response.body = 'Created'
         except ValidationError:
             logger.warning(f'Invalid asset storage request: {request.media}')
             response.status = HTTP_400
@@ -221,9 +223,10 @@ class AssetImageManagementHandler:
 
         try:
             self._store.store_image(asset_id, file_path, move_image=True)
-            response.status = HTTP_204
+            response.status = HTTP_201
+            response.body = 'Created'
         except KeyError:
-            logger.warning(f'Image storage requested for known asset')
+            logger.warning(f'Image storage requested for unknown asset')
             response.status = HTTP_404
             response.body = 'Unknown asset id'
 
@@ -248,9 +251,11 @@ class PolicyManagementHandler:
 
         """
         try:
-            site_validator.validate('Rule', request.media)
+            validate_json('Rule', request.media)
             rule = deserialize(Rule, request.media)
             self._policy_store.insert(rule)
+            response.status = HTTP_201
+            response.body = 'Created'
         except ValidationError:
             logger.warning(f'Invalid rule submitted: {request.media}')
             response.status = HTTP_400
@@ -277,9 +282,11 @@ class WorkflowExecutionHandler:
         """
         try:
             logger.info(f'Received execution request: {request.media}')
-            site_validator.validate('ExecutionRequest', request.media)
+            validate_json('ExecutionRequest', request.media)
             request = deserialize(ExecutionRequest, request.media)
             self._runner.execute_request(request)
+            response.status = HTTP_201
+            response.body = 'Created'
         except ValidationError:
             logger.warning(f'Invalid execution request: {request.media}')
             response.status = HTTP_400
@@ -320,7 +327,7 @@ class WorkflowSubmissionHandler:
         requester = request.params['requester']
 
         try:
-            site_validator.validate('Job', request.media)
+            validate_json('Job', request.media)
             job = deserialize(Job, request.media)
             job_id = self._orchestrator.start_job(requester, job)
             logger.info(f'Received new job {job_id} from {requester}')
@@ -403,10 +410,6 @@ class SiteRestApi:
 
         """
         self.app = App()
-
-        site_api_file = Path(__file__).parent / 'site_api.yaml'
-        with open(site_api_file, 'r') as f:
-            site_api_def = yaml.safe_load(f.read())
 
         rule_replication = ReplicationHandler[Rule](policy_store)
         self.app.add_route('/external/rules/updates', rule_replication)

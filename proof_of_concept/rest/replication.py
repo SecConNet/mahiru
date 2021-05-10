@@ -14,7 +14,7 @@ from proof_of_concept.policy.replication import PolicyUpdate
 from proof_of_concept.registry.replication import RegistryUpdate
 from proof_of_concept.replication import ReplicaUpdate
 from proof_of_concept.rest.serialization import serialize, deserialize
-from proof_of_concept.rest.validation import Validator
+from proof_of_concept.rest.validation import validate_json
 
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ class ReplicationRestClient(IReplicationService[T]):
     """Client for a ReplicationHandler REST endpoint."""
     UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
-    def __init__(self, endpoint: str, validator: Validator) -> None:
+    def __init__(self, endpoint: str) -> None:
         """Create a ReplicationRestClient.
 
         Note that UpdateType must be set to ReplicaUpdate[T] with the
@@ -66,10 +66,8 @@ class ReplicationRestClient(IReplicationService[T]):
 
         Args:
             endpoint: URL of the endpoint to connect to.
-            validator: Validator to use to validate incoming updates.
         """
         self._endpoint = endpoint
-        self._validator = validator
 
     def get_updates_since(
             self, from_version: Optional[int]) -> ReplicaUpdate[T]:
@@ -85,7 +83,7 @@ class ReplicationRestClient(IReplicationService[T]):
         r = self._retry_http_get(params)
 
         update_json = r.json()
-        self._validator.validate(self.UpdateType.__name__, update_json)
+        validate_json(self.UpdateType.__name__, update_json)
         return deserialize(self.UpdateType, update_json)
 
     @retry(                                             # type: ignore

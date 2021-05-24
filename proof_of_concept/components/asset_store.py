@@ -6,7 +6,8 @@ from shutil import copyfile, move, rmtree
 from tempfile import mkdtemp
 from typing import Dict, Optional
 
-from proof_of_concept.definitions.assets import Asset
+from proof_of_concept.definitions.assets import (
+        Asset, ComputeAsset, DataAsset)
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IAssetStore
 from proof_of_concept.policy.evaluation import (
@@ -99,17 +100,25 @@ class AssetStore(IAssetStore):
         """
         logger.info(f'{self}: servicing request from {requester} for data: '
                     f'{asset_id}')
-        try:
-            asset = self._assets[asset_id]
+        if asset_id not in self._assets:
+            msg = (
+                    f'{self}: Asset {asset_id} not found'
+                    f' (requester = {requester}).')
+            logger.info(msg)
+            raise KeyError(msg)
+
+        asset = self._assets[asset_id]
+
+        if isinstance(asset, DataAsset):
             perms = self._permission_calculator.calculate_permissions(
                     asset.metadata.job)
             perm = perms[asset.metadata.item]
-            if not self._policy_evaluator.may_access(perm, requester):
-                raise RuntimeError(f'{self}: Security error, access denied'
-                                   f'for {requester} to {asset_id}')
-            logger.info(f'{self}: Sending asset {asset_id} to {requester}')
-            return asset
-        except KeyError:
-            logger.info(f'{self}: Asset {asset_id} not found'
-                        f'(requester = {requester}).')
-            raise
+
+        if isinstance(asset, ComputeAsset):
+            perm = self._policy_evaluator.permissions_for_asset(asset_id)
+
+        if not self._policy_evaluator.may_access(perm, requester):
+            raise RuntimeError(f'{self}: Security error, access denied'
+                               f'for {requester} to {asset_id}')
+        logger.info(f'{self}: Sending asset {asset_id} to {requester}')
+        return asset

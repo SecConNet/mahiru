@@ -13,14 +13,11 @@ from docker.models.containers import Container
 
 from proof_of_concept.components.asset_store import AssetStore
 from proof_of_concept.definitions.assets import (
-        Asset, ComputeAsset, DataAsset, Metadata)
+        Asset, ComputeAsset, DataAsset, DataMetadata)
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IDomainAdministrator
 from proof_of_concept.definitions.workflows import Job, WorkflowStep
 from proof_of_concept.rest.client import SiteRestClient
-
-
-OUTPUT_ASSET_ID = Identifier('asset:ns:output_base:ns:site')
 
 
 logger = logging.getLogger(__name__)
@@ -56,17 +53,29 @@ class PlainDockerDA(IDomainAdministrator):
 
     def execute_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
-            compute_asset: ComputeAsset, id_hashes: Dict[str, str],
+            compute_asset: ComputeAsset, output_bases: Dict[str, Asset],
+            id_hashes: Dict[str, str],
             step_subjob: Job) -> None:
         """Execute the given workflow step.
 
         Executes the step by instantiating data and compute containers
         and connecting them in a network.
 
+        Inputs are the assets to be used as inputs to the step, the
+        compute asset contains the processing software to be run, and
+        output bases are special images containing an empty data store
+        to write the output data into. When executing a container-based
+        step, all of these images will be instantiated simultaneously,
+        with the compute asset container reading from the input
+        containers and writing to the output base containers. The
+        modified output base containers are then saved as the output
+        images.
+
         Args:
             step: The step to execute.
             inputs: Input assets indexed by input name.
             compute_asset: The compute asset to run.
+            output_bases: The base images to use for the outputs.
             id_hashes: A hash for each workflow item, indexed by its
                 name.
             step_subjob: A subjob for the step's results' metadata.
@@ -87,7 +96,7 @@ class PlainDockerDA(IDomainAdministrator):
                 workdir = Path(wd)
 
                 image_files = self._download_images(
-                        workdir, inputs, compute_asset)
+                        workdir, inputs, compute_asset, output_bases)
 
                 images = self._load_images_into_docker(job_id, image_files)
 
@@ -116,7 +125,8 @@ class PlainDockerDA(IDomainAdministrator):
 
     def _download_images(
             self, workdir: Path, inputs: Dict[str, Asset],
-            compute_asset: ComputeAsset) -> Dict[str, Path]:
+            compute_asset: ComputeAsset, output_bases: Dict[str, Asset]
+            ) -> Dict[str, Path]:
         """Download required container images.
 
         This downloads the container images for step inputs, compute
@@ -127,6 +137,7 @@ class PlainDockerDA(IDomainAdministrator):
             workdir: Working directory for this job.
             inputs: Step input Asset objects to download.
             compute_asset: The ComputeAsset image to download.
+            output_bases: Step output base assets to download.
 
         Returns:
             Paths to the downloaded files, indexed by input/output
@@ -151,17 +162,16 @@ class PlainDockerDA(IDomainAdministrator):
         self._site_rest_client.retrieve_asset_image(
                 compute_asset.image_location, image_files['<compute>'])
 
-        # output image
-        # TODO: Add asset ids to the compute asset metadata instead of
-        # hardcoding them here.
-        output_asset = self._site_rest_client.retrieve_asset(
-                OUTPUT_ASSET_ID.location(), OUTPUT_ASSET_ID)
-        image_files['<output>'] = workdir / f'{output_asset.id}.tar.gz'
-        if output_asset.image_location is None:
-            raise RuntimeError(
-                    f'Asset {output_asset} does not have an image.')
-        self._site_rest_client.retrieve_asset_image(
-                output_asset.image_location, image_files['<output>'])
+        # output images
+        for name, asset in output_bases.items():
+            file_path = workdir / f'{asset.id}.tar.gz'
+            image_files[name] = file_path
+            if asset.image_location is None:
+                raise RuntimeError(f'Asset {asset} does not have an image.')
+
+            if not file_path.exists():
+                self._site_rest_client.retrieve_asset_image(
+                        asset.image_location, image_files[name])
 
         return image_files
 
@@ -220,7 +230,7 @@ class PlainDockerDA(IDomainAdministrator):
             for name in outputs:
                 docker_name = f'mahiru-{job_id}-data-asset-{name}'
                 containers[name] = self._dcli.containers.run(
-                        images['<output>'].id, name=docker_name,
+                        images[name].id, name=docker_name,
                         detach=True, network_mode='bridge')
             return containers
         except Exception:
@@ -381,7 +391,7 @@ class PlainDockerDA(IDomainAdministrator):
         for name in step.outputs:
             result_item = '{}.{}'.format(step.name, name)
             result_id_hash = id_hashes[result_item]
-            metadata = Metadata(step_subjob, result_item)
+            metadata = DataMetadata(step_subjob, result_item)
             asset = DataAsset(
                     Identifier.from_id_hash(result_id_hash),
                     None, str(output_image_files[name]),

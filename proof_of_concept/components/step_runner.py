@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from proof_of_concept.components.domain_administrator import PlainDockerDA
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
-        Asset, ComputeAsset, DataAsset, Metadata)
+        Asset, ComputeAsset, DataAsset, DataMetadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
 from proof_of_concept.definitions.workflows import (
         ExecutionRequest, WorkflowStep)
@@ -154,9 +154,11 @@ class JobRun(Thread):
                 logger.info('Job at {} executing container step {}'.format(
                     self._this_site, step))
 
+                output_bases = self._get_output_bases(compute_asset)
                 step_subjob = self._job.subjob(step)
                 self._domain_administrator.execute_step(
-                        step, inputs, compute_asset, id_hashes, step_subjob)
+                        step, inputs, compute_asset, output_bases, id_hashes,
+                        step_subjob)
             else:
                 self._run_step(step, inputs, compute_asset, id_hashes)
         return inputs is not None
@@ -164,7 +166,7 @@ class JobRun(Thread):
     def _get_step_inputs(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
             ) -> Optional[Dict[str, Asset]]:
-        """Find and obtain inputs for the steps.
+        """Find and obtain inputs for the step.
 
         If all inputs are available, returns a dictionary mapping their
         names to their values. If at least one input is not yet
@@ -198,6 +200,32 @@ class JobRun(Thread):
 
         return step_input_data
 
+    def _get_output_bases(
+            self, compute_asset: ComputeAsset) -> Dict[str, Asset]:
+        """Find and obtain output base assets for the compute asset.
+
+        Args:
+            compute_asset: The compute asset we're going to execute.
+
+        Return:
+            A dictionary keyed by output name with corresponding
+            base assets.
+
+        """
+        step_output_bases = dict()
+        for out_name, asset_id in compute_asset.metadata.output_base.items():
+            try:
+                asset = self._site_rest_client.retrieve_asset(
+                        asset_id.location(), asset_id)
+                step_output_bases[out_name] = asset
+            except KeyError:
+                logger.info(
+                        f'Could not retrieve output base asset'
+                        f' {asset_id} for output {out_name} of compute asset'
+                        f' {compute_asset.id}')
+                raise
+        return step_output_bases
+
     def _run_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset, id_hashes: Dict[str, str]) -> None:
@@ -215,7 +243,7 @@ class JobRun(Thread):
         for output_name, output_value in outputs.items():
             result_item = '{}.{}'.format(step.name, output_name)
             result_id_hash = id_hashes[result_item]
-            metadata = Metadata(step_subjob, result_item)
+            metadata = DataMetadata(step_subjob, result_item)
             asset = DataAsset(
                     Identifier.from_id_hash(result_id_hash),
                     output_value, None, metadata)

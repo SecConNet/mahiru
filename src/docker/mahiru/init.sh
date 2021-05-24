@@ -4,7 +4,7 @@ wsgi_entry_point="$1"
 pid_file='/var/run/gunicorn/gunicorn.pid'
 
 function stop_container {
-    service nginx stop
+    echo 'Caught TERM signal, shutting down' 1>&2
     gunicorn_pid=$(cat ${pid_file})
     kill -TERM $(cat ${pid_file})
 }
@@ -15,10 +15,12 @@ trap stop_container SIGTERM
 
 echo 'Installed handler' 1>&2
 
-service nginx start
+gunicorn --pid ${pid_file} --access-logfile /var/log/gunicorn/access.log --error-logfile /var/log/gunicorn/error.log --capture-output --bind 0.0.0.0:8000 "${wsgi_entry_point}" &
 
-su -c "gunicorn --pid ${pid_file} --access-logfile /var/log/gunicorn/access.log --error-logfile /var/log/gunicorn/error.log --capture-output --bind 127.0.0.1:8000 '${wsgi_entry_point}'" mahiru &
+echo 'Started gunicorn' 1>&2
 
 wait
 
 rm -f ${pid_file}
+
+echo 'Exiting' 1>&2

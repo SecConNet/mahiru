@@ -15,7 +15,7 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 setup(
-    name='proof_of_concept',
+    name='proof-of-concept',
     version=version['__version__'],
     description="A proof of concept for a federated digital data marketplace",
     long_description=readme + '\n\n',
@@ -39,7 +39,7 @@ setup(
         'Programming Language :: Python :: 3.9',
     ],
     install_requires=[
-        'cryptography',
+        'cryptography<3.4',
         'docker',
         'falcon==3.0.0a3',
         'openapi-schema-validator',

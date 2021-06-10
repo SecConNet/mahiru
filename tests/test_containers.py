@@ -194,7 +194,7 @@ def test_container_step(
                 WorkflowStep(
                     name='compute',
                     inputs={'input0': 'input'},
-                    outputs=['output0'],
+                    outputs={'output0': 'asset:ns:output_base:ns:test_site'},
                     compute_asset_id=(
                         'asset:ns:compute1:ns:test_site'))
             ]

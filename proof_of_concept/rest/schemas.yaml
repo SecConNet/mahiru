@@ -289,10 +289,12 @@ components:
           additionalProperties:
             type: string
         outputs:
-          description: List of names of outputs produced
-          type: array
-          items:
+          description: >-
+            Map of step output names to references to their base assets
+          type: object
+          additionalProperties:
             type: string
+            nullable: true
         compute_asset_id:
           description: Id of the compute asset used by this step
           type: string

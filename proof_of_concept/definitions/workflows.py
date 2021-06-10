@@ -1,6 +1,6 @@
 """Classes for describing workflows."""
 from hashlib import sha256
-from typing import Dict, List, Mapping, Set, Tuple, Union
+from typing import Dict, List, Mapping, Optional, Set, Tuple, Union
 
 from proof_of_concept.definitions.identifier import Identifier
 
@@ -9,7 +9,8 @@ class WorkflowStep:
     """Defines a workflow step."""
     def __init__(
             self, name: str,
-            inputs: Dict[str, str], outputs: List[str],
+            inputs: Dict[str, str],
+            outputs: Dict[str, Union[None, str, Identifier]],
             compute_asset_id: Union[str, Identifier]
             ) -> None:
         """Create a WorkflowStep.
@@ -19,12 +20,23 @@ class WorkflowStep:
             inputs: Dict mapping input parameter names to references to
                     their sources, either the name of a workflow input,
                     or of the form other_step.output_name.
-            outputs: List of names of outputs produced.
+            outputs: Dict mapping output parameter names to references
+                    to the base assets to use, or None if containers
+                    are not used.
             compute_asset_id: The id of the compute asset to use.
         """
         self.name = name
         self.inputs = inputs
-        self.outputs = outputs
+        self.outputs = dict()   # type: Dict[str, Optional[Identifier]]
+
+        for name, base_asset in outputs.items():
+            if base_asset is None:
+                self.outputs[name] = None
+            elif not isinstance(base_asset, Identifier):
+                self.outputs[name] = Identifier(base_asset)
+            else:
+                self.outputs[name] = base_asset
+
         if not isinstance(compute_asset_id, Identifier):
             compute_asset_id = Identifier(compute_asset_id)
         self.compute_asset_id = compute_asset_id
@@ -44,7 +56,7 @@ class WorkflowStep:
         Raises:
             RuntimeError: if the step is invalid.
         """
-        all_names = list(self.inputs) + self.outputs
+        all_names = list(self.inputs.keys()) + list(self.outputs.keys())
         for i, name1 in enumerate(all_names):
             for j, name2 in enumerate(all_names):
                 if i != j and name1 == name2:

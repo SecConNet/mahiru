@@ -36,8 +36,8 @@ class ComputeMetadata(Metadata):
     """Stores metadata for stored compute assets.
 
     Attributes:
-        output_base: The asset id of the empty data image to use for
-            each output
+        output_base: For each output, the asset id of the empty data
+            image to use.
 
     """
     def __init__(

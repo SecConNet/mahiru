@@ -154,7 +154,7 @@ class JobRun(Thread):
                 logger.info('Job at {} executing container step {}'.format(
                     self._this_site, step))
 
-                output_bases = self._get_output_bases(compute_asset)
+                output_bases = self._get_output_bases(step)
                 step_subjob = self._job.subjob(step)
                 self._domain_administrator.execute_step(
                         step, inputs, compute_asset, output_bases, id_hashes,
@@ -200,12 +200,11 @@ class JobRun(Thread):
 
         return step_input_data
 
-    def _get_output_bases(
-            self, compute_asset: ComputeAsset) -> Dict[str, Asset]:
+    def _get_output_bases(self, step: WorkflowStep) -> Dict[str, Asset]:
         """Find and obtain output base assets for the compute asset.
 
         Args:
-            compute_asset: The compute asset we're going to execute.
+            step: The step we're going to execute.
 
         Return:
             A dictionary keyed by output name with corresponding
@@ -213,7 +212,10 @@ class JobRun(Thread):
 
         """
         step_output_bases = dict()
-        for out_name, asset_id in compute_asset.metadata.output_base.items():
+        for out_name, asset_id in step.outputs.items():
+            if asset_id is None:
+                # Should not happen, test misconfigured?
+                raise RuntimeError(f'Base asset needed for output {out_name}')
             try:
                 asset = self._site_rest_client.retrieve_asset(
                         asset_id.location(), asset_id)
@@ -221,8 +223,8 @@ class JobRun(Thread):
             except KeyError:
                 logger.info(
                         f'Could not retrieve output base asset'
-                        f' {asset_id} for output {out_name} of compute asset'
-                        f' {compute_asset.id}')
+                        f' {asset_id} for output {out_name} of step'
+                        f' {step.name}')
                 raise
         return step_output_bases
 

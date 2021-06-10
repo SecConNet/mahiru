@@ -101,19 +101,19 @@ class PlainDockerDA(IDomainAdministrator):
                 images = self._load_images_into_docker(job_id, image_files)
 
                 data_containers = self._start_data_containers(
-                        job_id, images, inputs, step.outputs)
+                        job_id, images, inputs.keys(), output_bases.keys())
 
                 config_file = self._create_config_file(
-                        workdir, inputs, step.outputs, data_containers)
+                        workdir, inputs, step.outputs.keys(), data_containers)
 
                 compute_container = self._run_compute_container(
                         job_id, images['<compute>'], config_file)
 
                 self._stop_data_containers(
-                        inputs, step.outputs, data_containers)
+                        inputs.keys(), step.outputs.keys(), data_containers)
 
                 output_images, output_image_files = self._save_output(
-                        job_id, workdir, step.outputs, data_containers)
+                        job_id, workdir, step.outputs.keys(), data_containers)
 
                 self._store_output_assets(
                         step, step_subjob, id_hashes,
@@ -203,7 +203,7 @@ class PlainDockerDA(IDomainAdministrator):
 
     def _start_data_containers(
             self, job_id: int, images: Dict[str, Image],
-            inputs: Dict[str, Asset], outputs: List[str]
+            inputs: Iterable[str], outputs: Iterable[str]
             ) -> Dict[str, Container]:
         """Start input and output data containers.
 
@@ -214,14 +214,14 @@ class PlainDockerDA(IDomainAdministrator):
             job_id: Id of the step execution job these are for.
             images: Images to use, indexed by input/output name.
             inputs: The step's inputs' names and Assets.
-            outputs: The step's outputs' names.
+            outputs: The step's outputs' names and base Assets.
 
         Returns:
             Docker Container objects indexed by input/output name.
         """
         try:
             containers = dict()
-            for name, asset in inputs.items():
+            for name in inputs:
                 docker_name = f'mahiru-{job_id}-data-asset-{name}'
                 containers[name] = self._dcli.containers.run(
                         images[name].id, name=docker_name,
@@ -239,8 +239,9 @@ class PlainDockerDA(IDomainAdministrator):
             raise
 
     def _create_config_file(
-            self, workdir: Path, inputs: Dict[str, Asset], outputs: List[str],
-            containers: Dict[str, Container]) -> Path:
+            self, workdir: Path, inputs: Dict[str, Asset],
+            outputs: Iterable[str], containers: Dict[str, Container]
+            ) -> Path:
         """Create config file in workdir and return path.
 
         This creates a JSON configuration file in the working directory
@@ -254,7 +255,7 @@ class PlainDockerDA(IDomainAdministrator):
         Args:
             workdir: Working directory for this step execution job.
             inputs: Assets for the step's inputs.
-            outputs: The step's outputs.
+            outputs: Assets for the step's outputs.
             containers: Containers for each input and output.
 
         Returns:
@@ -312,7 +313,7 @@ class PlainDockerDA(IDomainAdministrator):
             raise
 
     def _stop_data_containers(
-            self, inputs: Dict[str, Asset], outputs: List[str],
+            self, inputs: Iterable[str], outputs: Iterable[str],
             containers: Dict[str, Container]) -> None:
         """Stop input and output data containers.
 
@@ -332,7 +333,7 @@ class PlainDockerDA(IDomainAdministrator):
             containers[name].stop()
 
     def _save_output(
-            self, job_id: int, workdir: Path, outputs: List[str],
+            self, job_id: int, workdir: Path, outputs: Iterable[str],
             containers: Dict[str, Container]
             ) -> Tuple[Dict[str, Image], Dict[str, Path]]:
         """Save output containers to image files.
@@ -343,7 +344,7 @@ class PlainDockerDA(IDomainAdministrator):
         Args:
             job_id: Id of the step execution job this is for.
             workdir: Working directory to put the files into.
-            outputs: Step outputs' names.
+            outputs: Step outputs' names and assets.
             containers: Docker containers indexed by output names.
 
         Returns:

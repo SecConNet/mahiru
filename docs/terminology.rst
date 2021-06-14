@@ -78,22 +78,24 @@ Result
 
 Workflow item
   A workflow item is a workflow input, workflow output, workflow step, workflow
-  step input, or workflow step output. In the context of dealing with
-  permissions for and execution of workflows, it's needed to refer to these.
-  This is done using a string that is not an identifier as described above, but
-  a simple string of one of the forms::
+  step input, workflow step output base, or workflow step output. In the
+  context of dealing with permissions for and execution of workflows, it's
+  needed to refer to these.  This is done using a string that is not an
+  identifier as described above, but a simple string of one of the forms::
 
     <workflow_input_name>
     <workflow_output_name>
     <step_name>
     <step_name>.<input_name>
+    <step_name>.@<output_name>
     <step_name>.<output_name>
 
   Steps, inputs and outputs are identified by their name, which is a simple
   string consisting of lower- and uppercase letters, digits, and underscores.
   Note that the Workflow class forbids duplicate names among workflow inputs,
   workflow outputs, and steps, so that these are unique within the context of a
-  specific workflow.
+  specific workflow. Output base items have an at-sign prepended to the output
+  name to distinguish them from the actual output.
 
 Orchestrator
   The orchestrator is a component at a site which receives workflows from users,

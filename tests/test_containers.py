@@ -154,10 +154,14 @@ def test_container_step(
             ResultOfDataIn(
                 'asset:ns:dataset1:ns:test_site', '*',
                 'asset_collection:ns:results1'),
+            ResultOfDataIn(
+                'asset:ns:output_base:ns:test_site', '*',
+                'asset_collection:ns:results1'),
             ResultOfComputeIn(
                 '*', 'asset:ns:compute1:ns:test_site',
-                'asset_collection:ns:results1'),
-            MayAccess('site:ns:test_site', 'asset_collection:ns:results1')]
+                'asset_collection:ns:public'),
+            MayAccess('site:ns:test_site', 'asset_collection:ns:results1'),
+            MayAccess('*', 'asset_collection:ns:public')]
 
     for rule in rules:
         rule.sign(party_key)

@@ -129,6 +129,13 @@ class JobRun(Thread):
 
                 # check that we can access the step's outputs
                 for outp_name in step.outputs:
+                    base_item = '{}.@{}'.format(step.name, outp_name)
+                    if base_item in perms:
+                        base_perms = perms[base_item]
+                        if not self._policy_evaluator.may_access(
+                                base_perms, self._this_site):
+                            return False
+
                     outp_item = '{}.{}'.format(step.name, outp_name)
                     outp_perms = perms[outp_item]
                     if not self._policy_evaluator.may_access(

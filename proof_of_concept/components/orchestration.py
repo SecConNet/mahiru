@@ -65,8 +65,14 @@ class WorkflowPlanner:
             if not self._policy_evaluator.may_access(step_perms, site):
                 return False
 
-            # check each output
+            # check each output and its base asset
             for outp_name in step.outputs:
+                base_item = '{}.@{}'.format(step.name, outp_name)
+                if base_item in permissions:
+                    base_perms = permissions[base_item]
+                    if not self._policy_evaluator.may_access(base_perms, site):
+                        return False
+
                 outp_item = '{}.{}'.format(step.name, outp_name)
                 outp_perms = permissions[outp_item]
                 if not self._policy_evaluator.may_access(outp_perms, site):

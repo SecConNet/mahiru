@@ -8,8 +8,6 @@ RUN \
     mkdir /home/mahiru && \
     chown -R mahiru:mahiru /home/mahiru
 RUN \
-    mkdir /var/log/gunicorn && \
-    chown mahiru:mahiru /var/log/gunicorn && \
     mkdir /var/run/gunicorn && \
     chown mahiru:mahiru /var/run/gunicorn
 

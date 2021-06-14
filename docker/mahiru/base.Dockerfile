@@ -7,7 +7,7 @@ RUN \
     mkdir /var/run/gunicorn && \
     chown mahiru:mahiru /var/run/gunicorn
 
-COPY src/docker/mahiru/init.sh /usr/local/bin/init.sh
+COPY docker/mahiru/init.sh /usr/local/bin/init.sh
 RUN chmod +x /usr/local/bin/init.sh
 
 COPY setup.py /home/mahiru/setup.py

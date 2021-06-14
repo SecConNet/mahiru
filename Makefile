@@ -1,3 +1,5 @@
+export DOCKER_BUILDKIT = 1
+
 .PHONY: docker_images
 docker_images: base_docker_image registry_docker_image site_docker_image
 

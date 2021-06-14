@@ -57,11 +57,11 @@ def test_wf_output_checks():
             [
                 WorkflowStep(name='anonymise',
                              inputs={'x1': 'x'},
-                             outputs=['y'],
+                             outputs={'y': None},
                              compute_asset_id='asset:ns:Anonymise:ns:s'),
                 WorkflowStep(name='aggregate',
                              inputs={'x1': 'anonymise.y'},
-                             outputs=['y'],
+                             outputs={'y': None},
                              compute_asset_id='asset:ns:Aggregate:ns:s')])
     job = Job(workflow, {'x': 'asset:ns1:dataset.d1:ns1:s1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)

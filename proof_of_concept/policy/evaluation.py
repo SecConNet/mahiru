@@ -248,6 +248,7 @@ class PermissionCalculator:
                 inp_item = '{}.{}'.format(step.name, inp)
                 if inp_item not in permissions:
                     if inp_source not in permissions:
+                        # TODO: does this ever happen?
                         raise InputNotAvailable()
                     permissions[inp_item] = permissions[inp_source]
 
@@ -258,11 +259,19 @@ class PermissionCalculator:
             """Derives the step's permissions and stores them.
 
             These are the permissions needed to access the compute
-            asset.
+            asset, and the permissions needed to access the output
+            base assets.
             """
             permissions[step.name] = (
                     self._policy_evaluator.permissions_for_asset(
                         step.compute_asset_id))
+
+            for outp, base_asset in step.outputs.items():
+                if base_asset is not None:
+                    outp_base_item = '{}.@{}'.format(step.name, outp)
+                    permissions[outp_base_item] = (
+                            self._policy_evaluator.permissions_for_asset(
+                                base_asset))
 
         def prop_step_outputs(
                 permissions: Dict[str, Permissions],
@@ -270,10 +279,10 @@ class PermissionCalculator:
                 ) -> None:
             """Derives step output permissions.
 
-            Propagates permissions from inputs via the step to the
-            outputs. This takes into account permissions induced by
-            the compute asset via ResultOfComputeIn rules, but not
-            access to the compute asset itself.
+            Propagates permissions from inputs and output bases via the
+            step to the outputs. This takes into account permissions
+            induced by the compute asset via ResultOfComputeIn rules,
+            but not access to the compute asset itself.
 
             This modifies the permissions argument.
             """
@@ -281,6 +290,10 @@ class PermissionCalculator:
             for inp in step.inputs:
                 inp_item = '{}.{}'.format(step.name, inp)
                 input_perms.append(permissions[inp_item])
+            for outp in step.outputs:
+                base_item = '{}.@{}'.format(step.name, outp)
+                if base_item in permissions:
+                    input_perms.append(permissions[base_item])
 
             perms = self._policy_evaluator.propagate_permissions(
                         input_perms, step.compute_asset_id)

@@ -177,7 +177,8 @@ class IDomainAdministrator:
     """
     def execute_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
-            compute_asset: ComputeAsset, id_hashes: Dict[str, str],
+            compute_asset: ComputeAsset, output_bases: Dict[str, Asset],
+            id_hashes: Dict[str, str],
             step_subjob: Job) -> None:
         """Execute the given workflow step.
 
@@ -185,6 +186,7 @@ class IDomainAdministrator:
             step: The step to execute.
             inputs: Input assets indexed by input name.
             compute_asset: The compute asset to run.
+            output_bases: The base images to use for the outputs.
             id_hashes: A hash for each workflow item, indexed by its
                 name.
             step_subjob: A subjob for the step's results' metadata.

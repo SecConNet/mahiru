@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from proof_of_concept.components.domain_administrator import PlainDockerDA
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.assets import (
-        Asset, ComputeAsset, DataAsset, Metadata)
+        Asset, ComputeAsset, DataAsset, DataMetadata)
 from proof_of_concept.definitions.interfaces import IStepRunner
 from proof_of_concept.definitions.workflows import (
         ExecutionRequest, WorkflowStep)
@@ -129,6 +129,13 @@ class JobRun(Thread):
 
                 # check that we can access the step's outputs
                 for outp_name in step.outputs:
+                    base_item = '{}.@{}'.format(step.name, outp_name)
+                    if base_item in perms:
+                        base_perms = perms[base_item]
+                        if not self._policy_evaluator.may_access(
+                                base_perms, self._this_site):
+                            return False
+
                     outp_item = '{}.{}'.format(step.name, outp_name)
                     outp_perms = perms[outp_item]
                     if not self._policy_evaluator.may_access(
@@ -154,9 +161,11 @@ class JobRun(Thread):
                 logger.info('Job at {} executing container step {}'.format(
                     self._this_site, step))
 
+                output_bases = self._get_output_bases(step)
                 step_subjob = self._job.subjob(step)
                 self._domain_administrator.execute_step(
-                        step, inputs, compute_asset, id_hashes, step_subjob)
+                        step, inputs, compute_asset, output_bases, id_hashes,
+                        step_subjob)
             else:
                 self._run_step(step, inputs, compute_asset, id_hashes)
         return inputs is not None
@@ -164,7 +173,7 @@ class JobRun(Thread):
     def _get_step_inputs(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
             ) -> Optional[Dict[str, Asset]]:
-        """Find and obtain inputs for the steps.
+        """Find and obtain inputs for the step.
 
         If all inputs are available, returns a dictionary mapping their
         names to their values. If at least one input is not yet
@@ -198,6 +207,34 @@ class JobRun(Thread):
 
         return step_input_data
 
+    def _get_output_bases(self, step: WorkflowStep) -> Dict[str, Asset]:
+        """Find and obtain output base assets for the compute asset.
+
+        Args:
+            step: The step we're going to execute.
+
+        Return:
+            A dictionary keyed by output name with corresponding
+            base assets.
+
+        """
+        step_output_bases = dict()
+        for out_name, asset_id in step.outputs.items():
+            if asset_id is None:
+                # Should not happen, test misconfigured?
+                raise RuntimeError(f'Base asset needed for output {out_name}')
+            try:
+                asset = self._site_rest_client.retrieve_asset(
+                        asset_id.location(), asset_id)
+                step_output_bases[out_name] = asset
+            except KeyError:
+                logger.info(
+                        f'Could not retrieve output base asset'
+                        f' {asset_id} for output {out_name} of step'
+                        f' {step.name}')
+                raise
+        return step_output_bases
+
     def _run_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset, id_hashes: Dict[str, str]) -> None:
@@ -215,7 +252,7 @@ class JobRun(Thread):
         for output_name, output_value in outputs.items():
             result_item = '{}.{}'.format(step.name, output_name)
             result_id_hash = id_hashes[result_item]
-            metadata = Metadata(step_subjob, result_item)
+            metadata = DataMetadata(step_subjob, result_item)
             asset = DataAsset(
                     Identifier.from_id_hash(result_id_hash),
                     output_value, None, metadata)

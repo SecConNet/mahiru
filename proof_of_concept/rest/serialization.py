@@ -9,7 +9,8 @@ from cryptography.hazmat.primitives.serialization import (
 from dateutil import parser as dateparser
 
 from proof_of_concept.definitions.assets import (
-        Asset, ComputeAsset, DataAsset, Metadata)
+        Asset, ComputeAsset, ComputeMetadata, DataAsset, DataMetadata,
+        Metadata)
 from proof_of_concept.definitions.interfaces import IReplicaUpdate
 from proof_of_concept.definitions.execution import JobResult
 from proof_of_concept.definitions.policy import Rule
@@ -242,27 +243,51 @@ def _deserialize_execution_request(user_input: JSON) -> ExecutionRequest:
 # Assets and metadata
 
 
-def _serialize_metadata(metadata: Metadata) -> JSON:
-    """Serialize a Metadata to JSON."""
+def _serialize_compute_metadata(metadata: ComputeMetadata) -> JSON:
+    """Serialize a ComputeMetadata to JSON."""
+    return {
+            'output_base': metadata.output_base}
+
+
+def _serialize_data_metadata(metadata: DataMetadata) -> JSON:
+    """Serialize a DataMetadata to JSON."""
     return {
             'job': _serialize_job(metadata.job),
             'item': metadata.item}
 
 
-def _deserialize_metadata(user_input: JSON) -> Metadata:
-    """Deserialize a Metadata from JSON."""
+def _serialize_metadata(metadata: Metadata) -> JSON:
+    """Serialize a Metadata to JSON."""
+    if isinstance(metadata, ComputeMetadata):
+        return _serialize_compute_metadata(metadata)
+    if isinstance(metadata, DataMetadata):
+        return _serialize_data_metadata(metadata)
+    raise RuntimeError('Invalid Metadata type')
+
+
+def _deserialize_compute_metadata(user_input: JSON) -> ComputeMetadata:
+    """Deserialize a ComputeMetadata from JSON."""
+    return ComputeMetadata(user_input['output_base'])
+
+
+def _deserialize_data_metadata(user_input: JSON) -> DataMetadata:
+    """Deserialize a DataMetadata from JSON."""
     job = _deserialize_job(user_input['job'])
-    return Metadata(job, user_input['item'])
+    return DataMetadata(job, user_input['item'])
 
 
 def _serialize_asset(asset: Asset) -> JSON:
     """Serialize an Asset to JSON."""
-    return {
+    result = {
             'id': asset.id,
             'kind': asset.kind,
             'data': asset.data,
-            'image_location': asset.image_location,
-            'metadata': _serialize_metadata(asset.metadata)}
+            'image_location': asset.image_location}
+
+    if asset.metadata is not None:
+        result['metadata'] = _serialize_metadata(asset.metadata)
+
+    return result
 
 
 def _deserialize_asset(user_input: JSON) -> Asset:
@@ -271,12 +296,12 @@ def _deserialize_asset(user_input: JSON) -> Asset:
         return ComputeAsset(
                 user_input['id'], user_input['data'],
                 user_input['image_location'],
-                _deserialize_metadata(user_input['metadata']))
+                _deserialize_compute_metadata(user_input['metadata']))
     elif user_input['kind'] == 'data':
         return DataAsset(
                 user_input['id'], user_input['data'],
                 user_input['image_location'],
-                _deserialize_metadata(user_input['metadata']))
+                _deserialize_data_metadata(user_input['metadata']))
     else:
         raise RuntimeError('Invalid asset type when deserialising')
 
@@ -370,7 +395,8 @@ _serializers = {
         Job: _serialize_job,
         Plan: _serialize_plan,
         ExecutionRequest: _serialize_execution_request,
-        Metadata: _serialize_metadata,
+        ComputeMetadata: _serialize_compute_metadata,
+        DataMetadata: _serialize_data_metadata,
         ComputeAsset: _serialize_compute_asset,
         DataAsset: _serialize_data_asset,
         JobResult: _serialize_job_result,
@@ -401,7 +427,8 @@ _deserialize = {
         Job: _deserialize_job,
         Plan: _deserialize_plan,
         ExecutionRequest: _deserialize_execution_request,
-        Metadata: _deserialize_metadata,
+        ComputeMetadata: _deserialize_compute_metadata,
+        DataMetadata: _deserialize_data_metadata,
         Asset: _deserialize_asset,
         JobResult: _deserialize_job_result,
         PolicyUpdate: _deserialize_policy_update,

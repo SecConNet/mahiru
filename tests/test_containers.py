@@ -11,7 +11,8 @@ import requests
 import time
 
 from proof_of_concept.components.ddm_site import Site
-from proof_of_concept.definitions.assets import ComputeAsset, DataAsset
+from proof_of_concept.definitions.assets import (
+        ComputeAsset, ComputeMetadata, DataAsset)
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.registry import (
         PartyDescription, SiteDescription)
@@ -116,9 +117,6 @@ def compute_asset_tar(dcli, docker_dir):
     compute_file.unlink()
 
 
-@patch(
-        'proof_of_concept.components.domain_administrator.OUTPUT_ASSET_ID',
-        Identifier('asset:ns:output_base:ns:test_site'))
 def test_container_step(
         registry_server, registry_client, registration_client,
         data_asset_tars, compute_asset_tar, caplog):
@@ -140,7 +138,9 @@ def test_container_step(
                 str(data_asset_input_tar)),
             ComputeAsset(
                 'asset:ns:compute1:ns:test_site', None,
-                str(compute_asset_tar)),
+                str(compute_asset_tar),
+                ComputeMetadata(
+                    {'output0': 'asset:ns:output_base:ns:test_site'})),
             DataAsset(
                 'asset:ns:output_base:ns:test_site', None,
                 str(data_asset_output_tar))]
@@ -154,10 +154,14 @@ def test_container_step(
             ResultOfDataIn(
                 'asset:ns:dataset1:ns:test_site', '*',
                 'asset_collection:ns:results1'),
+            ResultOfDataIn(
+                'asset:ns:output_base:ns:test_site', '*',
+                'asset_collection:ns:results1'),
             ResultOfComputeIn(
                 '*', 'asset:ns:compute1:ns:test_site',
-                'asset_collection:ns:results1'),
-            MayAccess('site:ns:test_site', 'asset_collection:ns:results1')]
+                'asset_collection:ns:public'),
+            MayAccess('site:ns:test_site', 'asset_collection:ns:results1'),
+            MayAccess('*', 'asset_collection:ns:public')]
 
     for rule in rules:
         rule.sign(party_key)
@@ -194,7 +198,7 @@ def test_container_step(
                 WorkflowStep(
                     name='compute',
                     inputs={'input0': 'input'},
-                    outputs=['output0'],
+                    outputs={'output0': 'asset:ns:output_base:ns:test_site'},
                     compute_asset_id=(
                         'asset:ns:compute1:ns:test_site'))
             ]

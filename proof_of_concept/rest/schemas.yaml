@@ -142,7 +142,18 @@ components:
               - "$ref": "#/components/schemas/MayAccess"
               - "$ref": "#/components/schemas/ResultOfIn"
 
-    Metadata:
+    ComputeMetadata:
+      type: object
+      required:
+        - output_base
+      properties:
+        output_base:
+          description: Assets to use as base images for outputs
+          type: object
+          additionalProperties:
+            type: string
+
+    DataMetadata:
       type: object
       required:
         - job
@@ -157,6 +168,11 @@ components:
           description: >-
             An item in the job's workflow corresponding to this asset
           type: string
+
+    Metadata:
+      oneOf:
+        - $ref: '#/components/schemas/ComputeMetadata'
+        - $ref: '#/components/schemas/DataMetadata'
 
     Asset:
       type: object
@@ -273,10 +289,12 @@ components:
           additionalProperties:
             type: string
         outputs:
-          description: List of names of outputs produced
-          type: array
-          items:
+          description: >-
+            Map of step output names to references to their base assets
+          type: object
+          additionalProperties:
             type: string
+            nullable: true
         compute_asset_id:
           description: Id of the compute asset used by this step
           type: string

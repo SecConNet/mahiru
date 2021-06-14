@@ -18,7 +18,7 @@ COPY README.rst /home/mahiru/README.rst
 COPY proof_of_concept /home/mahiru/proof_of_concept
 
 RUN chown -R mahiru:mahiru /home/mahiru
-RUN pip install gunicorn /home/mahiru
+RUN pip install gunicorn[gevent] /home/mahiru
 
 EXPOSE 8000
 CMD ["/usr/local/bin/init.sh"]

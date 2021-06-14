@@ -1,4 +1,5 @@
 """Client for internal REST APIs."""
+from copy import copy
 from pathlib import Path
 from urllib.parse import quote
 import time
@@ -37,7 +38,11 @@ class InternalSiteRestClient:
             asset: The asset to store.
 
         """
-        r = requests.post(f'{self._endpoint}/assets', json=serialize(asset))
+        stripped_asset = copy(asset)
+        stripped_asset.image_location = None
+
+        r = requests.post(f'{self._endpoint}/assets', json=serialize(
+            stripped_asset))
         if r.status_code != 201:
             raise RuntimeError('Error uploading asset to site')
 

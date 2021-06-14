@@ -1,8 +1,4 @@
-FROM ubuntu:20.04
-RUN \
-    apt-get update && \
-    apt-get -y upgrade && \
-    apt-get -y install python3 python3-pip python3-venv python3-wheel
+FROM python:3.9-slim
 RUN \
     useradd mahiru && \
     mkdir /home/mahiru && \
@@ -22,7 +18,7 @@ COPY README.rst /home/mahiru/README.rst
 COPY proof_of_concept /home/mahiru/proof_of_concept
 
 RUN chown -R mahiru:mahiru /home/mahiru
-RUN pip3 install --system gunicorn /home/mahiru
+RUN pip install gunicorn /home/mahiru
 
 EXPOSE 8000
 CMD ["/usr/local/bin/init.sh"]

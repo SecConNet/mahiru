@@ -14,6 +14,7 @@ trap stop_container SIGTERM
 
 echo 'Installed handler' 1>&2
 
+export PATH=${PATH}:${HOME}/.local/bin
 gunicorn -c /etc/gunicorn.conf.py --pid ${pid_file} &
 
 echo 'Started gunicorn' 1>&2

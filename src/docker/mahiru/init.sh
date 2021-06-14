@@ -1,6 +1,5 @@
 #!/bin/bash
 
-wsgi_entry_point="$1"
 pid_file='/var/run/gunicorn/gunicorn.pid'
 
 function stop_container {
@@ -15,7 +14,7 @@ trap stop_container SIGTERM
 
 echo 'Installed handler' 1>&2
 
-gunicorn --pid ${pid_file} --access-logfile /var/log/gunicorn/access.log --error-logfile /var/log/gunicorn/error.log --capture-output --bind 0.0.0.0:8000 "${wsgi_entry_point}" &
+gunicorn -c /etc/gunicorn.conf.py --pid ${pid_file} &
 
 echo 'Started gunicorn' 1>&2
 

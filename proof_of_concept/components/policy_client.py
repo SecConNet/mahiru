@@ -49,6 +49,10 @@ class PolicyClient(IPolicyCollection):
             created: Set of new objects.
             deleted: Set of removed objects.
         """
+        for o in deleted:
+            if isinstance(o, SiteDescription) and o.namespace:
+                del(self._policy_replicas[o.namespace])
+
         for o in created:
             if isinstance(o, SiteDescription) and o.namespace:
                 client = PolicyRestClient(o.endpoint + '/rules/updates')
@@ -57,10 +61,6 @@ class PolicyClient(IPolicyCollection):
                 validator = RuleValidator(o.namespace, key)
                 self._policy_replicas[o.namespace] = Replica[Rule](
                         client, validator)
-
-        for o in deleted:
-            if isinstance(o, SiteDescription) and o.namespace:
-                del(self._policy_replicas[o.namespace])
 
     def _update(self) -> None:
         """Ensures policy replicas are up to date."""

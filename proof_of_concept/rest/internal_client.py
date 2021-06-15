@@ -1,6 +1,7 @@
 """Client for internal REST APIs."""
+from copy import copy
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 import time
 
 import requests
@@ -15,6 +16,8 @@ from proof_of_concept.rest.validation import validate_json
 
 _CHUNK_SIZE = 1024 * 1024
 _JOB_RESULT_WAIT_TIME = 0.5     # seconds
+
+_STANDARD_PORTS = {'http': 80, 'https': 443}
 
 
 class InternalSiteRestClient:
@@ -37,7 +40,11 @@ class InternalSiteRestClient:
             asset: The asset to store.
 
         """
-        r = requests.post(f'{self._endpoint}/assets', json=serialize(asset))
+        stripped_asset = copy(asset)
+        stripped_asset.image_location = None
+
+        r = requests.post(f'{self._endpoint}/assets', json=serialize(
+            stripped_asset))
         if r.status_code != 201:
             raise RuntimeError('Error uploading asset to site')
 
@@ -78,11 +85,28 @@ class InternalSiteRestClient:
             raise RuntimeError(f'Error submitting job: {r.text}')
         if 'location' not in r.headers:
             raise RuntimeError('Invalid server response when submitting job')
+
+        # Protect against malicious servers redirecting us elsewhere
         job_uri = r.headers['location']
+        job_uri_parts = urlparse(job_uri)
+        job_uri_port = job_uri_parts.port
+        if job_uri_port is None:
+            job_uri_port = _STANDARD_PORTS.get(job_uri_parts.scheme)
+
         prefix = f'{self._endpoint}/jobs/'
-        if not job_uri.startswith(prefix):
+        prefix_parts = urlparse(prefix)
+        prefix_port = prefix_parts.port
+        if prefix_port is None:
+            prefix_port = _STANDARD_PORTS.get(prefix_parts.scheme)
+
+        if (
+                job_uri_parts.scheme != prefix_parts.scheme or
+                job_uri_parts.netloc != prefix_parts.netloc or
+                not job_uri_parts.path.startswith(prefix_parts.path) or
+                job_uri_port != prefix_port):
             raise RuntimeError(
-                    'Unexpected server response when submitting job')
+                     f'Unexpected server response {job_uri} when'
+                     ' submitting job')
         return job_uri
 
     def is_job_done(self, job_id: str) -> bool:

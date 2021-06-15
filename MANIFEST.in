@@ -1,4 +1,6 @@
 include LICENSE
+include NOTICE
 include README.rst
+include proof_of_concept/rest/schemas.yaml
 include proof_of_concept/rest/site_api.yaml
 include proof_of_concept/rest/registry_api.yaml

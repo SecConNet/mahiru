@@ -1,0 +1,74 @@
+# Playbook for basic set up of all VMs
+
+- name: Ensure VMs can contact their peers by name
+  hosts: "*"
+  become: true
+
+  tasks:
+  - name: Set hosts file for the virtual internet
+    lineinfile:
+      path: /etc/hosts
+      regexp: '.*{{ item }}$'
+      line: "{{ hostvars[item].ansible_ssh_host }} {{ item }}"
+      state: present
+    when: hostvars[item].ansible_ssh_host is defined
+    with_items: "{{ groups['all'] }}"
+
+
+- name: Install Docker
+  hosts: registry site*
+  become: true
+
+  tasks:
+  - name: Ensure aptitude is the latest version
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: yes
+      force_apt_get: yes
+
+  - name: Ensure Docker GPG apt key is available
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Ensure Docker repository is available
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu bionic stable
+      state: present
+
+  - name: Ensure Docker is installed
+    apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - python3
+        - python3-pip
+        - docker-ce
+      state: latest
+      update_cache: yes
+
+  - name: Ensure Docker Python support is available (for Ansible)
+    pip:
+      name: docker
+
+
+- name: Install Python
+  hosts: client*
+  become: true
+
+  tasks:
+  - name: Ensure aptitude is the latest version
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: yes
+      force_apt_get: yes
+
+  - name: Ensure Python is installed
+    apt:
+      name:
+        - python3
+        - python3-pip

@@ -1,0 +1,37 @@
+# Playbook for components specific to the registry VM
+
+- name: Shut down the registry
+  hosts: registry
+  become: true
+
+  tasks:
+  - name: Ensure the registry service is down
+    docker_container:
+      name: mahiru-registry
+      state: absent
+
+  - name: Ensure the reverse proxy is down
+    docker_container:
+      name: reverse-proxy
+      state: absent
+
+
+- name: Shut down the sites
+  hosts: site*
+  become: true
+
+  tasks:
+  - name: Ensure the site service is down
+    docker_container:
+      name: mahiru-site
+      state: absent
+
+  - name: Ensure the internal reverse proxy is down
+    docker_container:
+      name: internal-reverse-proxy
+      state: absent
+
+  - name: Ensure the external reverse proxy is down
+    docker_container:
+      name: external-reverse-proxy
+      state: absent

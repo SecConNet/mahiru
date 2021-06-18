@@ -103,11 +103,11 @@ class PlainDockerDA(IDomainAdministrator):
                 data_containers = self._start_data_containers(
                         job_id, images, inputs.keys(), output_bases.keys())
 
-                config_file = self._create_config_file(
+                config = self._create_config_string(
                         workdir, inputs, step.outputs.keys(), data_containers)
 
                 compute_container = self._run_compute_container(
-                        job_id, images['<compute>'], config_file)
+                        job_id, images['<compute>'], config)
 
                 self._stop_data_containers(
                         inputs.keys(), step.outputs.keys(), data_containers)
@@ -238,19 +238,18 @@ class PlainDockerDA(IDomainAdministrator):
                 container.remove(force=True)
             raise
 
-    def _create_config_file(
+    def _create_config_string(
             self, workdir: Path, inputs: Dict[str, Asset],
-            outputs: Iterable[str], containers: Dict[str, Container]
-            ) -> Path:
-        """Create config file in workdir and return path.
+            outputs: Iterable[str], containers: Dict[str, Container]) -> str:
+        """Create config and return JSON-encoded string.
 
-        This creates a JSON configuration file in the working directory
-        which is mounted into the compute container, and tells it where
-        on the network to find the data containers for inputs and
-        outputs. It assumes that all connections go through HTTP on
-        port 80, and gets the IP addresses from Docker. For that to
-        work, the data containers must be running, as IPs are assigned
-        on start-up.
+        This creates a JSON object serialised to a string which is
+        passed to the compute container in an environment variable, and
+        tells it where on the network to find the data containers for
+        inputs and outputs. It assumes that all connections go through
+        HTTP on port 80, and gets the IP addresses from Docker. For that
+        to work, the data containers must be running, as IPs are
+        assigned on start-up.
 
         Args:
             workdir: Working directory for this step execution job.
@@ -259,31 +258,28 @@ class PlainDockerDA(IDomainAdministrator):
             containers: Containers for each input and output.
 
         Returns:
-            Path to the created configuration file.
+            String with the resulting configuration.
         """
         config = {
                 'inputs': dict(),
                 'outputs': dict()}  # type: Dict[str, Dict[str, str]]
-        for name in inputs:
+        for name in list(inputs) + list(outputs):
             # IP addresses were added after creation, so we need to
             # reload data from the Docker daemon to get them.
             containers[name].reload()
+            if containers[name].status != 'running':
+                raise RuntimeError(
+                        f'Container for {name} failed to come up,'
+                        f' attrs: {containers[name].attrs}'
+                        f' logs: {containers[name].logs()}')
             addr = containers[name].attrs['NetworkSettings']['IPAddress']
             config['inputs'][name] = f'http://{addr}'
 
-        for name in outputs:
-            containers[name].reload()
-            addr = containers[name].attrs['NetworkSettings']['IPAddress']
-            config['outputs'][name] = f'http://{addr}'
-
         logger.info(f'Running with config {config}')
-        config_file = workdir / 'step_config.json'
-        with config_file.open('w') as f2:
-            json.dump(config, f2)
-        return config_file
+        return json.dumps(config)
 
     def _run_compute_container(
-            self, job_id: int, compute_image: Image, config_file: Path
+            self, job_id: int, compute_image: Image, config: str
             ) -> Container:
         """Run the compute container.
 
@@ -293,18 +289,17 @@ class PlainDockerDA(IDomainAdministrator):
         Args:
             job_id: Id of the step execution job this is for.
             compute_image: The compute image to run.
-            config_file: Input/output configuration file to use.
+            config: Configuration string to use.
 
         Returns:
             The (stopped) container that was run.
         """
         try:
-            config_mount = docker.types.Mount(
-                    '/etc/mahiru/step_config.json', str(config_file), 'bind')
+            env = {'MAHIRU_STEP_CONFIG': config}
             docker_name = f'mahiru-{job_id}-compute-asset'
             self._dcli.containers.run(
                     compute_image.id, name=docker_name,
-                    network_mode='bridge', mounts=[config_mount])
+                    network_mode='bridge', environment=env)
             compute_container = self._dcli.containers.get(docker_name)
             return compute_container
         except Exception:

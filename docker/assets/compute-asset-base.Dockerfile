@@ -5,13 +5,7 @@
 # image for Python-based compute assets. The Python script should be put in
 # /home/mahiru/app.py, and run as the non-root mahiru user.
 
-FROM ubuntu:latest
-
-RUN \
-    apt-get update && \
-    apt-get -y dist-upgrade && \
-    apt-get -y install python3 python3-pip python3-venv python3-wheel && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+FROM python:3.9-slim
 
 RUN \
     useradd mahiru && \

@@ -34,6 +34,47 @@ from proof_of_concept.rest.validation import validate_json, ValidationError
 logger = logging.getLogger(__name__)
 
 
+def _request_url(request: Request) -> str:
+    """Obtain the URL for the current request.
+
+    This URL-quotes the path part of the URL, encoding everything
+    except /.
+
+    If we are running behind a reverse proxy, then what gunicorn thinks
+    is our external location is actually an internal one. This function
+    returns the actual external URL of the current request, excluding
+    the parameters. If we're not behind a reverse proxy, then that's
+    just the normal scheme + host + path, if we are behind a reverse
+    proxy then the following headers must be set:
+
+        X-Forwarded-Proto: The protocol used, http or https
+        X-Forwarded-Host: The outside host part
+        X-Forwarded-Path: The outside path
+
+    Note that X-Forwarded-Path is very non-standard. Because of our
+    split API setup with two different reverse proxies, the external
+    and internal paths aren't the same, so we need the external path
+    as well to be able to generate correct client-resolvable URLs.
+
+    Args:
+        request: The Falcon request to inspect.
+
+    Return:
+        A string containing the external URL requested.
+    """
+    ext_proto = request.get_header('X-Forwarded-Proto')
+    ext_host = request.get_header('X-Forwarded-Host')
+    ext_path = request.get_header('X-Forwarded-Path')
+
+    if ext_proto and ext_host and ext_path:
+        ext_path = quote(ext_path, safe='/')
+        return f'{ext_proto}://{ext_host}{ext_path}'
+    else:
+        prefix = request.prefix
+        path = quote(request.path, safe='/')
+        return f'{request.prefix}{path}'
+
+
 class AssetAccessHandler:
     """A handler for the external /assets endpoint."""
     def __init__(self, store: IAssetStore) -> None:
@@ -69,9 +110,8 @@ class AssetAccessHandler:
                         Identifier(asset_id), request.params['requester']))
                 # Send URL instead of local file location
                 if asset.image_location is not None:
-                    prefix = request.forwarded_prefix
-                    path = quote(request.path, safe='/')
-                    asset.image_location = f'{prefix}{path}/image'
+                    asset.image_location = _request_url(request) + '/image'
+
                 logger.info(
                         f'Sending with asset location {asset.image_location}')
                 response.status = HTTP_200
@@ -329,11 +369,11 @@ class WorkflowSubmissionHandler:
         try:
             validate_json('Job', request.media)
             job = deserialize(Job, request.media)
+            logger.info(f'Received new job {request.media} from {requester}')
             job_id = self._orchestrator.start_job(requester, job)
             logger.info(f'Received new job {job_id} from {requester}')
             response.status = HTTP_303
-            response.location = (
-                    f'{request.forwarded_prefix}/internal/jobs/{job_id}')
+            response.location = _request_url(request) + '/' + job_id
         except ValidationError:
             logger.warning(f'Invalid execution request: {request.media}')
             response.status = HTTP_400
@@ -367,6 +407,7 @@ class WorkflowStatusHandler:
             job_id: The orchestrator job id.
 
         """
+        logger.debug(f'Handling request for status of job {job_id}')
         try:
             job = self._orchestrator.get_submitted_job(job_id)
             plan = self._orchestrator.get_plan(job_id)
@@ -498,24 +539,30 @@ class Settings:
         namespace: Namespace controlled by the site's policy server.
         owner: Party owning the site.
         registry_endpoint: Registry endpoint location.
+        loglevel: Logging level to use, one of 'critical', 'error',
+                'warning', 'info', or 'debug'.
     """
     def __init__(
             self,
             name: str, namespace: str, owner: Identifier,
-            registry_endpoint: str
+            registry_endpoint: str, loglevel: str = 'info'
             ) -> None:
         """Create a Settings object.
 
         Args:
-            name: Name of the site.
+            name: Name of the site (without namespace or tag).
             namespace: Namespace controlled by the site's policy server.
-            owner: Party owning the site.
+            owner: Id of the party owning the site, e.g.
+                    "party:namespace:name".
             registry_endpoint: Registry endpoint location.
+            loglevel: Logging level to use, one of 'critical', 'error',
+                    'warning', 'info', or 'debug'.
         """
         self.name = name
         self.namespace = namespace
         self.owner = owner
         self.registry_endpoint = registry_endpoint
+        self.loglevel = loglevel
 
 
 load_settings = yatiml.load_function(Settings, Identifier)
@@ -527,6 +574,8 @@ default_config_location = Path('/etc/mahiru/mahiru.conf')
 def wsgi_app() -> App:
     """Creates a WSGI app for a WSGI runner."""
     settings = load_settings(default_config_location)
+
+    logging.basicConfig(level=settings.loglevel.upper())
 
     registry_rest_client = RegistryRestClient(settings.registry_endpoint)
     registry_client = RegistryClient(registry_rest_client)

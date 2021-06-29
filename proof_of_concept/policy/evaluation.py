@@ -1,5 +1,5 @@
 """Components for evaluating workflow permissions."""
-from typing import Dict, List, Set, Type
+from typing import Dict, Iterable, List, Optional, Set, Type
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IPolicyCollection
@@ -328,3 +328,66 @@ class PermissionCalculator:
 
         set_workflow_outputs_permissions(permissions, job.workflow)
         return permissions
+
+    def permitted_sites(
+            self, job: Job, sites: Iterable[Identifier],
+            permissions: Optional[Dict[str, Permissions]] = None
+            ) -> Dict[str, List[Identifier]]:
+        """Determine permitted sites for workflow steps.
+
+        This function applies the current policies to the given job,
+        and for each step in the workflow produces a list of sites at
+        which that step is allowed to run.
+
+        Args:
+            job: The job to evaluate.
+            sites: A set of sites to consider executing steps at.
+            permissions: Workflow permissions as calculated by
+                    calculate_permissions(). If omitted, they will
+                    be calculated automatically.
+
+        Return:
+            For each step (by name), a list of ids of sites at which
+            the step is allowed to execute.
+        """
+        if permissions is None:
+            permissions = self.calculate_permissions(job)
+
+        result = dict()
+        for step in job.workflow.steps.values():
+            allowed_sites = list()
+            for site in sites:
+                site_permitted = True
+
+                # check each input
+                for inp_name in step.inputs:
+                    inp_item = '{}.{}'.format(step.name, inp_name)
+                    inp_perms = permissions[inp_item]
+                    if not self._policy_evaluator.may_access(inp_perms, site):
+                        site_permitted = False
+
+                # check step itself (i.e. compute asset)
+                step_perms = permissions[step.name]
+                if not self._policy_evaluator.may_access(step_perms, site):
+                    site_permitted = False
+
+                # check each output and its base asset
+                for outp_name in step.outputs:
+                    base_item = '{}.@{}'.format(step.name, outp_name)
+                    if base_item in permissions:
+                        base_perms = permissions[base_item]
+                        if not self._policy_evaluator.may_access(
+                                base_perms, site):
+                            site_permitted = False
+
+                    outp_item = '{}.{}'.format(step.name, outp_name)
+                    outp_perms = permissions[outp_item]
+                    if not self._policy_evaluator.may_access(outp_perms, site):
+                        site_permitted = False
+
+                if site_permitted:
+                    allowed_sites.append(site)
+
+            result[step.name] = allowed_sites
+
+        return result

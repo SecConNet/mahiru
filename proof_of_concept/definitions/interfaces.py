@@ -128,7 +128,7 @@ class IAssetStore:
         """
         raise NotImplementedError()
 
-    def retrieve(self, asset_id: Identifier, requester: str
+    def retrieve(self, asset_id: Identifier, requester: Identifier
                  ) -> Asset:
         """Retrieves an asset.
 

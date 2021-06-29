@@ -84,7 +84,7 @@ class AssetStore(IAssetStore):
             copyfile(image_file, tgt_path)
         asset.image_location = str(tgt_path)
 
-    def retrieve(self, asset_id: Identifier, requester: str) -> Asset:
+    def retrieve(self, asset_id: Identifier, requester: Identifier) -> Asset:
         """Retrieves an asset.
 
         Args:

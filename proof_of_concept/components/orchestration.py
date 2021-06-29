@@ -34,14 +34,14 @@ class WorkflowPlanner:
         self._permission_calculator = PermissionCalculator(policy_evaluator)
 
     def make_plans(
-            self, submitter: str, job: Job) -> List[Plan]:
+            self, submitter: Identifier, job: Job) -> List[Plan]:
         """Assigns a site to each workflow step.
 
         Uses the given result collections to determine where steps can
         be executed.
 
         Args:
-            submitter: Name of the site which submitted this, and to
+            submitter: Id of the site which submitted this, and to
                     which results should be returned.
             job: The job to plan.
 
@@ -50,7 +50,7 @@ class WorkflowPlanner:
         """
         def may_run(
                 permissions: Dict[str, Permissions],
-                step: WorkflowStep, site: str
+                step: WorkflowStep, site: Identifier
                 ) -> bool:
             """Check whether the given site may run the given step."""
             # check each input
@@ -251,6 +251,7 @@ class WorkflowOrchestrator:
         """
         plans = self._planner.make_plans(submitter, job)
         if not plans:
+            logger.warning('No plans!')
             raise RuntimeError(
                     'This workflow cannot be run due to insufficient'
                     ' permissions.')

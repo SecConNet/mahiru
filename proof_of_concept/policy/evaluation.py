@@ -86,7 +86,7 @@ class PolicyEvaluator:
                         for asset in self._equivalent_assets(rule.collection)})
         return result
 
-    def may_access(self, permissions: Permissions, site: str) -> bool:
+    def may_access(self, permissions: Permissions, site: Identifier) -> bool:
         """Checks whether an asset can be at a site.
 
         This function checks whether the given site has access rights

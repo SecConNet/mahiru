@@ -3,7 +3,8 @@ from typing import Dict, Iterable, List, Optional, Set, Type
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IPolicyCollection
-from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
+from proof_of_concept.definitions.workflows import (
+        Job, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.rules import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfIn,
         ResultOfDataIn, ResultOfComputeIn)
@@ -391,3 +392,21 @@ class PermissionCalculator:
             result[step.name] = allowed_sites
 
         return result
+
+    def is_legal(self, job: Job, plan: Plan) -> bool:
+        """Checks whether this plan for this job is legal.
+
+        The plan is considered legal if each step can be executed at
+        the planned site.
+
+        Args:
+            job: The job to be executed.
+            plan: The plan to check for legality
+        """
+        permitted_sites = self.permitted_sites(job, plan.step_sites.values())
+
+        for step_name, site in plan.step_sites.items():
+            if site not in permitted_sites[step_name]:
+                return False
+
+        return True

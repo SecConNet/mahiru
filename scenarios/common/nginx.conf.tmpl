@@ -1,3 +1,5 @@
+# See https://docs.gunicorn.org/en/latest/deploy.html
+
 user nginx;
 worker_processes 1;
 
@@ -6,6 +8,8 @@ pid        /var/run/nginx.pid;
 
 events {
     worker_connections  1024;
+    accept_mutex off;   # enable for multiple worker_processes
+    use epoll;
 }
 
 http {
@@ -19,22 +23,38 @@ http {
     access_log  /var/log/nginx/access.log  main;
 
     sendfile        on;
-    #tcp_nopush     on;
-
-    keepalive_timeout  65;
 
     #gzip  on;
 
     #include /etc/nginx/conf.d/*.conf;
 
     server {
-        listen      80;
-        server_name _;
+        # Default server which closes the connection immediately.
+        # This is used if the host header doesn't match, and prevents
+        # host spoofing.
+        listen      80 default_server;
+        return 444;
+    }
+
+    server {
+        listen 80 deferred;
+
+        server_name server;     # gets patched by Ansible
+
+        keepalive_timeout 5;
+
+        client_max_body_size    1M;     # gets patched by Ansible
+
         location / {
+            proxy_set_header Host "$http_host";
             proxy_set_header X-Forwarded-Proto "$scheme";
+            # gets patched by Ansible to reflect Docker port mapping
             proxy_set_header X-Forwarded-Host "$host:$server_port";
             proxy_set_header X-Forwarded-Path "$uri";
-            proxy_pass http://mahiru-site:8000/external/;
+
+            proxy_redirect off;
+            # gets patched by Ansible
+            proxy_pass http://mahiru-site:8000/internal/;
         }
     }
 }

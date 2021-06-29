@@ -22,8 +22,20 @@
     loop:
       - src: ../../build/mahiru-registry-latest.tar
         dest: "{{ home }}/mahiru/mahiru-registry-latest.tar"
-      - src: ./registry/registry_nginx.conf
+      - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/registry_nginx.conf"
+
+  - name: Configure site name in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/registry_nginx.conf"
+      regexp: '^        server_name.*'
+      line: '        server_name registry;'
+
+  - name: Configure upstream in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/registry_nginx.conf"
+      regexp: '^            proxy_pass.*'
+      line: '            proxy_pass http://mahiru-registry:8000/;'
 
 - name: Set up registry
   hosts: registry
@@ -121,11 +133,49 @@
     loop:
       - src: ../../build/mahiru-site-latest.tar
         dest: "{{ home }}/mahiru/mahiru-site-latest.tar"
-      - src: ./site/internal_site_nginx.conf
+      - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/internal_site_nginx.conf"
-      - src: ./site/external_site_nginx.conf
+      - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/external_site_nginx.conf"
-  - name: Configure site name
+
+  - name: Configure site name in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
+      regexp: '^        server_name.*'
+      line: '        server_name site{{ site_id }};'
+    with_items:
+      - internal
+      - external
+
+  - name: Configure upload file size in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/internal_site_nginx.conf"
+      regexp: '^        client_max_body_size.*'
+      line: '        client_max_body_size 2G;'
+
+  - name: Configure Docker-mapped external port in proxy config
+    # We use external port 1080 for the internal interface, mapping it
+    # to the internal proxy's port 80 in the Docker configuration. So
+    # using the default server_port doesn't work, because nginx isn't
+    # listening on the port it thinks it's listening on. So we override
+    # it here and hard-code in the actual port, which gets passed to
+    # Mahiru so that it can generate URLs that the client can actually
+    # use.
+    lineinfile:
+      path: "{{ home }}/mahiru/internal_site_nginx.conf"
+      regexp: '^            proxy_set_header X-Forwarded-Host.*'
+      line: '            proxy_set_header X-Forwarded-Host "$host:1080";'
+
+  - name: Configure upstream in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
+      regexp: '^            proxy_pass.*'
+      line: '            proxy_pass http://mahiru-site:8000/{{ item }}/;'
+    with_items:
+      - internal
+      - external
+
+  - name: Configure site name in Mahiru config
     lineinfile:
       path: "{{ config_file }}"
       state: present

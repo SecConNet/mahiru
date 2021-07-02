@@ -1,0 +1,12 @@
+# Playbook for running the experiment
+
+- name: Run compute-to-data job
+  hosts: client1
+  vars:
+    home: "{{ ansible_facts['user_dir'] }}"
+    script_dir: "{{ home }}/mahiru/scripts"
+
+  tasks:
+  - name: Run job
+    command:
+      cmd: "python3 {{ script_dir }}/submit_job.py"

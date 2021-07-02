@@ -1,0 +1,357 @@
+# Playbook for installing and starting Mahiru on all systems
+
+- name: Copy files to registry
+  hosts: registry
+  vars:
+    home: "{{ansible_facts['user_dir']}}"
+  # This needs to run without become, because synchronize
+  # doesn't work with it. So we copy here as an ordinary
+  # user, then start things up as root in the second play
+  # below.
+
+  tasks:
+  - name: Create working directory
+    file:
+      path: "{{ home }}/mahiru"
+      state: directory
+
+  - name: Copy files
+    synchronize:
+      src: '{{ item.src }}'
+      dest: '{{ item.dest }}'
+    loop:
+      - src: ../../build/mahiru-registry-latest.tar
+        dest: "{{ home }}/mahiru/mahiru-registry-latest.tar"
+      - src: ./nginx.conf.tmpl
+        dest: "{{ home }}/mahiru/registry_nginx.conf"
+
+  - name: Configure site name in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/registry_nginx.conf"
+      regexp: '^        server_name.*'
+      line: '        server_name registry;'
+
+  - name: Configure upstream in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/registry_nginx.conf"
+      regexp: '^            proxy_pass.*'
+      line: '            proxy_pass http://mahiru-registry:8000/;'
+
+- name: Set up registry
+  hosts: registry
+  become: true
+  vars:
+    # Clunky, but best I can do. This gets the home dir of the non-root
+    # user we're logging in as.
+    home: "/home/{{ansible_facts['env']['SUDO_USER']}}"
+
+  tasks:
+  - name: Load image into Docker
+    docker_image:
+      name: mahiru-registry
+      state: present
+      source: load
+      force_source: yes
+      load_path: "{{ home }}/mahiru/mahiru-registry-latest.tar"
+
+  - name: Pull nginx image
+    docker_image:
+      name: nginx:alpine
+      state: present
+      source: pull
+      force_source: yes
+
+  - name: Create Docker network
+    docker_network:
+      name: mahiru
+
+  - name: Ensure the registry service is up
+    docker_container:
+      name: mahiru-registry
+      image: mahiru-registry
+      container_default_behavior: no_defaults
+      state: started
+      privileged: no
+      read_only: no
+      init: no
+      interactive: no
+      tty: no
+      detach: yes
+      auto_remove: no
+      paused: no
+      networks:
+        - name: mahiru
+          aliases: mahiru-registry
+      network_mode: mahiru
+
+  - name: Ensure the reverse proxy is up
+    docker_container:
+      name: reverse-proxy
+      image: nginx:alpine
+      published_ports: '80:80'
+      container_default_behavior: no_defaults
+      state: started
+      privileged: no
+      read_only: no
+      init: no
+      interactive: no
+      tty: no
+      detach: yes
+      auto_remove: no
+      paused: no
+      networks:
+        - name: mahiru
+      network_mode: mahiru
+      mounts:
+        - type: bind
+          source: "{{ home }}/mahiru/registry_nginx.conf"
+          target: /etc/nginx/nginx.conf
+          read_only: yes
+
+
+- name: Copy files to site
+  hosts: site*
+  vars:
+    home: "{{ansible_facts['user_dir']}}"
+    site_id: "{{ inventory_hostname | regex_replace('^site(.*)', '\\1') }}"
+    config_file: "{{ home }}/mahiru/mahiru.conf"
+  # This needs to run without become, because synchronize
+  # doesn't work with it. So we copy here as an ordinary
+  # user, then start things up as root in the second play
+  # below.
+
+  tasks:
+  - name: Create working directory
+    file:
+      path: "{{ home }}/mahiru"
+      state: directory
+
+  - name: Copy files
+    synchronize:
+      src: '{{ item.src }}'
+      dest: '{{ item.dest }}'
+    loop:
+      - src: ../../build/mahiru-site-latest.tar
+        dest: "{{ home }}/mahiru/mahiru-site-latest.tar"
+      - src: ./nginx.conf.tmpl
+        dest: "{{ home }}/mahiru/internal_site_nginx.conf"
+      - src: ./nginx.conf.tmpl
+        dest: "{{ home }}/mahiru/external_site_nginx.conf"
+
+  - name: Configure site name in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
+      regexp: '^        server_name.*'
+      line: '        server_name site{{ site_id }};'
+    with_items:
+      - internal
+      - external
+
+  - name: Configure upload file size in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/internal_site_nginx.conf"
+      regexp: '^        client_max_body_size.*'
+      line: '        client_max_body_size 2G;'
+
+  - name: Configure Docker-mapped external port in proxy config
+    # We use external port 1080 for the internal interface, mapping it
+    # to the internal proxy's port 80 in the Docker configuration. So
+    # using the default server_port doesn't work, because nginx isn't
+    # listening on the port it thinks it's listening on. So we override
+    # it here and hard-code in the actual port, which gets passed to
+    # Mahiru so that it can generate URLs that the client can actually
+    # use.
+    lineinfile:
+      path: "{{ home }}/mahiru/internal_site_nginx.conf"
+      regexp: '^            proxy_set_header X-Forwarded-Host.*'
+      line: '            proxy_set_header X-Forwarded-Host "$host:1080";'
+
+  - name: Configure upstream in proxy config
+    lineinfile:
+      path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
+      regexp: '^            proxy_pass.*'
+      line: '            proxy_pass http://mahiru-site:8000/{{ item }}/;'
+    with_items:
+      - internal
+      - external
+
+  - name: Configure site name in Mahiru config
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^name: .*$'
+      line: 'name: site{{ site_id }}'
+
+  - name: Configure namespace
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^namespace: .*$'
+      line: 'namespace: party{{ site_id }}_ns'
+
+  - name: Configure owner
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^owner: .*$'
+      line: 'owner: party:party{{ site_id }}_ns:party{{ site_id }}'
+
+  - name: Configure loglevel
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^loglevel: .*$'
+      line: 'loglevel: DEBUG'
+
+  - name: Configure registry endpoint
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^registry_endpoint: .*$'
+      line: 'registry_endpoint: http://registry:80'
+
+- name: Set up site
+  hosts: site*
+  become: true
+  vars:
+    # Clunky, but best I can do. This gets the home dir of the non-root
+    # user we're logging in as.
+    home: "/home/{{ansible_facts['env']['SUDO_USER']}}"
+
+  tasks:
+  - name: Load mahiru-site image into Docker
+    docker_image:
+      name: mahiru-site
+      state: present
+      source: load
+      force_source: yes
+      load_path: "{{ home }}/mahiru/mahiru-site-latest.tar"
+
+  - name: Pull nginx image
+    docker_image:
+      name: nginx:alpine
+      state: present
+      source: pull
+      force_source: yes
+
+  - name: Ensure Docker network exists
+    docker_network:
+      name: mahiru
+
+  - name: Ensure the site service is up
+    docker_container:
+      name: mahiru-site
+      image: mahiru-site
+      container_default_behavior: no_defaults
+      state: started
+      privileged: no
+      read_only: no
+      init: no
+      interactive: no
+      tty: no
+      detach: yes
+      auto_remove: no
+      paused: no
+      volumes:
+        - '/var/run/docker.sock:/var/run/docker.sock'
+        - '{{ home }}/mahiru/mahiru.conf:/etc/mahiru/mahiru.conf:ro'
+      networks:
+        - name: mahiru
+          aliases: mahiru-site
+      network_mode: mahiru
+
+  - name: Ensure the internal reverse proxy is up
+    docker_container:
+      name: internal-reverse-proxy
+      image: nginx:alpine
+      published_ports: '1080:80'
+      container_default_behavior: no_defaults
+      state: started
+      privileged: no
+      read_only: no
+      init: no
+      interactive: no
+      tty: no
+      detach: yes
+      auto_remove: no
+      paused: no
+      networks:
+        - name: mahiru
+      network_mode: mahiru
+      mounts:
+        - type: bind
+          source: "{{ home }}/mahiru/internal_site_nginx.conf"
+          target: /etc/nginx/nginx.conf
+          read_only: yes
+
+  - name: Ensure the external reverse proxy is up
+    docker_container:
+      name: external-reverse-proxy
+      image: nginx:alpine
+      published_ports: '80:80'
+      container_default_behavior: no_defaults
+      state: started
+      privileged: no
+      read_only: no
+      init: no
+      interactive: no
+      tty: no
+      detach: yes
+      auto_remove: no
+      paused: no
+      networks:
+        - name: mahiru
+      network_mode: mahiru
+      mounts:
+        - type: bind
+          source: "{{ home }}/mahiru/external_site_nginx.conf"
+          target: /etc/nginx/nginx.conf
+          read_only: yes
+
+
+- name: Install Mahiru Python module on clients so scripts can use it
+  hosts: client*
+  vars:
+    source_dir: "{{ansible_facts['user_dir']}}/mahiru/source"
+
+  tasks:
+  - name: Make directory for source
+    file:
+      path: "{{ source_dir }}"
+      state: directory
+
+  - name: Copy files
+    synchronize:
+      src: '{{ item.src }}'
+      dest: '{{ item.dest }}'
+      delete: yes
+      rsync_opts:
+      - "--exclude=__pycache__/"
+      - "--exclude=.mypy_cache/"
+    loop:
+      # We copy individual files here to avoid copying Docker images
+      # or Python eggs or other big stuff in the source directory, which
+      # would take a long time.
+      - src: ../../setup.py
+        dest: "{{ source_dir }}/setup.py"
+      - src: ../../LICENSE
+        dest: "{{ source_dir }}/LICENSE"
+      - src: ../../NOTICE
+        dest: "{{ source_dir }}/NOTICE"
+      - src: ../../README.rst
+        dest: "{{ source_dir }}/README.rst"
+      - src: ../../MANIFEST.in
+        dest: "{{ source_dir }}/MANIFEST.in"
+      - src: ../../proof_of_concept/
+        dest: "{{ source_dir }}/proof_of_concept"
+
+  - name: Install software
+    pip:
+      chdir: "{{ source_dir }}"
+      extra_args: --user
+      name: .

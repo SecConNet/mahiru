@@ -1,11 +1,11 @@
 import gzip
 import logging
+from pathlib import Path
 from unittest.mock import patch
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import (
         generate_private_key, RSAPrivateKey)
-import docker
 import pytest
 import requests
 import time
@@ -27,94 +27,29 @@ logger = logging.getLogger(__file__)
 
 
 @pytest.fixture
-def dcli():
-    """Docker client object."""
-    return docker.from_env()
+def data_asset_tars():
+    asset_dir = Path(__file__).parents[1] / 'build'
+
+    base_file = asset_dir / 'data-asset-base.tar.gz'
+    if not base_file.exists():
+        base_file = None
+
+    input_file = asset_dir / 'data-asset-input.tar.gz'
+    if not input_file.exists():
+        input_file = None
+
+    return base_file, input_file
 
 
 @pytest.fixture
-def docker_dir(test_dir):
-    """Path to the tests/docker directory."""
-    return test_dir / 'docker'
+def compute_asset_tar():
+    asset_dir = Path(__file__).parents[1] / 'build'
 
+    compute_file = asset_dir / 'compute-asset.tar.gz'
+    if not compute_file.exists():
+        compute_file = None
 
-def _build_image(dcli, docker_dir, name):
-    img, _ = dcli.images.build(
-            path=str(docker_dir),
-            tag=f'mahiru-test/{name}',
-            dockerfile=str(docker_dir / f'{name}.Dockerfile'),
-            rm=True)
-    return img
-
-
-def _make_tarfile(dcli, docker_dir, image, name):
-    tar_path = docker_dir / f'{name}.tar.gz'
-    with gzip.open(str(tar_path), 'wb', compresslevel=1) as f:
-        for chunk in image.save():
-            f.write(chunk)
-    return tar_path
-
-
-def _build_data_images(dcli, docker_dir):
-    base_image = None
-    input_image = None
-    base_file = None
-    input_file = None
-    try:
-        base_image = _build_image(dcli, docker_dir, 'data-asset-base')
-        input_image = _build_image(dcli, docker_dir, 'data-asset-input')
-        base_file = _make_tarfile(
-                dcli, docker_dir, base_image, 'data-asset-base')
-        input_file = _make_tarfile(
-                dcli, docker_dir, input_image, 'data-asset-input')
-        return base_file, input_file
-    except Exception:
-        if input_file:
-            input_file.unlink(missing_ok=True)
-        if base_file:
-            base_file.unlink(missing_ok=True)
-        raise
-    finally:
-        if input_image:
-            dcli.images.remove('mahiru-test/data-asset-input')
-        if base_image:
-            dcli.images.remove('mahiru-test/data-asset-base')
-
-
-def _build_compute_image(dcli, docker_dir):
-    base_image = None
-    input_image = None
-    input_file = None
-    try:
-        base_image = _build_image(dcli, docker_dir, 'compute-asset-base')
-        input_image = _build_image(dcli, docker_dir, 'compute-asset')
-        input_file = _make_tarfile(
-                dcli, docker_dir, input_image, 'compute-asset')
-        return input_file
-    except Exception:
-        if input_file:
-            input_file.unlink(missing_ok=True)
-        raise
-    finally:
-        if input_image:
-            dcli.images.remove('mahiru-test/compute-asset')
-        if base_image:
-            dcli.images.remove('mahiru-test/compute-asset-base')
-
-
-@pytest.fixture
-def data_asset_tars(dcli, docker_dir):
-    base_file, input_file = _build_data_images(dcli, docker_dir)
-    yield base_file, input_file
-    input_file.unlink()
-    base_file.unlink()
-
-
-@pytest.fixture
-def compute_asset_tar(dcli, docker_dir):
-    compute_file = _build_compute_image(dcli, docker_dir)
-    yield compute_file
-    compute_file.unlink()
+    return compute_file
 
 
 def test_container_step(
@@ -122,6 +57,10 @@ def test_container_step(
         data_asset_tars, compute_asset_tar, caplog):
 
     caplog.set_level(logging.DEBUG)
+
+    # check that we have assets
+    if not all(data_asset_tars) or not compute_asset_tar:
+        pytest.skip("Assets not available. Run 'make assets' to build them.")
 
     # create party
     party_key = generate_private_key(

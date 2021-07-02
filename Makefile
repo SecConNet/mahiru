@@ -37,3 +37,45 @@ registry_docker_tar: registry_docker_image
 .PHONY: site_docker_tar
 site_docker_tar: site_docker_image
 	docker save -o build/mahiru-site-latest.tar mahiru-site:latest
+
+
+.PHONY: assets_clean
+assets_clean:
+	docker rmi -f mahiru-test/data-asset-base:latest
+	docker rmi -f mahiru-test/data-asset-input:latest
+	docker rmi -f mahiru-test/compute-asset-base:latest
+	docker rmi -f mahiru-test/compute-asset:latest
+
+
+.PHONY: assets
+assets: data_asset_base_tar data_asset_input_tar compute_asset_tar
+	# docker rmi images here?
+
+.PHONY: data_asset_base_tar
+data_asset_base_tar: data_asset_base
+	docker save mahiru-test/data-asset-base:latest | gzip -1 -c >build/data-asset-base.tar.gz
+
+.PHONY: data_asset_input_tar
+data_asset_input_tar: data_asset_input
+	docker save mahiru-test/data-asset-input:latest | gzip -1 -c >build/data-asset-input.tar.gz
+
+.PHONY: compute_asset_tar
+compute_asset_tar: compute_asset
+	docker save mahiru-test/compute-asset:latest | gzip -1 -c >build/compute-asset.tar.gz
+
+
+.PHONY: data_asset_base
+data_asset_base:
+	docker build docker/assets -f docker/assets/data-asset-base.Dockerfile -t mahiru-test/data-asset-base:latest
+
+.PHONY: data_asset_input
+data_asset_input: data_asset_base
+	docker build docker/assets -f docker/assets/data-asset-input.Dockerfile -t mahiru-test/data-asset-input:latest
+
+.PHONY: compute_asset_base
+compute_asset_base:
+	docker build docker/assets -f docker/assets/compute-asset-base.Dockerfile -t mahiru-test/compute-asset-base:latest
+
+.PHONY: compute_asset
+compute_asset: compute_asset_base
+	docker build docker/assets -f docker/assets/compute-asset.Dockerfile -t mahiru-test/compute-asset:latest

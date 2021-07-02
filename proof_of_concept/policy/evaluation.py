@@ -1,9 +1,10 @@
 """Components for evaluating workflow permissions."""
-from typing import Dict, List, Set, Type
+from typing import Dict, Iterable, List, Optional, Set, Type
 
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IPolicyCollection
-from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
+from proof_of_concept.definitions.workflows import (
+        Job, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.rules import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfIn,
         ResultOfDataIn, ResultOfComputeIn)
@@ -86,7 +87,7 @@ class PolicyEvaluator:
                         for asset in self._equivalent_assets(rule.collection)})
         return result
 
-    def may_access(self, permissions: Permissions, site: str) -> bool:
+    def may_access(self, permissions: Permissions, site: Identifier) -> bool:
         """Checks whether an asset can be at a site.
 
         This function checks whether the given site has access rights
@@ -328,3 +329,84 @@ class PermissionCalculator:
 
         set_workflow_outputs_permissions(permissions, job.workflow)
         return permissions
+
+    def permitted_sites(
+            self, job: Job, sites: Iterable[Identifier],
+            permissions: Optional[Dict[str, Permissions]] = None
+            ) -> Dict[str, List[Identifier]]:
+        """Determine permitted sites for workflow steps.
+
+        This function applies the current policies to the given job,
+        and for each step in the workflow produces a list of sites at
+        which that step is allowed to run.
+
+        Args:
+            job: The job to evaluate.
+            sites: A set of sites to consider executing steps at.
+            permissions: Workflow permissions as calculated by
+                    calculate_permissions(). If omitted, they will
+                    be calculated automatically.
+
+        Return:
+            For each step (by name), a list of ids of sites at which
+            the step is allowed to execute.
+        """
+        if permissions is None:
+            permissions = self.calculate_permissions(job)
+
+        result = dict()
+        for step in job.workflow.steps.values():
+            allowed_sites = list()
+            for site in sites:
+                site_permitted = True
+
+                # check each input
+                for inp_name in step.inputs:
+                    inp_item = '{}.{}'.format(step.name, inp_name)
+                    inp_perms = permissions[inp_item]
+                    if not self._policy_evaluator.may_access(inp_perms, site):
+                        site_permitted = False
+
+                # check step itself (i.e. compute asset)
+                step_perms = permissions[step.name]
+                if not self._policy_evaluator.may_access(step_perms, site):
+                    site_permitted = False
+
+                # check each output and its base asset
+                for outp_name in step.outputs:
+                    base_item = '{}.@{}'.format(step.name, outp_name)
+                    if base_item in permissions:
+                        base_perms = permissions[base_item]
+                        if not self._policy_evaluator.may_access(
+                                base_perms, site):
+                            site_permitted = False
+
+                    outp_item = '{}.{}'.format(step.name, outp_name)
+                    outp_perms = permissions[outp_item]
+                    if not self._policy_evaluator.may_access(outp_perms, site):
+                        site_permitted = False
+
+                if site_permitted:
+                    allowed_sites.append(site)
+
+            result[step.name] = allowed_sites
+
+        return result
+
+    def is_legal(self, job: Job, plan: Plan) -> bool:
+        """Checks whether this plan for this job is legal.
+
+        The plan is considered legal if each step can be executed at
+        the planned site.
+
+        Args:
+            job: The job to be executed.
+            plan: The plan to check for legality
+        """
+        permitted_sites = self.permitted_sites(job, plan.step_sites.values())
+
+        for step_name, site in plan.step_sites.items():
+            if site not in permitted_sites[step_name]:
+                return False
+
+        return True

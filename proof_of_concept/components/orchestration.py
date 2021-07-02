@@ -34,61 +34,37 @@ class WorkflowPlanner:
         self._permission_calculator = PermissionCalculator(policy_evaluator)
 
     def make_plans(
-            self, submitter: str, job: Job) -> List[Plan]:
+            self, submitter: Identifier, job: Job) -> List[Plan]:
         """Assigns a site to each workflow step.
 
         Uses the given result collections to determine where steps can
         be executed.
 
         Args:
-            submitter: Name of the site which submitted this, and to
+            submitter: Id of the site which submitted this, and to
                     which results should be returned.
             job: The job to plan.
 
         Returns:
             A list of plans that will execute the workflow.
         """
-        def may_run(
-                permissions: Dict[str, Permissions],
-                step: WorkflowStep, site: str
-                ) -> bool:
-            """Check whether the given site may run the given step."""
-            # check each input
-            for inp_name in step.inputs:
-                inp_item = '{}.{}'.format(step.name, inp_name)
-                inp_perms = permissions[inp_item]
-                if not self._policy_evaluator.may_access(inp_perms, site):
-                    return False
-
-            # check step itself (i.e. compute asset)
-            step_perms = permissions[step.name]
-            if not self._policy_evaluator.may_access(step_perms, site):
-                return False
-
-            # check each output and its base asset
-            for outp_name in step.outputs:
-                base_item = '{}.@{}'.format(step.name, outp_name)
-                if base_item in permissions:
-                    base_perms = permissions[base_item]
-                    if not self._policy_evaluator.may_access(base_perms, site):
-                        return False
-
-                outp_item = '{}.{}'.format(step.name, outp_name)
-                outp_perms = permissions[outp_item]
-                if not self._policy_evaluator.may_access(outp_perms, site):
-                    return False
-
-            return True
-
         permissions = self._permission_calculator.calculate_permissions(job)
 
+        # if we cannot access the outputs, then there are no plans
         for output in job.workflow.outputs:
             output_perms = permissions[output]
             if not self._policy_evaluator.may_access(output_perms, submitter):
                 return []
 
+        sites = self._registry_client.list_sites_with_runners()
+        permitted_sites = self._permission_calculator.permitted_sites(
+                job, sites, permissions)
+        logger.debug(f'Permitted sites: {permitted_sites}')
+
         sorted_steps = self._sort_workflow(job.workflow)
-        plan = [''] * len(sorted_steps)
+        sorted_step_names = [step.name for step in sorted_steps]
+
+        plan = [Identifier('*')] * len(sorted_steps)
 
         def plan_from(
                 cur_step_idx: int) -> Generator[List[Identifier], None, None]:
@@ -97,16 +73,12 @@ class WorkflowPlanner:
             Yields any complete plans found.
             """
             cur_step = sorted_steps[cur_step_idx]
-            step_perms = permissions[cur_step.name]
-            for site in self._registry_client.list_sites_with_runners():
-                if may_run(permissions, cur_step, site):
-                    plan[cur_step_idx] = site
-                    if cur_step_idx == len(plan) - 1:
-                        yield list(map(Identifier, plan))
-                    else:
-                        yield from plan_from(cur_step_idx + 1)
-
-        sorted_step_names = [step.name for step in sorted_steps]
+            for site in permitted_sites[cur_step.name]:
+                plan[cur_step_idx] = site
+                if cur_step_idx == len(plan) - 1:
+                    yield plan
+                else:
+                    yield from plan_from(cur_step_idx + 1)
 
         return [
                 Plan(dict(zip(sorted_step_names, plan)))
@@ -251,6 +223,7 @@ class WorkflowOrchestrator:
         """
         plans = self._planner.make_plans(submitter, job)
         if not plans:
+            logger.warning('No plans!')
             raise RuntimeError(
                     'This workflow cannot be run due to insufficient'
                     ' permissions.')

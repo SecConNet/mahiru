@@ -27,7 +27,7 @@ class JobRun(Thread):
     This is a reification of the process of executing a job locally.
     """
     def __init__(
-            self, policy_evaluator: PolicyEvaluator,
+            self, permission_calculator: PermissionCalculator,
             this_site: Identifier,
             registry_client: RegistryClient,
             site_rest_client: SiteRestClient,
@@ -40,7 +40,8 @@ class JobRun(Thread):
         site.
 
         Args:
-            policy_evaluator: A policy evaluator to use to check policy.
+            permission_calculator: A permission calculator to use to
+                    check policy.
             this_site: The site we're running at.
             registry_client: A RegistryClient to use.
             site_rest_client: A SiteRestClient to use.
@@ -49,8 +50,7 @@ class JobRun(Thread):
 
         """
         super().__init__(name='JobAtRunner-{}'.format(this_site))
-        self._policy_evaluator = policy_evaluator
-        self._permission_calculator = PermissionCalculator(policy_evaluator)
+        self._permission_calculator = permission_calculator
         self._this_site = this_site
         self._registry_client = registry_client
         self._site_rest_client = site_rest_client
@@ -70,7 +70,7 @@ class JobRun(Thread):
         compatible with their dependencies.
         """
         logger.info('Starting job at {}'.format(self._this_site))
-        if not self._is_legal():
+        if not self._permission_calculator.is_legal(self._job, self._plan):
             # for each output we were supposed to produce
             #     store an error object instead
             # for now, we raise and crash
@@ -92,57 +92,6 @@ class JobRun(Thread):
             else:
                 sleep(0.5)
         logger.info('Job at {} done'.format(self._this_site))
-
-    def _is_legal(self) -> bool:
-        """Checks whether this request is legal.
-
-        If we have permission to execute all of our steps, then this
-        is a legal job as far as we are concerned.
-        """
-        perms = self._permission_calculator.calculate_permissions(self._job)
-        for step in self._workflow.steps.values():
-            if self._sites[step.name] == self._this_site:
-                # check that we can access the step's inputs
-                for inp_name, inp_src in step.inputs.items():
-                    inp_item = '{}.{}'.format(step.name, inp_name)
-                    inp_perms = perms[inp_item]
-                    if not self._policy_evaluator.may_access(
-                            inp_perms, self._this_site):
-                        return False
-                    # check that the site we'll download this input
-                    # from may access it
-                    if '.' in inp_src:
-                        src_step, _ = inp_src.split('.')
-                        src_site = self._sites[src_step]
-                    else:
-                        inp_asset_id = self._job.inputs[inp_src]
-                        src_site = inp_asset_id.location()
-
-                    if not self._policy_evaluator.may_access(
-                            perms[inp_src], src_site):
-                        return False
-
-                # check that we can access the compute asset
-                if not self._policy_evaluator.may_access(
-                        perms[step.name], self._this_site):
-                    return False
-
-                # check that we can access the step's outputs
-                for outp_name in step.outputs:
-                    base_item = '{}.@{}'.format(step.name, outp_name)
-                    if base_item in perms:
-                        base_perms = perms[base_item]
-                        if not self._policy_evaluator.may_access(
-                                base_perms, self._this_site):
-                            return False
-
-                    outp_item = '{}.{}'.format(step.name, outp_name)
-                    outp_perms = perms[outp_item]
-                    if not self._policy_evaluator.may_access(
-                            outp_perms, self._this_site):
-                        return False
-
-        return True
 
     def _try_execute_step(
             self, step: WorkflowStep, id_hashes: Dict[str, str]
@@ -314,7 +263,7 @@ class StepRunner(IStepRunner):
         self._site = site
         self._registry_client = registry_client
         self._site_rest_client = site_rest_client
-        self._policy_evaluator = policy_evaluator
+        self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._target_store = target_store
 
     def execute_request(self, request: ExecutionRequest) -> None:
@@ -325,7 +274,7 @@ class StepRunner(IStepRunner):
 
         """
         run = JobRun(
-                self._policy_evaluator, self._site,
+                self._permission_calculator, self._site,
                 self._registry_client, self._site_rest_client,
                 request,
                 self._target_store)

@@ -81,10 +81,10 @@ class RegistryClient:
             return owner.public_key
         raise RuntimeError(f'No site with namespace {namespace} found')
 
-    def list_sites_with_runners(self) -> List[str]:
+    def list_sites_with_runners(self) -> List[Identifier]:
         """Returns a list of id's of sites with runners."""
         self.update()
-        sites = list()    # type: List[str]
+        sites = list()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
                 if o.runner:

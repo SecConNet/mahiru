@@ -68,8 +68,8 @@ class Site:
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = StepRunner(
-                self.id, self._registry_client, self._site_rest_client,
-                self._policy_evaluator, self.store)
+                self.id, self._site_rest_client, self._policy_evaluator,
+                self.store)
 
         # Client side
         self.orchestrator = WorkflowOrchestrator(

@@ -15,7 +15,6 @@ from proof_of_concept.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
 from proof_of_concept.rest.client import SiteRestClient
 from proof_of_concept.components.asset_store import AssetStore
-from proof_of_concept.components.registry_client import RegistryClient
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +28,6 @@ class JobRun(Thread):
     def __init__(
             self, permission_calculator: PermissionCalculator,
             this_site: Identifier,
-            registry_client: RegistryClient,
             site_rest_client: SiteRestClient,
             request: ExecutionRequest,
             target_store: AssetStore
@@ -43,7 +41,6 @@ class JobRun(Thread):
             permission_calculator: A permission calculator to use to
                     check policy.
             this_site: The site we're running at.
-            registry_client: A RegistryClient to use.
             site_rest_client: A SiteRestClient to use.
             request: The job to execute and plan to do it.
             target_store: The asset store to put results into.
@@ -52,7 +49,6 @@ class JobRun(Thread):
         super().__init__(name='JobAtRunner-{}'.format(this_site))
         self._permission_calculator = permission_calculator
         self._this_site = this_site
-        self._registry_client = registry_client
         self._site_rest_client = site_rest_client
         self._job = request.job
         self._workflow = request.job.workflow
@@ -246,7 +242,6 @@ class StepRunner(IStepRunner):
     """A service for running steps of a workflow at a given site."""
     def __init__(
             self, site: Identifier,
-            registry_client: RegistryClient,
             site_rest_client: SiteRestClient,
             policy_evaluator: PolicyEvaluator,
             target_store: AssetStore) -> None:
@@ -254,14 +249,12 @@ class StepRunner(IStepRunner):
 
         Args:
             site: Name of the site this runner is located at.
-            registry_client: A RegistryClient to use.
             site_rest_client: A SiteRestClient to use.
             policy_evaluator: A PolicyEvaluator to use.
             target_store: An AssetStore to store result in.
 
         """
         self._site = site
-        self._registry_client = registry_client
         self._site_rest_client = site_rest_client
         self._permission_calculator = PermissionCalculator(policy_evaluator)
         self._target_store = target_store
@@ -275,7 +268,5 @@ class StepRunner(IStepRunner):
         """
         run = JobRun(
                 self._permission_calculator, self._site,
-                self._registry_client, self._site_rest_client,
-                request,
-                self._target_store)
+                self._site_rest_client, request, self._target_store)
         run.start()

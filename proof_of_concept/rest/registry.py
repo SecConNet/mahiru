@@ -11,6 +11,7 @@ from falcon import (
 import ruamel.yaml as yaml
 
 from proof_of_concept.definitions.identifier import Identifier
+from proof_of_concept.definitions.interfaces import IRegistration
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
 from proof_of_concept.registry.registry import Registry
@@ -26,7 +27,7 @@ class PartyRegistrationHandler:
     """A handler for the /parties endpoint."""
     def __init__(
             self,
-            registry: Registry) -> None:
+            registry: IRegistration) -> None:
         """Create a PartyRegistrationHandler handler.
 
         Args:
@@ -79,7 +80,7 @@ class PartyRegistrationHandler:
 
 class SiteRegistrationHandler:
     """A handler for the /sites endpoint."""
-    def __init__(self, registry: Registry) -> None:
+    def __init__(self, registry: IRegistration) -> None:
         """Create a SiteRegistrationHandler handler.
 
         Args:

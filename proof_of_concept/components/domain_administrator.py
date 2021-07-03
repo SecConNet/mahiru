@@ -17,7 +17,7 @@ from proof_of_concept.definitions.assets import (
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.interfaces import IDomainAdministrator
 from proof_of_concept.definitions.workflows import Job, WorkflowStep
-from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.rest.site_client import SiteRestClient
 
 
 logger = logging.getLogger(__name__)

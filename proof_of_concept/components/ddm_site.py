@@ -11,7 +11,7 @@ from proof_of_concept.definitions.assets import Asset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.policy import Rule
 from proof_of_concept.definitions.workflows import Job
-from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.rest.site_client import SiteRestClient
 from proof_of_concept.components.step_runner import StepRunner
 from proof_of_concept.policy.evaluation import PolicyEvaluator
 from proof_of_concept.policy.replication import PolicyStore

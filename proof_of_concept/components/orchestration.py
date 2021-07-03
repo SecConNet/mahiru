@@ -11,7 +11,7 @@ from proof_of_concept.definitions.workflows import (
         ExecutionRequest, Job, Plan, Workflow, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
         PermissionCalculator, Permissions, PolicyEvaluator)
-from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.rest.site_client import SiteRestClient
 
 
 logger = logging.getLogger(__name__)

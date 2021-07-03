@@ -13,7 +13,7 @@ from proof_of_concept.definitions.workflows import (
         ExecutionRequest, WorkflowStep)
 from proof_of_concept.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
-from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.rest.site_client import SiteRestClient
 from proof_of_concept.components.asset_store import AssetStore
 
 

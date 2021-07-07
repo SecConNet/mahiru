@@ -11,10 +11,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 import pytest
 
-from proof_of_concept.components.registry_client import RegistryClient
-from proof_of_concept.registry.registry import Registry
-from proof_of_concept.rest.registry import RegistryRestApi, RegistryServer
-from proof_of_concept.rest.registry_client import (
+from mahiru.components.registry_client import RegistryClient
+from mahiru.registry.registry import Registry
+from mahiru.rest.registry import RegistryRestApi, RegistryServer
+from mahiru.rest.registry_client import (
         RegistrationRestClient, RegistryRestClient)
 
 

@@ -8,18 +8,17 @@ from cryptography.hazmat.primitives.asymmetric.rsa import (
         generate_private_key, RSAPrivateKey)
 import requests
 
-from proof_of_concept.components.ddm_site import Site
-from proof_of_concept.components.registry_client import RegistryClient
-from proof_of_concept.definitions.assets import ComputeAsset, DataAsset
-from proof_of_concept.definitions.registry import (
-        PartyDescription, SiteDescription)
-from proof_of_concept.definitions.workflows import Job, WorkflowStep, Workflow
-from proof_of_concept.policy.rules import (
+from mahiru.components.ddm_site import Site
+from mahiru.components.registry_client import RegistryClient
+from mahiru.definitions.assets import ComputeAsset, DataAsset
+from mahiru.definitions.registry import PartyDescription, SiteDescription
+from mahiru.definitions.workflows import Job, WorkflowStep, Workflow
+from mahiru.policy.rules import (
     InAssetCollection, MayAccess, ResultOfDataIn,
     ResultOfComputeIn)
-from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
-from proof_of_concept.rest.internal_client import InternalSiteRestClient
-from proof_of_concept.rest.registry_client import RegistrationRestClient
+from mahiru.rest.ddm_site import SiteRestApi, SiteServer
+from mahiru.rest.internal_client import InternalSiteRestClient
+from mahiru.rest.registry_client import RegistrationRestClient
 
 
 logger = logging.getLogger(__file__)

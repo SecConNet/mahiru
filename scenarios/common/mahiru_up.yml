@@ -347,8 +347,8 @@
         dest: "{{ source_dir }}/README.rst"
       - src: ../../MANIFEST.in
         dest: "{{ source_dir }}/MANIFEST.in"
-      - src: ../../proof_of_concept/
-        dest: "{{ source_dir }}/proof_of_concept"
+      - src: ../../mahiru/
+        dest: "{{ source_dir }}/mahiru"
 
   - name: Install software
     pip:

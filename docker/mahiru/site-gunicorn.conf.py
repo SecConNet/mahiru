@@ -17,4 +17,4 @@ workers = 1
 threads = multiprocessing.cpu_count() * 3 + 1
 
 # App
-wsgi_app = 'proof_of_concept.rest.ddm_site:wsgi_app()'
+wsgi_app = 'mahiru.rest.ddm_site:wsgi_app()'

@@ -1,9 +1,8 @@
 from copy import copy
 
-from proof_of_concept.definitions.identifier import Identifier
-from proof_of_concept.definitions.registry import (
-        PartyDescription, SiteDescription)
-from proof_of_concept.registry.registry import Registry
+from mahiru.definitions.identifier import Identifier
+from mahiru.definitions.registry import PartyDescription, SiteDescription
+from mahiru.registry.registry import Registry
 
 
 def test_parties_are_values(private_key):

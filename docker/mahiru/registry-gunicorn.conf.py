@@ -7,4 +7,4 @@ capture_output = True
 bind = ['0.0.0.0:8000']
 
 # App
-wsgi_app = 'proof_of_concept.rest.registry:wsgi_app()'
+wsgi_app = 'mahiru.rest.registry:wsgi_app()'

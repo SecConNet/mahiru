@@ -8,14 +8,13 @@ from falcon import App
 import pytest
 import requests
 
-from proof_of_concept.components.asset_store import AssetStore
-from proof_of_concept.definitions.assets import DataAsset
-from proof_of_concept.definitions.identifier import Identifier
-from proof_of_concept.definitions.registry import RegisteredObject
-from proof_of_concept.replication import ReplicaUpdate
-from proof_of_concept.rest.site_client import SiteRestClient
-from proof_of_concept.rest.ddm_site import (
-        AssetImageAccessHandler, ThreadingWSGIServer)
+from mahiru.components.asset_store import AssetStore
+from mahiru.definitions.assets import DataAsset
+from mahiru.definitions.identifier import Identifier
+from mahiru.definitions.registry import RegisteredObject
+from mahiru.replication import ReplicaUpdate
+from mahiru.rest.site_client import SiteRestClient
+from mahiru.rest.ddm_site import AssetImageAccessHandler, ThreadingWSGIServer
 
 
 @pytest.fixture

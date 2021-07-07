@@ -13,7 +13,7 @@ from proof_of_concept.definitions.assets import DataAsset
 from proof_of_concept.definitions.identifier import Identifier
 from proof_of_concept.definitions.registry import RegisteredObject
 from proof_of_concept.replication import ReplicaUpdate
-from proof_of_concept.rest.client import SiteRestClient
+from proof_of_concept.rest.site_client import SiteRestClient
 from proof_of_concept.rest.ddm_site import (
         AssetImageAccessHandler, ThreadingWSGIServer)
 

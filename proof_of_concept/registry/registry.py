@@ -7,7 +7,7 @@ from proof_of_concept.definitions.interfaces import (
         IAssetStore, IRegistration, IRegistryService, IReplicaUpdate)
 from proof_of_concept.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
-from proof_of_concept.registry.replication import RegistryStore, RegistryUpdate
+from proof_of_concept.registry.replication import RegistryStore
 from proof_of_concept.replication import ReplicableArchive
 
 

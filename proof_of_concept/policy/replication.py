@@ -32,6 +32,10 @@ class RuleValidator(ObjectValidator[Rule]):
     def is_valid(self, rule: Rule) -> bool:
         """Return True iff the rule is properly signed."""
         if rule.signing_namespace() != self._namespace:
+            logger.error(
+                    f'Rule {rule} is invalid due to a namespace mismatch,'
+                    f' we got {rule.signing_namespace()} but expected'
+                    f' {self._namespace}')
             return False
         return rule.has_valid_signature(self._key)
 

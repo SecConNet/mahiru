@@ -4,9 +4,10 @@ from typing import Optional
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from proof_of_concept.definitions.identifier import Identifier
+from proof_of_concept.util import ComparesByValue
 
 
-class RegisteredObject:
+class RegisteredObject(ComparesByValue):
     """Base class for objects in the registry."""
     pass
 

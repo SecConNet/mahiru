@@ -192,6 +192,10 @@ class CanonicalStore(IReplicationService[T]):
                     deleted_after(from_version, rec.deleted) and
                     deleted_before(rec.deleted, to_version))}
 
+        readded_objects = new_objects.intersection(deleted_objects)
+        new_objects -= readded_objects
+        deleted_objects -= readded_objects
+
         valid_until = cur_time + timedelta(seconds=self._max_lag)
         return self.UpdateType(
                 from_version, to_version, valid_until,

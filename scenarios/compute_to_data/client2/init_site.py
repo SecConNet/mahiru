@@ -6,13 +6,11 @@ from cryptography.hazmat.primitives.asymmetric.rsa import (
         generate_private_key, RSAPrivateKey, RSAPublicKey)
 import requests
 
-from proof_of_concept.definitions.assets import (
-        ComputeAsset, ComputeMetadata, DataAsset)
-from proof_of_concept.definitions.registry import (
-        PartyDescription, SiteDescription)
-from proof_of_concept.policy.rules import MayAccess, ResultOfDataIn
-from proof_of_concept.rest.registry_client import RegistrationRestClient
-from proof_of_concept.rest.internal_client import InternalSiteRestClient
+from mahiru.definitions.assets import ComputeAsset, ComputeMetadata, DataAsset
+from mahiru.definitions.registry import PartyDescription, SiteDescription
+from mahiru.policy.rules import MayAccess, ResultOfDataIn
+from mahiru.rest.registry_client import RegistrationRestClient
+from mahiru.rest.internal_client import InternalSiteRestClient
 
 
 ASSET_DIR = Path.home() / 'mahiru' / 'assets'

@@ -1,10 +1,10 @@
-.. SecConNet Proof of Concept documentation master file, created by
+.. Mahiru documentation master file, created by
    sphinx-quickstart on Thu Jun 21 11:07:11 2018.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to SecConNet Proof of Concept's documentation!
-==========================================================
+Welcome to Mahiru's documentation!
+==================================
 
 .. toctree::
    :maxdepth: 2

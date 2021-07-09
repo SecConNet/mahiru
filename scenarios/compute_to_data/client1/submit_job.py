@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
-from proof_of_concept.rest.internal_client import InternalSiteRestClient
+from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
+from mahiru.rest.internal_client import InternalSiteRestClient
 
 
 if __name__ == '__main__':

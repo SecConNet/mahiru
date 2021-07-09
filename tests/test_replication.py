@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 import time
 
-from proof_of_concept.replication import (
+from mahiru.replication import (
         CanonicalStore, Replica, Replicable, ReplicableArchive, ReplicaUpdate)
 
 

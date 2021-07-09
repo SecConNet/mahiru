@@ -1,11 +1,11 @@
 from copy import copy
 
-from proof_of_concept.policy.replication import PolicyStore
-from proof_of_concept.policy.rules import (
+from mahiru.policy.replication import PolicyStore
+from mahiru.policy.rules import (
         InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
         ResultOfComputeIn)
-from proof_of_concept.replication import ReplicableArchive
-from proof_of_concept.definitions.policy import Rule
+from mahiru.replication import ReplicableArchive
+from mahiru.definitions.policy import Rule
 
 
 def test_rules_are_values():

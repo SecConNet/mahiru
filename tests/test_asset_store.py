@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from proof_of_concept.components.asset_store import AssetStore
-from proof_of_concept.definitions.assets import DataAsset
-from proof_of_concept.definitions.identifier import Identifier
+from mahiru.components.asset_store import AssetStore
+from mahiru.definitions.assets import DataAsset
+from mahiru.definitions.identifier import Identifier
 
 
 def test_asset_store_store_retrieve(image_dir, test_image_file) -> None:

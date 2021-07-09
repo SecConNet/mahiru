@@ -10,17 +10,16 @@ import pytest
 import requests
 import time
 
-from proof_of_concept.components.ddm_site import Site
-from proof_of_concept.definitions.assets import (
+from mahiru.components.ddm_site import Site
+from mahiru.definitions.assets import (
         ComputeAsset, ComputeMetadata, DataAsset)
-from proof_of_concept.definitions.identifier import Identifier
-from proof_of_concept.definitions.registry import (
-        PartyDescription, SiteDescription)
-from proof_of_concept.definitions.workflows import Job, Workflow, WorkflowStep
-from proof_of_concept.policy.rules import (
+from mahiru.definitions.identifier import Identifier
+from mahiru.definitions.registry import PartyDescription, SiteDescription
+from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
+from mahiru.policy.rules import (
         MayAccess, ResultOfComputeIn, ResultOfDataIn)
-from proof_of_concept.rest.ddm_site import SiteRestApi, SiteServer
-from proof_of_concept.rest.internal_client import InternalSiteRestClient
+from mahiru.rest.ddm_site import SiteRestApi, SiteServer
+from mahiru.rest.internal_client import InternalSiteRestClient
 
 
 logger = logging.getLogger(__file__)

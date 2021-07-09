@@ -1,5 +1,9 @@
 export DOCKER_BUILDKIT = 1
 
+.PHONY: docs
+docs:
+	PYTHONPATH=${PYTHONPATH}:${PWD} make -C docs html
+
 .PHONY: docker_images
 docker_images: base_docker_image registry_docker_image site_docker_image
 

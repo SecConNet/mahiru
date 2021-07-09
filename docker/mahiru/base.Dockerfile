@@ -15,7 +15,7 @@ COPY MANIFEST.in /home/mahiru/MANIFEST.in
 COPY LICENSE /home/mahiru/LICENSE
 COPY NOTICE /home/mahiru/NOTICE
 COPY README.rst /home/mahiru/README.rst
-COPY proof_of_concept /home/mahiru/proof_of_concept
+COPY mahiru /home/mahiru/mahiru
 
 RUN chown -R mahiru:mahiru /home/mahiru
 RUN pip install --user gunicorn[gevent] /home/mahiru

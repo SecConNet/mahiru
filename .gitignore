@@ -2,6 +2,7 @@
 *.py[cod]
 *.egg-info
 *.eggs
+*.o
 .ipynb_checkpoints
 .mypy_cache
 .tox
@@ -11,6 +12,7 @@ build
 dist
 .cache
 __pycache__
+src/mahiru_net_admin_linux_helper/mahiru_net_admin_linux_helper
 
 htmlcov
 .coverage

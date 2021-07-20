@@ -1,4 +1,3 @@
-/** Functions for starting a subprocess and communicating with it. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,18 +7,21 @@
 
 
 int main(int argc, char * argv[]) {
-    char * program = "/bin/cat";
-    char * const args[] = {program, NULL};
+    char * program = "/sbin/ip";
+    char * const args[] = {
+        program, "link", "add", "veth-test", "type", "veth",
+        NULL};
     char * const env[] = {NULL};
 
-    const char * input = "Testing";
+    const char * input = NULL;
+    ssize_t in_size = 0l;
 
     const char * out = NULL;
     ssize_t out_size = 0;
 
     char * strbuf;
 
-    if (run(program, args, env, input, strlen(input), &out, &out_size) != 0)
+    if (run(program, args, env, input, in_size, &out, &out_size) != 0)
         return EXIT_FAILURE;
 
     strbuf = (char*)malloc(out_size + 1);
@@ -27,7 +29,8 @@ int main(int argc, char * argv[]) {
     strbuf[out_size] = '\0';
     free((void*)out);
 
-    printf("Output: %s", strbuf);
+    if (out_size != 0)
+        printf("Command output:\n%s", strbuf);
     free(strbuf);
 
     return EXIT_SUCCESS;

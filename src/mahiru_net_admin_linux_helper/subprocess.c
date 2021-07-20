@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "capabilities.h"
 #include "subprocess.h"
 
 
@@ -211,12 +212,16 @@ int run(
     if (child_pid == 0) {
         // child
         if (setup_pipes_for_child(&pipes) != 0)
-            exit(1);
+            exit(255);
 
         if (argv == NULL)
             argv = &none;
         if (env == NULL)
             env = &none;
+
+        if (set_ambient_capabilities() != 0) {
+            exit(255);
+        }
 
         execve(filename, argv, env);
         perror("Executing command");

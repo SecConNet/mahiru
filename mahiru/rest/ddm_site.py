@@ -17,6 +17,7 @@ import yatiml
 
 from mahiru.components.ddm_site import Site
 from mahiru.components.registry_client import RegistryClient
+from mahiru.components.settings import load_settings
 from mahiru.components.orchestration import WorkflowOrchestrator
 from mahiru.definitions.assets import Asset
 from mahiru.definitions.execution import JobResult
@@ -531,56 +532,14 @@ class SiteServer:
         self._thread.join()
 
 
-class Settings:
-    """Settings for a site.
-
-    Attributes:
-        name: Name of the site.
-        namespace: Namespace controlled by the site's policy server.
-        owner: Party owning the site.
-        registry_endpoint: Registry endpoint location.
-        loglevel: Logging level to use, one of 'critical', 'error',
-                'warning', 'info', or 'debug'.
-    """
-    def __init__(
-            self,
-            name: str, namespace: str, owner: Identifier,
-            registry_endpoint: str, loglevel: str = 'info'
-            ) -> None:
-        """Create a Settings object.
-
-        Args:
-            name: Name of the site (without namespace or tag).
-            namespace: Namespace controlled by the site's policy server.
-            owner: Id of the party owning the site, e.g.
-                    "party:namespace:name".
-            registry_endpoint: Registry endpoint location.
-            loglevel: Logging level to use, one of 'critical', 'error',
-                    'warning', 'info', or 'debug'.
-        """
-        self.name = name
-        self.namespace = namespace
-        self.owner = owner
-        self.registry_endpoint = registry_endpoint
-        self.loglevel = loglevel
-
-
-load_settings = yatiml.load_function(Settings, Identifier)
-
-
-default_config_location = Path('/etc/mahiru/mahiru.conf')
-
-
 def wsgi_app() -> App:
     """Creates a WSGI app for a WSGI runner."""
-    settings = load_settings(default_config_location)
+    settings = load_settings()
 
     logging.basicConfig(level=settings.loglevel.upper())
 
     registry_rest_client = RegistryRestClient(settings.registry_endpoint)
     registry_client = RegistryClient(registry_rest_client)
-    site = Site(
-            settings.name, settings.owner, settings.namespace, [], [],
-            registry_client)
+    site = Site(settings, [], [], registry_client)
     return SiteRestApi(
             site.policy_store, site.store, site.runner, site.orchestrator).app

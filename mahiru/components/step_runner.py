@@ -8,7 +8,7 @@ from mahiru.components.domain_administrator import PlainDockerDA
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
-from mahiru.definitions.interfaces import IStepRunner
+from mahiru.definitions.interfaces import IDomainAdministrator, IStepRunner
 from mahiru.definitions.workflows import ExecutionRequest, WorkflowStep
 from mahiru.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
@@ -25,9 +25,11 @@ class JobRun(Thread):
     This is a reification of the process of executing a job locally.
     """
     def __init__(
-            self, permission_calculator: PermissionCalculator,
-            this_site: Identifier,
+            self,
             site_rest_client: SiteRestClient,
+            permission_calculator: PermissionCalculator,
+            domain_administrator: IDomainAdministrator,
+            this_site: Identifier,
             request: ExecutionRequest,
             target_store: AssetStore
             ) -> None:
@@ -37,26 +39,27 @@ class JobRun(Thread):
         site.
 
         Args:
+            site_rest_client: A SiteRestClient to use.
             permission_calculator: A permission calculator to use to
                     check policy.
+            domain_administrator: A domain administrator to use to
+                    manage containers and networks.
             this_site: The site we're running at.
-            site_rest_client: A SiteRestClient to use.
             request: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
         """
         super().__init__(name='JobAtRunner-{}'.format(this_site))
         self._permission_calculator = permission_calculator
-        self._this_site = this_site
         self._site_rest_client = site_rest_client
+        self._domain_administrator = domain_administrator
+        self._this_site = this_site
         self._job = request.job
         self._workflow = request.job.workflow
         self._inputs = request.job.inputs
         self._plan = request.plan
         self._sites = request.plan.step_sites
         self._target_store = target_store
-        self._domain_administrator = PlainDockerDA(
-                site_rest_client, target_store)
 
     def run(self) -> None:
         """Runs the job.
@@ -256,6 +259,8 @@ class StepRunner(IStepRunner):
         self._site = site
         self._site_rest_client = site_rest_client
         self._permission_calculator = PermissionCalculator(policy_evaluator)
+        self._domain_administrator = PlainDockerDA(
+                site_rest_client, target_store)
         self._target_store = target_store
 
     def execute_request(self, request: ExecutionRequest) -> None:
@@ -266,6 +271,7 @@ class StepRunner(IStepRunner):
 
         """
         run = JobRun(
-                self._permission_calculator, self._site,
-                self._site_rest_client, request, self._target_store)
+                self._site_rest_client, self._permission_calculator,
+                self._domain_administrator, self._site, request,
+                self._target_store)
         run.start()

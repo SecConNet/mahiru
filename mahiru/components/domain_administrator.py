@@ -2,8 +2,9 @@
 import gzip
 import json
 import logging
+from shutil import rmtree
 from threading import Lock
-import tempfile
+from tempfile import mkdtemp, TemporaryDirectory
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -11,16 +12,47 @@ import docker
 from docker.models.images import Image
 from docker.models.containers import Container
 
-from mahiru.components.asset_store import AssetStore
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
 from mahiru.definitions.identifier import Identifier
-from mahiru.definitions.interfaces import IDomainAdministrator
+from mahiru.definitions.interfaces import IDomainAdministrator, IStepResult
 from mahiru.definitions.workflows import Job, WorkflowStep
 from mahiru.rest.site_client import SiteRestClient
 
 
 logger = logging.getLogger(__name__)
+
+
+class StepResult(IStepResult):
+    """Contains and manages the outputs of a step.
+
+    Some cleanup is needed after these have been stored, so they're
+    wrapped up in this class so that we can add a utility function.
+
+    Attributes:
+        assets: Dictionary mapping workflow items to Asset objects, one
+                for each output of the step. Each Asset object points
+                to an image file.
+    """
+    def __init__(self, assets: Dict[str, DataAsset], workdir: str) -> None:
+        """Create a StepResult.
+
+        Args:
+            assets: The output assets created for each step output,
+                    indexed by item and pointing to an image file
+                    on disk.
+            workdir: The working directory in which the image files
+                    are stored.
+        """
+        self.assets = assets
+        self._workdir = workdir
+
+    def cleanup(self) -> None:
+        """Cleans up associated resources.
+
+        The asset image files will be gone after this has been called.
+        """
+        rmtree(self._workdir)
 
 
 class PlainDockerDA(IDomainAdministrator):
@@ -31,17 +63,13 @@ class PlainDockerDA(IDomainAdministrator):
     implementation which doesn't offer much in the way of security
     or performance.
     """
-    def __init__(
-            self, site_rest_client: SiteRestClient, target_store: AssetStore
-            ) -> None:
+    def __init__(self, site_rest_client: SiteRestClient) -> None:
         """Create a PlainDockerDA.
 
         Args:
             site_rest_client: Client to use for downloading images.
-            target_store: Store to put step results into.
         """
         self._site_rest_client = site_rest_client
-        self._target_store = target_store
         self._dcli = docker.from_env()
 
         # Note: this is a unique ID per executed step, it is unrelated
@@ -55,7 +83,7 @@ class PlainDockerDA(IDomainAdministrator):
             self, step: WorkflowStep, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset, output_bases: Dict[str, Asset],
             id_hashes: Dict[str, str],
-            step_subjob: Job) -> None:
+            step_subjob: Job) -> StepResult:
         """Execute the given workflow step.
 
         Executes the step by instantiating data and compute containers
@@ -79,6 +107,11 @@ class PlainDockerDA(IDomainAdministrator):
             id_hashes: A hash for each workflow item, indexed by its
                 name.
             step_subjob: A subjob for the step's results' metadata.
+
+        Return:
+            The resulting assets and corresponding image files. Do call
+            cleanup() on the result after saving the assets to properly
+            free the resources.
         """
         with self._job_id_lock:
             job_id = self._next_job_id
@@ -86,42 +119,47 @@ class PlainDockerDA(IDomainAdministrator):
 
         logger.info(f'Executing container step {step} as job {job_id}')
 
-        with tempfile.TemporaryDirectory() as wd:
-            data_containers = None
-            compute_container = None
-            output_images = None
-            images = None
+        wd = mkdtemp('mahiru-')
+        data_containers = None
+        compute_container = None
+        output_images = None
+        images = None
 
-            try:
-                workdir = Path(wd)
+        try:
+            workdir = Path(wd)
 
-                image_files = self._download_images(
-                        workdir, inputs, compute_asset, output_bases)
+            image_files = self._download_images(
+                    workdir, inputs, compute_asset, output_bases)
 
-                images = self._load_images_into_docker(job_id, image_files)
+            images = self._load_images_into_docker(job_id, image_files)
 
-                data_containers = self._start_data_containers(
-                        job_id, images, inputs.keys(), output_bases.keys())
+            data_containers = self._start_data_containers(
+                    job_id, images, inputs.keys(), output_bases.keys())
 
-                config = self._create_config_string(
-                        workdir, inputs, step.outputs.keys(), data_containers)
+            config = self._create_config_string(
+                    workdir, inputs, step.outputs.keys(), data_containers)
 
-                compute_container = self._run_compute_container(
-                        job_id, images['<compute>'], config)
+            compute_container = self._run_compute_container(
+                    job_id, images['<compute>'], config)
 
-                self._stop_data_containers(
-                        inputs.keys(), step.outputs.keys(), data_containers)
+            self._stop_data_containers(
+                    inputs.keys(), step.outputs.keys(), data_containers)
 
-                output_images, output_image_files = self._save_output(
-                        job_id, workdir, step.outputs.keys(), data_containers)
+            output_images, output_image_files = self._save_output(
+                    job_id, workdir, step.outputs.keys(), data_containers)
 
-                self._store_output_assets(
-                        step, step_subjob, id_hashes,
-                        output_image_files)
-            finally:
-                self._clean_up(
-                        data_containers, compute_container, output_images,
-                        images)
+            output_assets = self._output_assets(
+                    step, step_subjob, id_hashes, output_image_files)
+
+            return StepResult(output_assets, wd)
+
+        except Exception:
+            rmtree(wd, ignore_errors=True)
+            raise
+
+        finally:
+            self._clean_up(
+                    data_containers, compute_container, output_images, images)
 
     def _download_images(
             self, workdir: Path, inputs: Dict[str, Asset],
@@ -365,10 +403,10 @@ class PlainDockerDA(IDomainAdministrator):
 
         return output_images, output_image_files
 
-    def _store_output_assets(
+    def _output_assets(
             self, step: WorkflowStep, step_subjob: Job,
             id_hashes: Dict[str, str], output_image_files: Dict[str, Path]
-            ) -> None:
+            ) -> Dict[str, DataAsset]:
         """Stores results into the target asset store.
 
         This creates, for each output, an Asset object with metadata
@@ -384,15 +422,16 @@ class PlainDockerDA(IDomainAdministrator):
             output_image_files: Paths to image files, indexed by output
                 name.
         """
+        assets = dict()
         for name in step.outputs:
             result_item = '{}.{}'.format(step.name, name)
             result_id_hash = id_hashes[result_item]
             metadata = DataMetadata(step_subjob, result_item)
-            asset = DataAsset(
+            assets[result_item] = DataAsset(
                     Identifier.from_id_hash(result_id_hash),
                     None, str(output_image_files[name]),
                     metadata)
-            self._target_store.store(asset, True)
+        return assets
 
     def _clean_up(
             self, data_containers: Optional[Dict[str, Container]],

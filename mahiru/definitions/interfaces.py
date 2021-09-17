@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Generic, Iterable, Set, Type, TypeVar
 
 from mahiru.definitions.identifier import Identifier
-from mahiru.definitions.assets import Asset, ComputeAsset
+from mahiru.definitions.assets import Asset, ComputeAsset, DataAsset
 from mahiru.definitions.policy import Rule
 from mahiru.definitions.registry import (
         PartyDescription, RegisteredObject, SiteDescription)
@@ -165,6 +165,27 @@ class IStepRunner:
         raise NotImplementedError()
 
 
+class IStepResult:
+    """Contains and manages the outputs of a step.
+
+    Some cleanup is needed after these have been stored, so they're
+    wrapped up in this class so that we can add a utility function.
+
+    Attributes:
+        assets: Dictionary mapping workflow items to Asset objects, one
+                for each output of the step. Each Asset object points
+                to an image file.
+    """
+    assets: Dict[str, DataAsset]
+
+    def cleanup(self) -> None:
+        """Cleans up associated resources.
+
+        The asset image files will be gone after this has been called.
+        """
+        raise NotImplementedError()
+
+
 class IDomainAdministrator:
     """Manages container and network resources for a site.
 
@@ -179,7 +200,7 @@ class IDomainAdministrator:
             self, step: WorkflowStep, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset, output_bases: Dict[str, Asset],
             id_hashes: Dict[str, str],
-            step_subjob: Job) -> None:
+            step_subjob: Job) -> IStepResult:
         """Execute the given workflow step.
 
         Args:

@@ -199,6 +199,14 @@
       regexp: '^owner: .*$'
       line: 'owner: party:party{{ site_id }}_ns:party{{ site_id }}'
 
+  - name: Configure asset connections
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^asset_connections: .*$'
+      line: 'asset_connections: { enabled: False }'
+
   - name: Configure loglevel
     lineinfile:
       path: "{{ config_file }}"

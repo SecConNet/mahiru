@@ -10,7 +10,7 @@ import requests
 
 from mahiru.components.ddm_site import Site
 from mahiru.components.registry_client import RegistryClient
-from mahiru.components.settings import Settings
+from mahiru.components.settings import AssetConnections, Settings
 from mahiru.definitions.assets import ComputeAsset, DataAsset
 from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.definitions.workflows import Job, WorkflowStep, Workflow
@@ -64,7 +64,9 @@ def create_sites(
     """Creates sites for the scenario."""
     return {
             site_name: Site(
-                Settings(site_name, desc['namespace'], desc['owner'], ''),
+                Settings(
+                    site_name, desc['namespace'], desc['owner'],
+                    AssetConnections, ''),
                 [], [], registry_client)
             for site_name, desc in site_descriptions.items()}
 

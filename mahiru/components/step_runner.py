@@ -110,9 +110,14 @@ class JobRun(Thread):
 
                 output_bases = self._get_output_bases(step)
                 step_subjob = self._job.subjob(step)
-                self._domain_administrator.execute_step(
+                result = self._domain_administrator.execute_step(
                         step, inputs, compute_asset, output_bases, id_hashes,
                         step_subjob)
+
+                for asset in result.assets.values():
+                    self._target_store.store(asset, True)
+                result.cleanup()
+
             else:
                 self._run_step(step, inputs, compute_asset, id_hashes)
         return inputs is not None
@@ -259,8 +264,7 @@ class StepRunner(IStepRunner):
         self._site = site
         self._site_rest_client = site_rest_client
         self._permission_calculator = PermissionCalculator(policy_evaluator)
-        self._domain_administrator = PlainDockerDA(
-                site_rest_client, target_store)
+        self._domain_administrator = PlainDockerDA(site_rest_client)
         self._target_store = target_store
 
     def execute_request(self, request: ExecutionRequest) -> None:

@@ -4,7 +4,6 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple
 
-from mahiru.components.domain_administrator import PlainDockerDA
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
@@ -251,6 +250,7 @@ class StepRunner(IStepRunner):
             self, site: Identifier,
             site_rest_client: SiteRestClient,
             policy_evaluator: PolicyEvaluator,
+            domain_administrator: IDomainAdministrator,
             target_store: AssetStore) -> None:
         """Creates a StepRunner.
 
@@ -258,13 +258,13 @@ class StepRunner(IStepRunner):
             site: Name of the site this runner is located at.
             site_rest_client: A SiteRestClient to use.
             policy_evaluator: A PolicyEvaluator to use.
+            domain_administrator: A domain administrator to use.
             target_store: An AssetStore to store result in.
-
         """
         self._site = site
         self._site_rest_client = site_rest_client
         self._permission_calculator = PermissionCalculator(policy_evaluator)
-        self._domain_administrator = PlainDockerDA(site_rest_client)
+        self._domain_administrator = domain_administrator
         self._target_store = target_store
 
     def execute_request(self, request: ExecutionRequest) -> None:

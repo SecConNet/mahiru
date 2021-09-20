@@ -172,11 +172,11 @@ class IStepResult:
     wrapped up in this class so that we can add a utility function.
 
     Attributes:
-        assets: Dictionary mapping workflow items to Asset objects, one
-                for each output of the step. Each Asset object points
+        files: Dictionary mapping workflow items to Path objects, one
+                for each output of the step. Each Path object points
                 to an image file.
     """
-    assets: Dict[str, DataAsset]
+    files: Dict[str, Path]
 
     def cleanup(self) -> None:
         """Cleans up associated resources.

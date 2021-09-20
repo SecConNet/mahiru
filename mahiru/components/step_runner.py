@@ -113,8 +113,15 @@ class JobRun(Thread):
                         step, inputs, compute_asset, output_bases, id_hashes,
                         step_subjob)
 
-                for asset in result.assets.values():
+                for name, path in result.files.items():
+                    result_item = '{}.{}'.format(step.name, name)
+                    result_id_hash = id_hashes[result_item]
+                    metadata = DataMetadata(step_subjob, result_item)
+                    asset = DataAsset(
+                            Identifier.from_id_hash(result_id_hash),
+                            None, str(path), metadata)
                     self._target_store.store(asset, True)
+
                 result.cleanup()
 
             else:

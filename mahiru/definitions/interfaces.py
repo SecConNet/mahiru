@@ -222,12 +222,12 @@ class IDomainAdministrator:
 class INetworkAdministrator:
     """Manages network resources for a site.
 
-    The "domain" in the name is a network administration domain,
-    containing (virtual) networks and potentially (virtual)
-    programmable networking hardware, etc. in which workflows are
-    executed. Classes implementing this interface manage
-    ("administrate") these resources in the domain to help implement
-    workflow execution.
+    The network administrator is in charge of the (virtual) networks
+    and related things like routing and firewalling, as well as
+    potentially (virtual) programmable networking hardware.
+
+    Classes implementing this interface manage ("administrate") these
+    resources to help implement workflow execution.
     """
     def serve_asset(
             self, conn_id: str, network_namespace: int,

@@ -1,12 +1,12 @@
 """A site installation."""
 import logging
-from pathlib import Path
 from typing import Any, Dict, List
 
 import ruamel.yaml as yaml
 
 from mahiru.components.asset_store import AssetStore
 from mahiru.components.domain_administrator import PlainDockerDA
+from mahiru.components.network_administrator import WireGuardNA
 from mahiru.components.registry_client import RegistryClient
 from mahiru.components.settings import SiteConfiguration
 from mahiru.components.step_runner import StepRunner
@@ -62,7 +62,11 @@ class Site:
         self._policy_evaluator = PolicyEvaluator(self._policy_client)
 
         # Server side
-        self._domain_administrator = PlainDockerDA(self._site_rest_client)
+        self._network_administrator = WireGuardNA(
+                config.network_settings, self._site_rest_client)
+
+        self._domain_administrator = PlainDockerDA(
+                self._network_administrator, self._site_rest_client)
 
         self.store = AssetStore(self._policy_evaluator)
 

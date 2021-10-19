@@ -101,8 +101,7 @@ class JobRun(Thread):
         """
         inputs = self._get_step_inputs(step, id_hashes)
         if inputs is not None:
-            compute_asset = self._retrieve_compute_asset(
-                step.compute_asset_id)
+            compute_asset = self._retrieve_compute_asset(step.compute_asset_id)
             if compute_asset.image_location is not None:
                 logger.info('Job at {} executing container step {}'.format(
                     self._this_site, step))

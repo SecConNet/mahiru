@@ -5,13 +5,13 @@ docs:
 	PYTHONPATH=${PYTHONPATH}:${PWD} make -C docs html
 
 .PHONY: docker_images
-docker_images: base_docker_image registry_docker_image site_docker_image
+docker_images: base_docker_image registry_docker_image site_docker_image pilot_image
 
 # Extra docker_images makes them both build before exporting, which is
 # faster because the tarball of the first doesn't end up in the build
 # context of the second.
 .PHONY: docker_tars
-docker_tars: docker_images registry_docker_tar site_docker_tar
+docker_tars: docker_images registry_docker_tar site_docker_tar pilot_tar
 
 
 .PHONY: docker_clean
@@ -19,10 +19,11 @@ docker_clean:
 	docker rmi -f mahiru-site:latest
 	docker rmi -f mahiru-registry:latest
 	docker rmi -f mahiru-base:latest
+	docker rmi -f mahiru-pilot:latest
 
 
 .PHONY: base_docker_image
-base_docker_image:
+base_docker_image: pilot_tar
 	docker build . -f docker/mahiru/base.Dockerfile -t mahiru-base:latest
 
 .PHONY: registry_docker_image
@@ -33,6 +34,10 @@ registry_docker_image: base_docker_image
 site_docker_image: base_docker_image
 	docker build . -f docker/mahiru/site.Dockerfile -t mahiru-site:latest
 
+.PHONY: pilot_image
+pilot_image:
+	docker build docker/assets -f docker/assets/pilot.Dockerfile -t mahiru-pilot:latest
+
 
 .PHONY: registry_docker_tar
 registry_docker_tar: registry_docker_image
@@ -41,6 +46,10 @@ registry_docker_tar: registry_docker_image
 .PHONY: site_docker_tar
 site_docker_tar: site_docker_image
 	docker save -o build/mahiru-site-latest.tar mahiru-site:latest
+
+.PHONY: pilot_tar
+pilot_tar: pilot_image
+	docker save mahiru-pilot:latest | gzip -1 -c >mahiru/data/pilot.tar.gz
 
 
 .PHONY: assets_clean

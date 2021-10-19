@@ -189,11 +189,11 @@ class PlainDockerDA(IDomainAdministrator):
             if asset.id in self._loaded_images_ref_count:
                 self._loaded_images_ref_count[asset.id] += 1
             else:
-                image_file = workdir / f'{asset.id}.tar.gz'
                 if asset.image_location is None:
                     raise RuntimeError(
                             f'Asset {asset} does not have an image.')
 
+                image_file = workdir / f'{asset.id}.tar.gz'
                 self._site_rest_client.retrieve_asset_image(
                         asset.image_location, image_file)
 
@@ -232,7 +232,8 @@ class PlainDockerDA(IDomainAdministrator):
                 except Exception as e:
                     logger.warning(f'Failed to remove image {image_id}: {e}')
                     self._dcli.images.remove(image_id, force=True)
-                del self._loaded_images[asset_id]
+                finally:
+                    del self._loaded_images[asset_id]
 
     def _ensure_images_available(
             self, workdir: Path, assets: Dict[str, Asset],
@@ -258,6 +259,7 @@ class PlainDockerDA(IDomainAdministrator):
             # the job.
             for name in images:
                 self._free_image(assets[name].id)
+            raise
 
         return images
 

@@ -10,7 +10,9 @@ from mahiru.definitions.identifier import Identifier
 
 def test_asset_store_store_retrieve(image_dir, test_image_file) -> None:
     mock_policy_evaluator = MagicMock()
-    store = AssetStore(mock_policy_evaluator, image_dir)
+    mock_domain_administrator = MagicMock()
+    store = AssetStore(
+            mock_policy_evaluator, mock_domain_administrator, image_dir)
 
     asset_id = Identifier('asset:ns:test_asset:ns:site')
     asset = DataAsset(asset_id, None, str(test_image_file))
@@ -26,7 +28,9 @@ def test_asset_store_store_retrieve(image_dir, test_image_file) -> None:
 
 def test_asset_store_store_move(image_dir, test_image_file) -> None:
     mock_policy_evaluator = MagicMock()
-    store = AssetStore(mock_policy_evaluator, image_dir)
+    mock_domain_administrator = MagicMock()
+    store = AssetStore(
+            mock_policy_evaluator, mock_domain_administrator, image_dir)
 
     asset = DataAsset(
             'asset:ns:test_asset:ns:site', None, str(test_image_file))

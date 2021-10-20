@@ -8,7 +8,7 @@ from typing import Dict, Optional
 
 from mahiru.definitions.assets import Asset, ComputeAsset, DataAsset
 from mahiru.definitions.identifier import Identifier
-from mahiru.definitions.interfaces import IAssetStore
+from mahiru.definitions.interfaces import IAssetStore, IDomainAdministrator
 from mahiru.policy.evaluation import PermissionCalculator, PolicyEvaluator
 
 
@@ -19,12 +19,25 @@ class AssetStore(IAssetStore):
     """A simple store for assets."""
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
+            domain_administrator: IDomainAdministrator,
             image_dir: Optional[Path] = None) -> None:
-        """Create a new empty AssetStore."""
+        """Create a new empty AssetStore.
+
+        Args:
+            policy_evaluator: Policy evaluator to use for access
+                    checks.
+            domain_administrator: Domain administrator to use for
+                    serving assets over the network.
+            image_dir: Local directory to store image files in.
+        """
         self._policy_evaluator = policy_evaluator
+        self._domain_administrator = domain_administrator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
+
+        # TODO: lock this
         self._assets = dict()  # type: Dict[Identifier, Asset]
         if image_dir is None:
+            # TODO: add mahiru prefix
             image_dir = Path(mkdtemp())
         self._image_dir = image_dir
 

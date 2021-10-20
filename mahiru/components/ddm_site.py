@@ -68,7 +68,8 @@ class Site:
         self._domain_administrator = PlainDockerDA(
                 self._network_administrator, self._site_rest_client)
 
-        self.store = AssetStore(self._policy_evaluator)
+        self.store = AssetStore(
+                self._policy_evaluator, self._domain_administrator)
 
         self.runner = StepRunner(
                 self.id, self._site_rest_client, self._policy_evaluator,

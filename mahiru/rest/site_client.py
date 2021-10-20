@@ -3,8 +3,9 @@ from pathlib import Path
 import requests
 from urllib.parse import quote
 
-from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.assets import Asset
+from mahiru.definitions.connections import ConnectionInfo, ConnectionRequest
+from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.workflows import ExecutionRequest
 from mahiru.rest.serialization import deserialize, serialize
 from mahiru.rest.validation import validate_json
@@ -77,6 +78,64 @@ class SiteRestClient:
                 for chunk in r.iter_content(chunk_size):
                     if chunk:
                         f.write(chunk)
+
+    def connect_to_asset(
+            self, asset_id: Identifier, request: ConnectionRequest
+            ) -> ConnectionInfo:
+        """Connects to a remote asset.
+
+        This sends a request to the given site to serve the asset and
+        let us connect to it.
+
+        Args:
+            asset_id: Asset to connect to.
+
+        Return:
+            Connection information for the new connection.
+
+        Raises:
+            RuntimeError: If no connection could be made.
+        """
+        site_id = asset_id.location()
+        try:
+            site = self._registry_client.get_site_by_id(site_id)
+        except KeyError:
+            raise RuntimeError(f'Site or store at site {site_id} not found')
+
+        if site.store is not None:
+            safe_asset_id = quote(asset_id, safe='')
+            r = requests.post(
+                    f'{site.endpoint}/assets/{safe_asset_id}/connect',
+                    params={'requester': self._site}, json=serialize(request))
+            if not r.ok:
+                raise RuntimeError('Could not connect to asset')
+
+            conn_info_json = r.json()
+            validate_json('ConnectionInfo', conn_info_json)
+            return deserialize(ConnectionInfo, conn_info_json)
+
+    def disconnect_asset(
+            self, asset_id: Identifier, conn_id: str) -> None:
+        """Disconnects a remote asset.
+
+        This tells the serving site that we're done, and that they can
+        stop serving if they want to, thus freeing up resources.
+
+        Args:
+            asset_id: Asset we are connected to.
+            conn_id: Connection to terminate.
+        """
+        site_id = asset_id.location()
+        try:
+            site = self._registry_client.get_site_by_id(site_id)
+        except KeyError:
+            raise RuntimeError(f'Site or store at site {site_id} not found')
+
+        r = requests.delete(
+                f'{site.endpoint}/connections/{conn_id}',
+                params={'requester': self._site})
+        if not r.ok:
+            raise RuntimeError('Could not disconnect asset')
 
     def submit_request(
             self, site_id: Identifier, request: ExecutionRequest) -> None:

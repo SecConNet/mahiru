@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Union
 import ruamel.yaml as yaml
 
 from mahiru.components.asset_store import AssetStore
+from mahiru.components.domain_administrator import PlainDockerDA
 from mahiru.components.registry_client import RegistryClient
 from mahiru.definitions.assets import Asset
 from mahiru.definitions.identifier import Identifier
@@ -65,11 +66,13 @@ class Site:
         self._policy_evaluator = PolicyEvaluator(self._policy_client)
 
         # Server side
+        self._domain_administrator = PlainDockerDA(self._site_rest_client)
+
         self.store = AssetStore(self._policy_evaluator)
 
         self.runner = StepRunner(
                 self.id, self._site_rest_client, self._policy_evaluator,
-                self.store)
+                self._domain_administrator, self.store)
 
         # Client side
         self.orchestrator = WorkflowOrchestrator(

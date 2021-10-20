@@ -4,11 +4,10 @@ from threading import Thread
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple
 
-from mahiru.components.domain_administrator import PlainDockerDA
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
-from mahiru.definitions.interfaces import IStepRunner
+from mahiru.definitions.interfaces import IDomainAdministrator, IStepRunner
 from mahiru.definitions.workflows import ExecutionRequest, WorkflowStep
 from mahiru.policy.evaluation import (
         PermissionCalculator, PolicyEvaluator)
@@ -25,9 +24,11 @@ class JobRun(Thread):
     This is a reification of the process of executing a job locally.
     """
     def __init__(
-            self, permission_calculator: PermissionCalculator,
-            this_site: Identifier,
+            self,
             site_rest_client: SiteRestClient,
+            permission_calculator: PermissionCalculator,
+            domain_administrator: IDomainAdministrator,
+            this_site: Identifier,
             request: ExecutionRequest,
             target_store: AssetStore
             ) -> None:
@@ -37,26 +38,27 @@ class JobRun(Thread):
         site.
 
         Args:
+            site_rest_client: A SiteRestClient to use.
             permission_calculator: A permission calculator to use to
                     check policy.
+            domain_administrator: A domain administrator to use to
+                    manage containers and networks.
             this_site: The site we're running at.
-            site_rest_client: A SiteRestClient to use.
             request: The job to execute and plan to do it.
             target_store: The asset store to put results into.
 
         """
         super().__init__(name='JobAtRunner-{}'.format(this_site))
         self._permission_calculator = permission_calculator
-        self._this_site = this_site
         self._site_rest_client = site_rest_client
+        self._domain_administrator = domain_administrator
+        self._this_site = this_site
         self._job = request.job
         self._workflow = request.job.workflow
         self._inputs = request.job.inputs
         self._plan = request.plan
         self._sites = request.plan.step_sites
         self._target_store = target_store
-        self._domain_administrator = PlainDockerDA(
-                site_rest_client, target_store)
 
     def run(self) -> None:
         """Runs the job.
@@ -99,17 +101,28 @@ class JobRun(Thread):
         """
         inputs = self._get_step_inputs(step, id_hashes)
         if inputs is not None:
-            compute_asset = self._retrieve_compute_asset(
-                step.compute_asset_id)
+            compute_asset = self._retrieve_compute_asset(step.compute_asset_id)
             if compute_asset.image_location is not None:
                 logger.info('Job at {} executing container step {}'.format(
                     self._this_site, step))
 
                 output_bases = self._get_output_bases(step)
                 step_subjob = self._job.subjob(step)
-                self._domain_administrator.execute_step(
+                result = self._domain_administrator.execute_step(
                         step, inputs, compute_asset, output_bases, id_hashes,
                         step_subjob)
+
+                for name, path in result.files.items():
+                    result_item = '{}.{}'.format(step.name, name)
+                    result_id_hash = id_hashes[result_item]
+                    metadata = DataMetadata(step_subjob, result_item)
+                    asset = DataAsset(
+                            Identifier.from_id_hash(result_id_hash),
+                            None, str(path), metadata)
+                    self._target_store.store(asset, True)
+
+                result.cleanup()
+
             else:
                 self._run_step(step, inputs, compute_asset, id_hashes)
         return inputs is not None
@@ -243,6 +256,7 @@ class StepRunner(IStepRunner):
             self, site: Identifier,
             site_rest_client: SiteRestClient,
             policy_evaluator: PolicyEvaluator,
+            domain_administrator: IDomainAdministrator,
             target_store: AssetStore) -> None:
         """Creates a StepRunner.
 
@@ -250,12 +264,13 @@ class StepRunner(IStepRunner):
             site: Name of the site this runner is located at.
             site_rest_client: A SiteRestClient to use.
             policy_evaluator: A PolicyEvaluator to use.
+            domain_administrator: A domain administrator to use.
             target_store: An AssetStore to store result in.
-
         """
         self._site = site
         self._site_rest_client = site_rest_client
         self._permission_calculator = PermissionCalculator(policy_evaluator)
+        self._domain_administrator = domain_administrator
         self._target_store = target_store
 
     def execute_request(self, request: ExecutionRequest) -> None:
@@ -266,6 +281,7 @@ class StepRunner(IStepRunner):
 
         """
         run = JobRun(
-                self._permission_calculator, self._site,
-                self._site_rest_client, request, self._target_store)
+                self._site_rest_client, self._permission_calculator,
+                self._domain_administrator, self._site, request,
+                self._target_store)
         run.start()

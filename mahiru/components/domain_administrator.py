@@ -2,8 +2,9 @@
 import gzip
 import json
 import logging
+from shutil import rmtree
 from threading import Lock
-import tempfile
+from tempfile import mkdtemp, TemporaryDirectory
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -11,16 +12,45 @@ import docker
 from docker.models.images import Image
 from docker.models.containers import Container
 
-from mahiru.components.asset_store import AssetStore
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
 from mahiru.definitions.identifier import Identifier
-from mahiru.definitions.interfaces import IDomainAdministrator
+from mahiru.definitions.interfaces import IDomainAdministrator, IStepResult
 from mahiru.definitions.workflows import Job, WorkflowStep
 from mahiru.rest.site_client import SiteRestClient
 
 
 logger = logging.getLogger(__name__)
+
+
+class StepResult(IStepResult):
+    """Contains and manages the outputs of a step.
+
+    Some cleanup is needed after these have been stored, so they're
+    wrapped up in this class so that we can add a utility function.
+
+    Attributes:
+        files: Dictionary mapping workflow output items to Paths of
+                their image files.
+    """
+    def __init__(self, files: Dict[str, Path], workdir: str) -> None:
+        """Create a StepResult.
+
+        Args:
+            files: Dictionary mapping workflow output items to Paths
+                    of their image files.
+            workdir: The working directory in which the image files
+                    are stored.
+        """
+        self.files = files
+        self._workdir = workdir
+
+    def cleanup(self) -> None:
+        """Cleans up associated resources.
+
+        The asset image files will be gone after this has been called.
+        """
+        rmtree(self._workdir)
 
 
 class PlainDockerDA(IDomainAdministrator):
@@ -31,31 +61,32 @@ class PlainDockerDA(IDomainAdministrator):
     implementation which doesn't offer much in the way of security
     or performance.
     """
-    def __init__(
-            self, site_rest_client: SiteRestClient, target_store: AssetStore
-            ) -> None:
+    def __init__(self, site_rest_client: SiteRestClient) -> None:
         """Create a PlainDockerDA.
 
         Args:
             site_rest_client: Client to use for downloading images.
-            target_store: Store to put step results into.
         """
         self._site_rest_client = site_rest_client
-        self._target_store = target_store
         self._dcli = docker.from_env()
 
         # Note: this is a unique ID per executed step, it is unrelated
         # to Job objects, which represent an entire submitted workflow.
         # It is used to avoid name collisions among Docker containers
-        # and images in the docker repository.
+        # and images inside the docker repository.
         self._next_job_id = 1
         self._job_id_lock = Lock()
+
+        # Images currently loaded into Docker, indexed by asset id,
+        # and a reference count.
+        self._loaded_images_lock = Lock()
+        self._loaded_images = dict()            # type: Dict[str, Identifier]
+        self._loaded_images_ref_count = dict()  # type: Dict[str, int]
 
     def execute_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
             compute_asset: ComputeAsset, output_bases: Dict[str, Asset],
-            id_hashes: Dict[str, str],
-            step_subjob: Job) -> None:
+            id_hashes: Dict[str, str], step_subjob: Job) -> StepResult:
         """Execute the given workflow step.
 
         Executes the step by instantiating data and compute containers
@@ -79,6 +110,11 @@ class PlainDockerDA(IDomainAdministrator):
             id_hashes: A hash for each workflow item, indexed by its
                 name.
             step_subjob: A subjob for the step's results' metadata.
+
+        Return:
+            The resulting assets and corresponding image files. Do call
+            cleanup() on the result after saving the assets to properly
+            free the resources.
         """
         with self._job_id_lock:
             job_id = self._next_job_id
@@ -86,135 +122,158 @@ class PlainDockerDA(IDomainAdministrator):
 
         logger.info(f'Executing container step {step} as job {job_id}')
 
-        with tempfile.TemporaryDirectory() as wd:
-            data_containers = None
-            compute_container = None
-            output_images = None
-            images = None
+        wd = mkdtemp(prefix='mahiru-')
+        input_containers = None
+        output_containers = None
+        compute_container = None
+        images = None
 
-            try:
-                workdir = Path(wd)
+        assets = dict(**inputs, **{'<compute>': compute_asset}, **output_bases)
 
-                image_files = self._download_images(
-                        workdir, inputs, compute_asset, output_bases)
+        try:
+            workdir = Path(wd)
 
-                images = self._load_images_into_docker(job_id, image_files)
+            images = self._ensure_images_available(workdir, assets)
 
-                data_containers = self._start_data_containers(
-                        job_id, images, inputs.keys(), output_bases.keys())
+            input_containers = self._start_input_containers(
+                    job_id, images, inputs.keys())
 
-                config = self._create_config_string(
-                        workdir, inputs, step.outputs.keys(), data_containers)
+            output_containers = self._start_output_containers(
+                    job_id, images, output_bases.keys())
 
-                compute_container = self._run_compute_container(
-                        job_id, images['<compute>'], config)
+            config = self._create_config_string(
+                    workdir, inputs, step.outputs.keys(),
+                    dict(**input_containers, **output_containers))
 
-                self._stop_data_containers(
-                        inputs.keys(), step.outputs.keys(), data_containers)
+            compute_container = self._run_compute_container(
+                    job_id, images['<compute>'], config)
 
-                output_images, output_image_files = self._save_output(
-                        job_id, workdir, step.outputs.keys(), data_containers)
+            output_files = dict()  # type: Dict[str, Path]
+            for name in step.outputs:
+                output_files[name] = self._save_output(
+                        workdir, job_id, name, output_containers[name])
 
-                self._store_output_assets(
-                        step, step_subjob, id_hashes,
-                        output_image_files)
-            finally:
-                self._clean_up(
-                        data_containers, compute_container, output_images,
-                        images)
+            return StepResult(output_files, wd)
 
-    def _download_images(
-            self, workdir: Path, inputs: Dict[str, Asset],
-            compute_asset: ComputeAsset, output_bases: Dict[str, Asset]
-            ) -> Dict[str, Path]:
-        """Download required container images.
+        except Exception:
+            rmtree(wd, ignore_errors=True)
+            raise
 
-        This downloads the container images for step inputs, compute
-        asset and step outputs from their source asset stores, and
-        saves them as tarballs in the working directory.
+        finally:
+            if input_containers is not None:
+                self._remove_containers(input_containers.values())
+
+            if compute_container is not None:
+                self._remove_containers([compute_container])
+
+            if assets is not None:
+                for asset in assets.values():
+                    self._free_image(asset.id)
+
+    def _ensure_image_available(self, asset: Asset, workdir: Path) -> Image:
+        """Ensures the asset's image is available in Docker.
+
+        This will download it from another site if necessary, then
+        load it into the local Docker daemon so that we can use it
+        when starting containers. If it's already there, this
+        increments the ref count so that it remains available.
+
+        Args:
+            asset: The asset to make available.
+            workdir: Directory to download files into.
+
+        Return:
+            The loaded Docker Image.
+        """
+        with self._loaded_images_lock:
+            if asset.id in self._loaded_images_ref_count:
+                self._loaded_images_ref_count[asset.id] += 1
+            else:
+                if asset.image_location is None:
+                    raise RuntimeError(
+                            f'Asset {asset} does not have an image.')
+
+                image_file = workdir / f'{asset.id}.tar.gz'
+                self._site_rest_client.retrieve_asset_image(
+                        asset.image_location, image_file)
+
+                with image_file.open('rb') as f:
+                    image = self._dcli.images.load(f.read())[0]
+
+                self._loaded_images[asset.id] = image.id
+                self._loaded_images_ref_count[asset.id] = 1
+                image_file.unlink()
+
+            return image
+
+    def _free_image(self, asset_id: str) -> None:
+        """Decrements the use count on the asset image.
+
+        If this was the last user, the image is removed from Docker,
+        and will be re-downloaded next time it is needed.
+
+        Args:
+            asset_id: The id of the asset that's no longer needed by
+                    the caller.
+        """
+        with self._loaded_images_lock:
+            if asset_id not in self._loaded_images_ref_count:
+                raise KeyError('Asset not found.')
+
+            self._loaded_images_ref_count[asset_id] -= 1
+            if self._loaded_images_ref_count[asset_id] == 0:
+                image_id = self._loaded_images[asset_id]
+                try:
+                    self._dcli.images.remove(image_id)
+                except docker.errors.ImageNotFound:
+                    # Base output images may already have been deleted,
+                    # so this is probably okay.
+                    pass
+                except Exception as e:
+                    logger.warning(f'Failed to remove image {image_id}: {e}')
+                    self._dcli.images.remove(image_id, force=True)
+                finally:
+                    del self._loaded_images[asset_id]
+
+    def _ensure_images_available(
+            self, workdir: Path, assets: Dict[str, Asset],
+            ) -> Dict[str, Image]:
+        """Ensure required images are available in Docker.
 
         Args:
             workdir: Working directory for this job.
-            inputs: Step input Asset objects to download.
-            compute_asset: The ComputeAsset image to download.
-            output_bases: Step output base assets to download.
-
-        Returns:
-            Paths to the downloaded files, indexed by input/output
-            name.
-        """
-        image_files = dict()
-
-        # input images
-        for name, asset in inputs.items():
-            image_files[name] = workdir / f'{asset.id}.tar.gz'
-            if asset.image_location is None:
-                raise RuntimeError(
-                        f'Asset {asset} does not have an image.')
-            self._site_rest_client.retrieve_asset_image(
-                    asset.image_location, image_files[name])
-
-        # compute asset image
-        image_files['<compute>'] = workdir / f'{compute_asset.id}.tar.gz'
-        if compute_asset.image_location is None:
-            raise RuntimeError(
-                    f'Asset {compute_asset} does not have an image.')
-        self._site_rest_client.retrieve_asset_image(
-                compute_asset.image_location, image_files['<compute>'])
-
-        # output images
-        for name, asset in output_bases.items():
-            file_path = workdir / f'{asset.id}.tar.gz'
-            image_files[name] = file_path
-            if asset.image_location is None:
-                raise RuntimeError(f'Asset {asset} does not have an image.')
-
-            if not file_path.exists():
-                self._site_rest_client.retrieve_asset_image(
-                        asset.image_location, image_files[name])
-
-        return image_files
-
-    def _load_images_into_docker(
-            self, job_id: int, image_files: Dict[str, Path]
-            ) -> Dict[str, Image]:
-        """Load images from files into Docker.
-
-        This loads container images from tarballs on disk into the
-        local Docker image repository.
-
-        Args:
-            job_id: Id of the step execution job these are for.
-            image_files: Files (tarballs) to load in.
+            assets: Asset objects to download.
 
         Returns:
             Docker Image objects indexed by input/output name.
         """
+        images = dict()
+
         try:
-            images = dict()
-            for name, path in image_files.items():
-                with path.open('rb') as f:
-                    images[name] = self._dcli.images.load(f.read())[0]
-            return images
+            for name, asset in assets.items():
+                images[name] = self._ensure_image_available(asset, workdir)
+
         except Exception:
-            for image in images.values():
-                self._dcli.images.remove(image.id)
+            # Restore Docker store to previous state in case of error,
+            # so that we don't leave unused images around when we abort
+            # the job.
+            for name in images:
+                self._free_image(assets[name].id)
             raise
 
-    def _start_data_containers(
-            self, job_id: int, images: Dict[str, Image],
-            inputs: Iterable[str], outputs: Iterable[str]
-            ) -> Dict[str, Container]:
-        """Start input and output data containers.
+        return images
 
-        Creates and starts containers for the inputs and outputs of
-        the step.
+    def _start_input_containers(
+            self, job_id: int, images: Dict[str, Image],
+            inputs: Iterable[str]) -> Dict[str, Container]:
+        """Start input data containers.
+
+        Creates and starts containers for the inputs of the step.
 
         Args:
             job_id: Id of the step execution job these are for.
             images: Images to use, indexed by input/output name.
             inputs: The step's inputs' names and Assets.
-            outputs: The step's outputs' names and base Assets.
 
         Returns:
             Docker Container objects indexed by input/output name.
@@ -226,13 +285,37 @@ class PlainDockerDA(IDomainAdministrator):
                 containers[name] = self._dcli.containers.run(
                         images[name].id, name=docker_name,
                         detach=True, network_mode='bridge')
+            return containers
 
+        except Exception:
+            for container in containers.values():
+                container.remove(force=True)
+            raise
+
+    def _start_output_containers(
+            self, job_id: int, images: Dict[str, Image],
+            outputs: Iterable[str]) -> Dict[str, Container]:
+        """Start output data containers.
+
+        Creates and starts containers for the outputs of the step.
+
+        Args:
+            job_id: Id of the step execution job these are for.
+            images: Images to use, indexed by input/output name.
+            outputs: The step's outputs' names and base Assets.
+
+        Returns:
+            Docker Container objects indexed by output name.
+        """
+        try:
+            containers = dict()
             for name in outputs:
                 docker_name = f'mahiru-{job_id}-data-asset-{name}'
                 containers[name] = self._dcli.containers.run(
                         images[name].id, name=docker_name,
                         detach=True, network_mode='bridge')
             return containers
+
         except Exception:
             for container in containers.values():
                 container.remove(force=True)
@@ -307,131 +390,44 @@ class PlainDockerDA(IDomainAdministrator):
             compute_container.remove(force=True)
             raise
 
-    def _stop_data_containers(
-            self, inputs: Iterable[str], outputs: Iterable[str],
-            containers: Dict[str, Container]) -> None:
-        """Stop input and output data containers.
-
-        Stops data containers, but not the compute container, which
-        should be done already.
-
-        Args:
-            inputs: Step input Assets indexed by name.
-            outputs: Step output names.
-            containers: Docker Container objects, indexed by
-                input/output name.
-        """
-        for name in inputs:
-            containers[name].stop()
-
-        for name in outputs:
-            containers[name].stop()
-
     def _save_output(
-            self, job_id: int, workdir: Path, outputs: Iterable[str],
-            containers: Dict[str, Container]
-            ) -> Tuple[Dict[str, Image], Dict[str, Path]]:
-        """Save output containers to image files.
+            self, workdir: Path, job_id: int, output_name: str,
+            container: Container) -> Path:
+        """Saves the output container to an Asset plus image.
 
-        This creates images from the output containers of the step,
-        then saves those to tarballs in the working directory.
+        The image is put into the work dir, and refered to by the Asset
+        object's image_location. The container is removed once it's
+        been saved to an image file.
 
         Args:
-            job_id: Id of the step execution job this is for.
-            workdir: Working directory to put the files into.
-            outputs: Step outputs' names and assets.
-            containers: Docker containers indexed by output names.
+            workdir: Temporary working directory for this job.
+            job_id: Unique id of this job.
+            output_name: Name of the output.
+            container: Output container containing the result.
 
-        Returns:
-            Docker Image objects and tarball paths, both indexed by
-            output name.
+        Return:
+            An Asset object for the saved output.
         """
+        logger.debug(f'Saving container {container.id}')
+        container.stop()
+
+        image = None
         try:
-            output_image_files = dict()
-            output_images = dict()
-            for name in outputs:
-                image_name = f'mahiru-{job_id}-data-asset-{name}'
-                containers[name].commit(image_name)
-                output_images[name] = self._dcli.images.get(image_name)
-                out_path = workdir / f'mahiru-data-asset-{name}.tar.gz'
-                with gzip.open(str(out_path), 'wb', 1) as f3:
-                    for chunk in output_images[name].save():
-                        f3.write(chunk)
-                output_image_files[name] = out_path
+            image_name = f'mahiru-{job_id}-data-asset-{output_name}'
+            container.commit(image_name)
+            image = self._dcli.images.get(image_name)
+            out_path = workdir / f'mahiru-data-asset-{output_name}.tar.gz'
+            with gzip.open(str(out_path), 'wb', 1) as f:
+                for chunk in image.save():
+                    f.write(chunk)
+            container.remove()
+            self._dcli.images.remove(image.id)
+            return out_path
+
         except Exception:
-            for image in output_images.values():
+            if image is not None:
                 self._dcli.images.remove(image.id, force=True)
             raise
-
-        return output_images, output_image_files
-
-    def _store_output_assets(
-            self, step: WorkflowStep, step_subjob: Job,
-            id_hashes: Dict[str, str], output_image_files: Dict[str, Path]
-            ) -> None:
-        """Stores results into the target asset store.
-
-        This creates, for each output, an Asset object with metadata
-        and stores it in the target store, together with the
-        corresponding tarball.
-
-        Args:
-            step: The workflow step we're running.
-            step_subjob: A minimal workflow to calculate the outputs
-                of the current step. See :meth:`Job.subjob`.
-            id_hashes: ID hashes of the step's outputs, indexed by
-                workflow item. See :meth:`Job.id_hashes`.
-            output_image_files: Paths to image files, indexed by output
-                name.
-        """
-        for name in step.outputs:
-            result_item = '{}.{}'.format(step.name, name)
-            result_id_hash = id_hashes[result_item]
-            metadata = DataMetadata(step_subjob, result_item)
-            asset = DataAsset(
-                    Identifier.from_id_hash(result_id_hash),
-                    None, str(output_image_files[name]),
-                    metadata)
-            self._target_store.store(asset, True)
-
-    def _clean_up(
-            self, data_containers: Optional[Dict[str, Container]],
-            compute_container: Optional[Container],
-            output_images: Optional[Dict[str, Image]],
-            images: Optional[Dict[str, Image]]) -> None:
-        """Remove containers and images from Docker.
-
-        This tries to clean up the local Docker environment, removing
-        containers and images even if something went wrong during
-        execution. In that case, not all containers and images may
-        exist, but it's important to remove what is there to avoid
-        making a mess, breaking future runs, or running out of disk
-        space (a potential DOS).
-
-        Note that the output images, which include the data and were
-        created when saving the output containers, must be deleted
-        before the original empty output images, because they depend
-        on them. So they're passed separately, and deleted first.
-
-        Args:
-            data_containers: Docker Container objects for inputs and
-                outputs, if any have been created.
-            compute_container: Docker Container object for the compute
-                container, if it has been created.
-            output_images: Images that output containers were saved to.
-            images: Images for inputs, outputs and the compute asset.
-        """
-        if data_containers is not None:
-            self._remove_containers(data_containers.values())
-
-        if compute_container is not None:
-            self._remove_containers([compute_container])
-
-        if output_images is not None:
-            self._remove_images(output_images.values())
-
-        if images is not None:
-            self._remove_images(images.values())
 
     def _remove_containers(self, containers: Iterable[Container]) -> None:
         """Removes containers from Docker.
@@ -445,29 +441,17 @@ class PlainDockerDA(IDomainAdministrator):
         """
         for container in containers:
             try:
+                container.stop()
+            except Exception:
+                # ignore, we may be cleaning up an error situation
+                pass
+
+            try:
                 container.remove()
             except Exception as e:
                 logger.warning(
-                        f'Failed to remove container {container.id}: {e}')
+                        f'Failed to remove container {container.id} safely:'
+                        f' {e}')
+                logger.warning(
+                        f'Attempting to force removal of {container.id}')
                 container.remove(force=True)
-
-    def _remove_images(self, images: Iterable[Image]) -> None:
-        """Removes images from Docker.
-
-        This will ask nicely first, then if that fails try to force
-        removal, to maximise the chances of not leaving a mess in the
-        Docker environment.
-
-        Args:
-            images: List of images to remove.
-        """
-        for image in images:
-            try:
-                self._dcli.images.remove(image.id)
-            except docker.errors.ImageNotFound:
-                # Base output images may already have been deleted,
-                # so this is probably okay.
-                pass
-            except Exception as e:
-                logger.warning(f'Failed to remove image {image.id}: {e}')
-                self._dcli.images.remove(image.id, force=True)

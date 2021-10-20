@@ -8,8 +8,8 @@ import yatiml
 from mahiru.definitions.identifier import Identifier
 
 
-class Settings:
-    """Settings for a site.
+class SiteConfiguration:
+    """Configuration for a site.
 
     Attributes:
         name: Name of the site.
@@ -24,7 +24,7 @@ class Settings:
             name: str, namespace: str, owner: Identifier,
             registry_endpoint: str, loglevel: str = 'info'
             ) -> None:
-        """Create a Settings object.
+        """Create a SiteConfiguration object.
 
         Args:
             name: Name of the site (without namespace or tag).
@@ -42,7 +42,7 @@ class Settings:
         self.loglevel = loglevel
 
 
-_load_settings = yatiml.load_function(Settings, Identifier)
+_load_settings = yatiml.load_function(SiteConfiguration, Identifier)
 
 
 _default_config_location = Path('/etc/mahiru/mahiru.conf')
@@ -50,7 +50,7 @@ _default_config_location = Path('/etc/mahiru/mahiru.conf')
 
 def load_settings(
         source: Union[str, Path, IO[AnyStr]] = _default_config_location
-        ) -> Settings:
+        ) -> SiteConfiguration:
     """Load settings from a source.
 
     The source can be a string containing YAML, pathlib.Path containing

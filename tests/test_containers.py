@@ -11,7 +11,7 @@ import requests
 import time
 
 from mahiru.components.ddm_site import Site
-from mahiru.components.settings import Settings
+from mahiru.components.settings import SiteConfiguration
 from mahiru.definitions.assets import (
         ComputeAsset, ComputeMetadata, DataAsset)
 from mahiru.definitions.identifier import Identifier
@@ -106,8 +106,8 @@ def test_container_step(
         rule.sign(party_key)
 
     # create site
-    settings = Settings('test_site', 'ns', 'party:ns:test_party', '')
-    site = Site(settings, [], [], registry_client)
+    config = SiteConfiguration('test_site', 'ns', 'party:ns:test_party', '')
+    site = Site(config, [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
         site.policy_store, site.store, site.runner, site.orchestrator))

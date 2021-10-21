@@ -123,6 +123,7 @@ class PlainDockerDA(IDomainAdministrator):
         logger.info(f'Executing container step {step} as job {job_id}')
 
         wd = mkdtemp(prefix='mahiru-')
+        pilot_container = None
         input_containers = None
         output_containers = None
         compute_container = None
@@ -134,6 +135,7 @@ class PlainDockerDA(IDomainAdministrator):
             workdir = Path(wd)
 
             images = self._ensure_images_available(workdir, assets)
+            pilot_container = self._create_pilot_container(job_id)
 
             input_containers = self._start_input_containers(
                     job_id, images, inputs.keys())
@@ -146,7 +148,7 @@ class PlainDockerDA(IDomainAdministrator):
                     dict(**input_containers, **output_containers))
 
             compute_container = self._run_compute_container(
-                    job_id, images['<compute>'], config)
+                    job_id, pilot_container.id, images['<compute>'], config)
 
             output_files = dict()  # type: Dict[str, Path]
             for name in step.outputs:
@@ -166,9 +168,38 @@ class PlainDockerDA(IDomainAdministrator):
             if compute_container is not None:
                 self._remove_containers([compute_container])
 
+            if pilot_container is not None:
+                self._remove_containers([pilot_container])
+
             if assets is not None:
                 for asset in assets.values():
                     self._free_image(asset.id)
+
+    def _create_pilot_container(self, job_id: int) -> Container:
+        """Creates the pilot container for this job.
+
+        The pilot container provides a network namespace we can
+        configure with external connections before we create the
+        compute asset container. The latter will then be started in
+        the pilot container's network namespace.
+
+        Args:
+            job_id: Id of this job.
+
+        Return:
+            The running pilot container.
+        """
+        image_file = Path(__file__).parents[1] / 'data' / 'pilot.tar.gz'
+        with image_file.open('rb') as f:
+            self._dcli.images.load(f.read())[0]
+
+        docker_name = f'mahiru-{job_id}-pilot',
+        container = self._dcli.containers.run(
+                'mahiru-pilot:latest', name=docker_name,
+                detach=True, network_mode='bridge')
+        # reload so we can get the PID correctly
+        container.reload()
+        return container
 
     def _ensure_image_available(self, asset: Asset, workdir: Path) -> Image:
         """Ensures the asset's image is available in Docker.
@@ -346,6 +377,7 @@ class PlainDockerDA(IDomainAdministrator):
         config = {
                 'inputs': dict(),
                 'outputs': dict()}  # type: Dict[str, Dict[str, str]]
+
         for name in list(inputs) + list(outputs):
             # IP addresses were added after creation, so we need to
             # reload data from the Docker daemon to get them.
@@ -362,8 +394,8 @@ class PlainDockerDA(IDomainAdministrator):
         return json.dumps(config)
 
     def _run_compute_container(
-            self, job_id: int, compute_image: Image, config: str
-            ) -> Container:
+            self, job_id: int, pilot_container_id: str, compute_image: Image,
+            config: str) -> Container:
         """Run the compute container.
 
         This runs the compute container, synchronously, returning when
@@ -371,6 +403,8 @@ class PlainDockerDA(IDomainAdministrator):
 
         Args:
             job_id: Id of the step execution job this is for.
+            pilot_container_id: Docker id of the pilot container, whose
+                    network namespace we'll use.
             compute_image: The compute image to run.
             config: Configuration string to use.
 
@@ -382,7 +416,8 @@ class PlainDockerDA(IDomainAdministrator):
             docker_name = f'mahiru-{job_id}-compute-asset'
             self._dcli.containers.run(
                     compute_image.id, name=docker_name,
-                    network_mode='bridge', environment=env)
+                    network_mode=f'container:{pilot_container_id}',
+                    environment=env)
             compute_container = self._dcli.containers.get(docker_name)
             return compute_container
         except Exception:

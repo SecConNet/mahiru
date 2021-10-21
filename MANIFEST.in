@@ -4,3 +4,4 @@ include README.rst
 include mahiru/rest/schemas.yaml
 include mahiru/rest/site_api.yaml
 include mahiru/rest/registry_api.yaml
+include mahiru/data/*

@@ -1,19 +1,20 @@
 """A site installation."""
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 import ruamel.yaml as yaml
 
 from mahiru.components.asset_store import AssetStore
 from mahiru.components.domain_administrator import PlainDockerDA
 from mahiru.components.registry_client import RegistryClient
+from mahiru.components.settings import SiteConfiguration
+from mahiru.components.step_runner import StepRunner
 from mahiru.definitions.assets import Asset
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.policy import Rule
 from mahiru.definitions.workflows import Job
 from mahiru.rest.site_client import SiteRestClient
-from mahiru.components.step_runner import StepRunner
 from mahiru.policy.evaluation import PolicyEvaluator
 from mahiru.policy.replication import PolicyStore
 from mahiru.replication import ReplicableArchive
@@ -27,30 +28,25 @@ logger = logging.getLogger(__name__)
 class Site:
     """Represents a single DDM installation."""
     def __init__(
-            self, name: str, owner: Union[str, Identifier],
-            namespace: str, stored_data: List[Asset],
+            self, config: SiteConfiguration, stored_data: List[Asset],
             rules: List[Rule], registry_client: RegistryClient) -> None:
         """Create a Site.
 
         Args:
-            name: Name of the site
-            owner: Party which owns this site.
-            namespace: Namespace used by this site.
+            config: Configuration for the site.
             stored_data: Data sets stored at this site.
             rules: A policy to adhere to.
             registry_client: A RegistryClient to use.
 
         """
         # Metadata
-        self.id = Identifier(f'site:{namespace}:{name}')
-        if not isinstance(owner, Identifier):
-            owner = Identifier(owner)
-        self.owner = owner
+        self.id = Identifier(f'site:{config.namespace}:{config.name}')
+        self.owner = config.owner
         # Owner and administrator are the same for now, but could
         # in principle be different, e.g. in a SaaS scenario. They also
         # differ semantically, so we have both here to make that clear.
-        self.administrator = owner
-        self.namespace = namespace
+        self.administrator = config.owner
+        self.namespace = config.namespace
 
         # Create clients for talking to the DDM
         self._registry_client = registry_client

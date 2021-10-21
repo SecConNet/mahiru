@@ -113,6 +113,10 @@ repository:
 (If you don't have ``make`` installed, this will give an error. ``sudo apt-get
 install make`` should fix that.)
 
+This also builds some helper images that are used by Mahiru internally. These
+end up in `mahiru/data`, from where they are included into the Mahiru Docker
+image, and then Mahiru will load them into Docker after it starts up.
+
 Mahiru runs workflows, and each step in a workflow executes a program or script.
 To allow sending these programs to other sites and running them there, they are
 packaged up into container images as well. The same goes for data sets. Mahiru
@@ -191,9 +195,11 @@ Mahiru without destroying and recreating the VMs can be done with
 
 .. code-block:: bash
 
-  vagrant provision --provision-with mahiru_down registry client1 client2
-  vagrant provision --provision-with mahiru_up registry client1 client2
+  vagrant provision --provision-with mahiru_down registry site1 site2
+  vagrant provision --provision-with mahiru_up registry site1 site2 client1 client2
 
+Note the addition of `client1` and `client2` for the `mahiru_up` run. This will
+install the new version on the clients as well for use by the control scripts.
 
 To destroy the VMs, use (without -f you'll have to confirm the destruction of
 each individual VM):

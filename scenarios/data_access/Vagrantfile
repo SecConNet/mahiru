@@ -1,0 +1,78 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # Set resources
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 512
+    v.cpus = 1
+  end
+
+  config.vm.provider "libvirt" do |v|
+    v.memory = 512
+    v.cpus = 1
+  end
+
+  # Create VMs
+  config.vm.define "registry" do |registry|
+    registry.vm.box = "generic/ubuntu2004"
+  end
+
+  config.vm.define "site1" do |site1|
+    site1.vm.box = "generic/ubuntu2004"
+  end
+
+  config.vm.define "site2" do |site2|
+    site2.vm.box = "generic/ubuntu2004"
+  end
+
+  config.vm.define "client1" do |client1|
+    client1.vm.box = "generic/ubuntu2004"
+
+    client1.vm.provision "configure_sites", type: "ansible", run: "never" do |ansible|
+      ansible.compatibility_mode = "1.8"
+      ansible.verbose = "v"
+      ansible.playbook = "configure_sites.yml"
+    end
+
+    client1.vm.provision "run_experiment", type: "ansible", run: "never" do |ansible|
+        ansible.compatibility_mode = "1.8"
+        ansible.verbose = "v"
+        ansible.playbook = "run_experiment.yml"
+    end
+  end
+
+  config.vm.define "client2" do |client2|
+    client2.vm.box = "generic/ubuntu2004"
+
+    client2.vm.provision "configure_sites", type: "ansible", run: "never" do |ansible|
+      ansible.compatibility_mode = "1.8"
+      ansible.verbose = "v"
+      ansible.playbook = "configure_sites.yml"
+    end
+  end
+
+  # Common software installation for all VMs
+  config.vm.provision "base", type: "ansible" do |ansible|
+    ansible.compatibility_mode = "1.8"
+    ansible.verbose = "v"
+    ansible.playbook = "../common/base.yml"
+  end
+
+  # Start up sites and registry
+  config.vm.provision "mahiru_up", type: "ansible" do |ansible|
+    ansible.compatibility_mode = "1.8"
+    ansible.verbose = "v"
+    ansible.playbook = "../common/mahiru_up.yml"
+  end
+
+  # Shut down sites and registry
+  config.vm.provision "mahiru_down", type: "ansible", run: "never" do |ansible|
+    ansible.compatibility_mode = "1.8"
+    ansible.verbose = "v"
+    ansible.playbook = "../common/mahiru_down.yml"
+  end
+
+end
+

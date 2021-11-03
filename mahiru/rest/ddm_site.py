@@ -10,8 +10,9 @@ from urllib.parse import quote
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 from falcon import (
-        App, HTTP_200, HTTP_201, HTTP_204, HTTP_303, HTTP_400, HTTP_404,
-        Request, Response)
+        App, HTTP_200, HTTP_201, HTTP_204, HTTP_303, HTTP_400, HTTP_403,
+        HTTP_404, Request, Response)
+from jsonschema import ValidationError
 import ruamel.yaml as yaml
 import yatiml
 
@@ -20,6 +21,7 @@ from mahiru.components.registry_client import RegistryClient
 from mahiru.components.settings import load_settings
 from mahiru.components.orchestration import WorkflowOrchestrator
 from mahiru.definitions.assets import Asset
+from mahiru.definitions.connections import ConnectionRequest
 from mahiru.definitions.execution import JobResult
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IAssetStore, IStepRunner
@@ -143,8 +145,7 @@ class AssetImageAccessHandler:
         self._store = store
 
     def on_get(
-            self, request: Request, response: Response, asset_id: str
-            ) -> None:
+            self, request: Request, response: Response, asset_id: str) -> None:
         """Handle request for an asset image.
 
         Args:
@@ -187,6 +188,112 @@ class AssetImageAccessHandler:
                         f' {request.params["requester"]}')
                 response.status = HTTP_404
                 response.body = 'Asset not found'
+
+
+class AssetConnectionAccessHandler:
+    """A handler for the /assets/{assetId}/connect endpoints."""
+    def __init__(self, store: IAssetStore) -> None:
+        """Create an AssetConnectionAccessHandler handler.
+
+        Args:
+            store: The asset store to send requests to.
+        """
+        self._store = store
+
+    def on_post(
+            self, request: Request, response: Response, asset_id: str) -> None:
+        """Handle request for a new asset connection.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+            asset_id: The id of the requested asset
+        """
+        logger.info(f'Asset connection request, store = {self._store}')
+        try:
+            if 'requester' not in request.params:
+                logger.info(f'Invalid asset access request')
+                raise ValidationError('No requester specified')
+            else:
+
+                logger.info(
+                        f'Received request to connect to asset {asset_id} from'
+                        f' {request.params["requester"]}')
+                validate_json('ConnectionRequest', request.media)
+                conn_request = deserialize(ConnectionRequest, request.media)
+
+                conn_info = self._store.serve(
+                        Identifier(asset_id), conn_request,
+                        request.params['requester'])
+
+                response.status = HTTP_200
+                response.media = serialize(conn_info)
+        except KeyError:
+            logger.info(f'Asset {asset_id} not found')
+            response.status = HTTP_404
+            response.body = 'Asset not found'
+        except RuntimeError:
+            # This is permission denied, but we return a 404 to
+            # avoid information-leaking the existence of any
+            # particular assets.
+            logger.info(
+                    f'Asset {asset_id} connection not available for user'
+                    f' {request.params["requester"]}')
+            response.status = HTTP_404
+            response.body = 'Asset not found'
+        except ValueError:
+            # raised by Identifier(invalid_id)
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+        except ValidationError:
+            response.status = HTTP_400
+            response.body = 'Invalid request'
+        # TODO: return 503 when connections are disabled altogether
+
+
+class ConnectionsHandler:
+    """A handler for the /connections/{connId} endpoint."""
+    def __init__(self, store: IAssetStore) -> None:
+        """Create an AssetDisconnectionHandler handler.
+
+        Args:
+            store: The asset store to send requests to.
+        """
+        self._store = store
+
+    def on_delete(
+            self, request: Request, response: Response, conn_id: str
+            ) -> None:
+        """Handle request for disconnecting from an asset.
+
+        Args:
+            request: The submitted request.
+            response: A response object to configure.
+            conn_id: The id of the connection to remove.
+        """
+        logger.info(f'Asset disconnection request, store = {self._store}')
+        try:
+            if 'requester' not in request.params:
+                logger.info(f'Invalid asset access request')
+                raise ValidationError('No requester specified')
+            else:
+                logger.info(
+                        f'Received request to disconnect connection {conn_id}'
+                        f' from {request.params["requester"]}')
+
+                self._store.stop_serving(conn_id, request.params['requester'])
+                response.status = HTTP_200
+        except KeyError:
+            logger.info(f'Connection {conn_id} not found')
+            response.status = HTTP_404
+            response.body = 'Connection not found'
+        except RuntimeError:
+            logger.info(
+                    f'Connection {conn_id} not owned by user'
+                    f' {request.params["requester"]}')
+            response.status = HTTP_403
+            response.body = 'Connection not yours'
+        # TODO: return 503 when connections are disabled altogether
 
 
 class AssetManagementHandler:
@@ -462,6 +569,15 @@ class SiteRestApi:
         asset_image_access = AssetImageAccessHandler(asset_store)
         self.app.add_route(
                 '/external/assets/{asset_id}/image', asset_image_access)
+
+        asset_connection_access = AssetConnectionAccessHandler(asset_store)
+        self.app.add_route(
+                '/external/assets/{asset_id}/connect',
+                asset_connection_access)
+
+        connections = ConnectionsHandler(asset_store)
+        self.app.add_route(
+                '/external/connections/{conn_id}', connections)
 
         workflow_execution = WorkflowExecutionHandler(runner)
         self.app.add_route('/external/jobs', workflow_execution)

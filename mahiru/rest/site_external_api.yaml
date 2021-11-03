@@ -118,6 +118,84 @@ paths:
               schema:
                 type: string
 
+  /assets/{assetId}/connect:
+    post:
+      summary: Connect to an instance of an asset container image
+      operationId: connectToAsset
+      requestBody:
+        description: Description of how to connect
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/WireGuardConnectionRequest"
+        required: true
+      parameters:
+        - name: assetId
+          description: The id of the asset to connect to
+          required: true
+          in: path
+          type: string
+        # TODO: The below will be replaced with an HTTPS client-side
+        # certificate eventually, but we'll just pass it insecurely for now.
+        - name: requester
+          in: query
+          description: Name of the requesting site
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: WireGuard connection information
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/WireGuardConnectionInfo"
+        "400":
+          description: An invalid request was made
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "404":
+          description: The asset does not exist or is not available to you.
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        "503":
+          description: >
+            No connection could be made. Either the server does not support
+            them, or it is overloaded.
+          content:
+            text/plain:
+              schema:
+                description: An error message
+                type: string
+        default:
+          description: A technical problem was encountered
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /connections/{connId}:
+    delete:
+      summary: Disconnect from a currently connected-to asset
+      operationId: disconnectFromAsset
+    parameters:
+      - name: assetId
+        description: The id of the asset to disconnect from
+        required: true
+        in: path
+        type: string
+      - name: connId
+        description: The id of the connection to disconnect
+        required: true
+        in: path
+        type: string
+
   /jobs:
     post:
       summary: Submit a job for the site to run

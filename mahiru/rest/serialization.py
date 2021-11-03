@@ -11,6 +11,9 @@ from dateutil import parser as dateparser
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, ComputeMetadata, DataAsset, DataMetadata,
         Metadata)
+from mahiru.definitions.connections import (
+        ConnectionInfo, ConnectionRequest, WireGuardEndpoint,
+        WireGuardConnectionInfo, WireGuardConnectionRequest)
 from mahiru.definitions.interfaces import IReplicaUpdate
 from mahiru.definitions.execution import JobResult
 from mahiru.definitions.policy import Rule
@@ -33,8 +36,9 @@ T = TypeVar('T')
 
 
 Serializable = Union[
-        Asset, ExecutionRequest, Job, JobResult, Metadata, Plan,
-        RegisteredObject, IReplicaUpdate, Rule, Workflow, WorkflowStep]
+        Asset, ConnectionInfo, ConnectionRequest, ExecutionRequest, Job,
+        JobResult, Metadata, Plan, RegisteredObject, IReplicaUpdate, Rule,
+        Workflow, WorkflowStep]
 
 
 _SerializableT = TypeVar('_SerializableT', bound=Serializable)
@@ -83,8 +87,8 @@ def _deserialize_site_description(user_input: JSON) -> SiteDescription:
             user_input['owner_id'],
             user_input['admin_id'],
             user_input['endpoint'],
-            user_input['runner'],
             user_input['store'],
+            user_input['runner'],
             user_input['namespace'])
 
 
@@ -316,6 +320,46 @@ def _serialize_data_asset(asset: DataAsset) -> JSON:
     return _serialize_asset(asset)
 
 
+# Connections
+
+def _serialize_wireguard_endpoint(endpoint: WireGuardEndpoint) -> JSON:
+    return {
+            'address': endpoint.address,
+            'port': endpoint.port,
+            'key': endpoint.key}
+
+
+def _deserialize_wireguard_endpoint(user_input: JSON) -> WireGuardEndpoint:
+    return WireGuardEndpoint(
+            user_input['address'], user_input['port'], user_input['key'])
+
+
+def _serialize_wireguard_connection_request(
+        request: WireGuardConnectionRequest) -> JSON:
+    return {
+            'net': request.net,
+            'endpoint': _serialize_wireguard_endpoint(request.endpoint)}
+
+
+def _deserialize_connection_request(user_input: JSON) -> ConnectionRequest:
+    return WireGuardConnectionRequest(
+            user_input['net'],
+            _deserialize_wireguard_endpoint(user_input['endpoint']))
+
+
+def _serialize_wireguard_connection_info(
+        connection: WireGuardConnectionInfo) -> JSON:
+    return {
+            'conn_id': connection.conn_id,
+            'endpoint': _serialize_wireguard_endpoint(connection.endpoint)}
+
+
+def _deserialize_connection_info(user_input: JSON) -> ConnectionInfo:
+    return WireGuardConnectionInfo(
+            user_input['conn_id'],
+            _deserialize_wireguard_endpoint(user_input['endpoint']))
+
+
 # Results
 
 def _serialize_job_result(result: JobResult) -> JSON:
@@ -399,6 +443,8 @@ _serializers = {
         DataMetadata: _serialize_data_metadata,
         ComputeAsset: _serialize_compute_asset,
         DataAsset: _serialize_data_asset,
+        WireGuardConnectionInfo: _serialize_wireguard_connection_info,
+        WireGuardConnectionRequest: _serialize_wireguard_connection_request,
         JobResult: _serialize_job_result,
         PolicyUpdate: _serialize_replica_update,
         RegistryUpdate: _serialize_replica_update,
@@ -430,6 +476,8 @@ _deserialize = {
         ComputeMetadata: _deserialize_compute_metadata,
         DataMetadata: _deserialize_data_metadata,
         Asset: _deserialize_asset,
+        ConnectionInfo: _deserialize_connection_info,
+        ConnectionRequest: _deserialize_connection_request,
         JobResult: _deserialize_job_result,
         PolicyUpdate: _deserialize_policy_update,
         RegistryUpdate: _deserialize_registry_update,

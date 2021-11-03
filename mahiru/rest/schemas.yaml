@@ -422,3 +422,59 @@ components:
             oneOf:
               - "$ref": "#/components/schemas/Party"
               - "$ref": "#/components/schemas/Site"
+
+    WireGuardEndpoint:
+      type: object
+      required:
+        - address
+        - port
+        - key
+      properties:
+        address:
+          description: IP address of the endpoint to connect to
+          type: string
+        port:
+          description: Port of the endpoint to connect to
+          type: integer
+        key:
+          description: WireGuard key of the endpoint to connect to
+          type: string
+
+    WireGuardConnectionRequest:
+      type: object
+      required:
+        - net
+        - endpoint
+      properties:
+        net:
+          description: VPN network id to use for the connection
+          type: integer
+        endpoint:
+          description: WireGuard endpoint for the client side
+          type: object
+          schema:
+            "$ref": "#/components/schemas/WireGuardEndpoint"
+
+    ConnectionRequest:
+      oneOf:
+        - $ref: '#/components/schemas/WireGuardConnectionRequest'
+
+    WireGuardConnectionInfo:
+      type: object
+      required:
+        - conn_id
+        - endpoint
+      properties:
+        conn_id:
+          description: Connection id, a URL identifying this connection.
+          type: string
+          format: uri
+        endpoint:
+          description: WireGuard endpoint for the server side
+          type: object
+          schema:
+            "$ref": "#/components/schemas/WireGuardEndpoint"
+
+    ConnectionInfo:
+      oneOf:
+        - $ref: '#/components/schemas/WireGuardConnectionInfo'

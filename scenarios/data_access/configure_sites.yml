@@ -1,0 +1,72 @@
+# Playbook for configuring client1
+
+- name: Set up client1 VM
+  hosts: client1
+  vars:
+    home: "{{ ansible_facts['user_dir'] }}"
+    asset_dir: "{{ home }}/mahiru/assets"
+    script_dir: "{{ home }}/mahiru/scripts"
+
+  tasks:
+  - name: Create assets directory
+    file:
+      path: "{{ asset_dir }}"
+      state: directory
+
+  - name: Copy assets
+    synchronize:
+      src: "../../build/{{ item }}"
+      dest: "{{ asset_dir }}/{{ item }}"
+    loop:
+      - data-asset-base.tar.gz
+      - compute-asset.tar.gz
+
+  - name: Create script directory
+    file:
+      path: "{{ script_dir }}"
+      state: directory
+
+  - name: Copy scripts
+    synchronize:
+      src: "client1/{{ item }}"
+      dest: "{{ script_dir }}/{{ item }}"
+    loop:
+      - init_site.py
+      - submit_job.py
+
+  - name: Initialise local site
+    command:
+      cmd: "python3 {{ script_dir }}/init_site.py"
+
+
+- name: Set up client2 VM
+  hosts: client2
+  vars:
+    home: "{{ ansible_facts['user_dir'] }}"
+    asset_dir: "{{ home }}/mahiru/assets"
+    script_dir: "{{ home }}/mahiru/scripts"
+
+  tasks:
+  - name: Create assets dir
+    file:
+      path: "{{ asset_dir }}"
+      state: directory
+
+  - name: Copy assets
+    synchronize:
+      src: ../../build/data-asset-input.tar.gz
+      dest: "{{ asset_dir }}/data-asset-input.tar.gz"
+
+  - name: Create script directory
+    file:
+      path: "{{ script_dir }}"
+      state: directory
+
+  - name: Copy init script
+    synchronize:
+      src: client2/init_site.py
+      dest: "{{ script_dir }}/init_site.py"
+
+  - name: Initialise local site
+    command:
+      cmd: "python3 {{ script_dir }}/init_site.py"

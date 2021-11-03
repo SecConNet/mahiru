@@ -205,7 +205,7 @@
       state: present
       create: yes
       regexp: '^network_settings: .*$'
-      line: 'network_settings: { enabled: False }'
+      line: 'network_settings: { enabled: True, external_ip: {{ hostvars[inventory_hostname].ansible_ssh_host }}, ports: [10000, 11000] }'
 
   - name: Configure loglevel
     lineinfile:

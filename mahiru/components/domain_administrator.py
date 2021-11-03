@@ -14,6 +14,8 @@ from docker.models.containers import Container
 
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
+from mahiru.definitions.connections import (
+        ConnectionInfo, ConnectionRequest)
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import (
         IDomainAdministrator, INetworkAdministrator, IStepResult)
@@ -78,7 +80,7 @@ class PlainDockerDA(IDomainAdministrator):
         # Note: this is a unique ID per executed step, it is unrelated
         # to Job objects, which represent an entire submitted workflow.
         # It is used to avoid name collisions among Docker containers
-        # and images inside the docker repository.
+        # and images inside the local docker repository.
         self._next_job_id = 1
         self._job_id_lock = Lock()
 
@@ -87,6 +89,12 @@ class PlainDockerDA(IDomainAdministrator):
         self._loaded_images_lock = Lock()
         self._loaded_images = dict()            # type: Dict[str, Identifier]
         self._loaded_images_ref_count = dict()  # type: Dict[str, int]
+
+        # These are indexed by connection id, which is the stringified
+        # job id of the serving job.
+        self._served_lock = Lock()          # Protects the below
+        self._served_assets = dict()        # type: Dict[str, Identifier]
+        self._served_containers = dict()    # type: Dict[str, Container]
 
     def execute_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
@@ -121,9 +129,7 @@ class PlainDockerDA(IDomainAdministrator):
             cleanup() on the result after saving the assets to properly
             free the resources.
         """
-        with self._job_id_lock:
-            job_id = self._next_job_id
-            self._next_job_id += 1
+        job_id = self._get_job_id()
 
         logger.info(f'Executing container step {step} as job {job_id}')
 
@@ -180,6 +186,88 @@ class PlainDockerDA(IDomainAdministrator):
                 for asset in assets.values():
                     self._free_image(asset.id)
 
+    def serve_asset(
+            self, asset: Asset, connection_request: ConnectionRequest
+            ) -> ConnectionInfo:
+        """Serve an asset as a VPN-reachable service.
+
+        The asset's image_location must be a path on the local disk,
+        this function does not serve remote images.
+
+        Args:
+            asset: A local asset to serve.
+            connection_request: A description of the remote end of the
+                VPN connection to set up.
+        """
+        if asset.image_location is None:
+            raise RuntimeError(
+                    f'Cannot serve asset {asset} because it has no image')
+
+        if asset.image_location.startswith('http:'):
+            raise RuntimeError(f'Refusing to serve remote asset {asset}')
+
+        job_id = self._get_job_id()
+        conn_id = str(job_id)
+
+        logger.info(f'Serving container {asset.id} as job {job_id}')
+
+        image = None
+        container = None
+        try:
+            image = self._ensure_image_available(asset)
+
+            container_name = f'mahiru-{job_id}-data-asset-remote'
+            container = self._dcli.containers.run(
+                    image, name=container_name,
+                    detach=True, network_mode='none')
+            container.reload()
+            pid = container.attrs['State']['Pid']
+
+            with self._served_lock:
+                self._served_assets[conn_id] = asset.id
+                self._served_containers[conn_id] = container
+
+            return self._network_administrator.serve_asset(
+                    conn_id, pid, connection_request)
+
+        except Exception as e:
+            logger.error(f'Error serving asset connection: {e}')
+            if container is not None:
+                self._remove_containers([container])
+            if image is not None:
+                self._free_image(asset.id)
+            if conn_id in self._served_assets:
+                del self._served_assets[conn_id]
+            if conn_id in self._served_containers:
+                del self._served_containers[conn_id]
+            raise
+
+    def stop_serving_asset(self, conn_id: str) -> None:
+        """Stop and remove an asset container being served remotely.
+
+        The conn_id argument must have been returned by serve_asset()
+        previously. Implementation note: it's just the job id converted
+        to a string.
+
+        Args:
+            conn_id: Connection id for the serving job.
+        """
+        logger.info(f'Stopping with serving for job {conn_id}')
+        pid = self._served_containers[conn_id].attrs['State']['Pid']
+        self._network_administrator.stop_serving_asset(conn_id, pid)
+        with self._served_lock:
+            self._remove_containers([self._served_containers[conn_id]])
+            del self._served_containers[conn_id]
+            self._free_image(self._served_assets[conn_id])
+            del self._served_assets[conn_id]
+
+    def _get_job_id(self) -> int:
+        """Return a new unique job id."""
+        with self._job_id_lock:
+            job_id = self._next_job_id
+            self._next_job_id += 1
+        return job_id
+
     def _create_pilot_container(self, job_id: int) -> Container:
         """Creates the pilot container for this job.
 
@@ -206,7 +294,8 @@ class PlainDockerDA(IDomainAdministrator):
         container.reload()
         return container
 
-    def _ensure_image_available(self, asset: Asset, workdir: Path) -> Image:
+    def _ensure_image_available(
+            self, asset: Asset, workdir: Optional[Path] = None) -> Image:
         """Ensures the asset's image is available in Docker.
 
         This will download it from another site if necessary, then
@@ -216,29 +305,43 @@ class PlainDockerDA(IDomainAdministrator):
 
         Args:
             asset: The asset to make available.
-            workdir: Directory to download files into.
+            workdir: Directory to download files into. May be omitted
+                    or None if the asset is local and its
+                    .image_location points to a file rather than a URL.
 
         Return:
             The loaded Docker Image.
         """
         with self._loaded_images_lock:
-            if asset.id in self._loaded_images_ref_count:
+            if self._loaded_images_ref_count.get(asset.id, 0) != 0:
                 self._loaded_images_ref_count[asset.id] += 1
+                image_id = self._loaded_images[asset.id]
+                image = self._dcli.images.get(image_id)
             else:
                 if asset.image_location is None:
                     raise RuntimeError(
                             f'Asset {asset} does not have an image.')
 
-                image_file = workdir / f'{asset.id}.tar.gz'
-                self._site_rest_client.retrieve_asset_image(
-                        asset.image_location, image_file)
+                if asset.image_location.startswith('http:'):
+                    if workdir is None:
+                        raise RuntimeError(
+                                f'Remote asset and no workdir given.')
+
+                    image_file = workdir / f'{asset.id}.tar.gz'
+                    self._site_rest_client.retrieve_asset_image(
+                            asset.image_location, image_file)
+                else:
+                    image_file = Path(asset.image_location)
 
                 with image_file.open('rb') as f:
                     image = self._dcli.images.load(f.read())[0]
 
                 self._loaded_images[asset.id] = image.id
                 self._loaded_images_ref_count[asset.id] = 1
-                image_file.unlink()
+                # TODO: could delete the file here to save disk space,
+                # but only if it's a remote image and the file is in
+                # the workdir! If it's local, we'll delete it from
+                # the asset store!
 
             return image
 

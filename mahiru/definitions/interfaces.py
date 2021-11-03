@@ -218,6 +218,31 @@ class IDomainAdministrator:
         """
         raise NotImplementedError()
 
+    def serve_asset(
+            self, asset: Asset, connection_request: ConnectionRequest
+            ) -> ConnectionInfo:
+        """Serve an asset as a VPN-reachable service.
+
+        Args:
+            asset: The asset to serve.
+            connection_request: A description of the remote end of the
+                VPN connection to set up.
+
+        Return:
+            A connection info object describing how to connect to the
+            local endpoint. The conn_id may be passed later to
+            stop_serving_asset().
+        """
+        raise NotImplementedError()
+
+    def stop_serving_asset(self, conn_id: str) -> None:
+        """Stop serving an asset.
+
+        Args:
+            conn_id: A connection ID.
+        """
+        raise NotImplementedError()
+
 
 class INetworkAdministrator:
     """Manages network resources for a site.

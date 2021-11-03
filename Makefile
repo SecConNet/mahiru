@@ -11,7 +11,7 @@ docker_images: base_docker_image registry_docker_image site_docker_image pilot_i
 # faster because the tarball of the first doesn't end up in the build
 # context of the second.
 .PHONY: docker_tars
-docker_tars: docker_images registry_docker_tar site_docker_tar pilot_tar
+docker_tars: docker_images registry_docker_tar site_docker_tar pilot_tar net_admin_helper_tar
 
 
 .PHONY: docker_clean
@@ -20,6 +20,7 @@ docker_clean:
 	docker rmi -f mahiru-registry:latest
 	docker rmi -f mahiru-base:latest
 	docker rmi -f mahiru-pilot:latest
+	docker rmi -f net-admin-helper:latest
 
 
 .PHONY: base_docker_image
@@ -50,6 +51,10 @@ site_docker_tar: site_docker_image
 .PHONY: pilot_tar
 pilot_tar: pilot_image
 	docker save mahiru-pilot:latest | gzip -1 -c >mahiru/data/pilot.tar.gz
+
+.PHONY: net_admin_helper_tar
+net_admin_helper_tar:
+	cd net-admin-helper && ./install.sh
 
 
 .PHONY: assets_clean

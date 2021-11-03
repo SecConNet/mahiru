@@ -4,13 +4,13 @@ import docker
 import logging
 from pathlib import Path
 from threading import Lock
-from typing import cast, Dict, Tuple
+from typing import cast, Dict, Tuple, Optional
 
 from mahiru.components.settings import NetworkSettings
 from mahiru.definitions.assets import Asset
 from mahiru.definitions.connections import (
-        ConnectionRequest, WireGuardConnectionInfo, WireGuardConnectionRequest,
-        WireGuardEndpoint)
+        ConnectionInfo, ConnectionRequest, WireGuardConnectionInfo,
+        WireGuardConnectionRequest, WireGuardEndpoint)
 from mahiru.definitions.interfaces import INetworkAdministrator
 from mahiru.rest.site_client import SiteRestClient
 
@@ -82,6 +82,7 @@ class WireGuardNA(INetworkAdministrator):
                 request.endpoint)
 
         with self._served_lock:
+            self._served_nets[conn_id] = request.net
             self._served_ports[conn_id] = local_endpoint.port
 
         local_conn_info = WireGuardConnectionInfo(conn_id, local_endpoint)
@@ -124,7 +125,48 @@ class WireGuardNA(INetworkAdministrator):
             assets from inputs that we could not connect to, also
             indexed by input name.
         """
-        raise NotImplementedError()
+        nets = dict()           # type: Dict[str, str]
+        remaining = dict()      # type: Dict[str, Asset]
+        conn_info = None        # type: Optional[ConnectionInfo]
+
+        if not self._settings.enabled:
+            return nets, inputs
+
+        self._active_connections[job_id] = dict()
+
+        for net, (name, asset) in enumerate(inputs.items()):
+            logger.debug(f'Trying to connect for {name} on {net}')
+            try:
+                endpoint = self._create_wg_endpoint(
+                        network_namespace, net, _WG_CLIENT_HOST)
+            except Exception as e:
+                logger.debug(f'Failed to create endpoint: {e}')
+                remaining[name] = asset
+                continue
+
+            try:
+                request = WireGuardConnectionRequest(net, endpoint)
+                conn_info = self._site_rest_client.connect_to_asset(
+                        asset.id, request)
+                if not isinstance(conn_info, WireGuardConnectionInfo):
+                    raise RuntimeError('Peer incompatible')
+                logger.debug(f'Connection request successful')
+                self._connect_wg_endpoint(
+                        network_namespace, net, _WG_CLIENT_HOST,
+                        conn_info.endpoint)
+                self._active_connections[job_id][name] = conn_info.conn_id
+                nets[name] = self._net_to_addr(net, _WG_SERVER_HOST)
+                logger.debug(f'Connected')
+            except Exception as e:
+                logger.error(f'Error completing connection: {e}')
+                if conn_info:
+                    self._site_rest_client.disconnect_asset(
+                            asset.id, conn_info.conn_id)
+                self._remove_wg_endpoint(
+                        network_namespace, net, _WG_CLIENT_HOST)
+                remaining[name] = asset
+
+        return nets, remaining
 
     def disconnect_inputs(self, job_id: int, inputs: Dict[str, Asset]) -> None:
         """Disconnect inputs and free resources.
@@ -133,7 +175,13 @@ class WireGuardNA(INetworkAdministrator):
             job_id: Job id of job to disconnect.
             inputs: Input assets for this job, indexed by input name.
         """
-        raise NotImplementedError()
+        for name, conn_id in self._active_connections[job_id].items():
+            try:
+                self._site_rest_client.disconnect_asset(
+                        inputs[name].id, conn_id)
+            except Exception as e:
+                logger.warning('Could not disconnect input: {e}')
+                # ignore, we tried our best
 
     def _create_wg_endpoint(
             self, pid: int, net: int, host: int) -> WireGuardEndpoint:
@@ -231,3 +279,22 @@ class WireGuardNA(INetworkAdministrator):
         logs = cast(bytes, container.logs(stdout=True, stderr=False))
         container.remove(force=True)
         return logs.decode('ascii').strip()
+
+    def _net_to_addr(self, net: int, host: int) -> str:
+        """Return the IP for a given network number and host.
+
+        We use net-admin-helper to set up connections, and
+        net-admin-helper uses net numbers to specify the IP addresses
+        used by the endpoints of the WireGuard link. The net number
+        is an integer containing bits 1:24 of the IP addresses used.
+        The least-significant bit is 0 for one host and 1 for the
+        other, as specified by the host argument, so the networks are
+        all /31 networks. The top 8 bits are set to decimal 10, to put
+        us in the 10.x.y.z IPV4 private address range.
+        """
+        ip = (10 << 24) | ((net & 0x7fffff) << 1) | (host & 1)
+        b0 = ip & 0xff
+        b1 = (ip >> 8) & 0xff
+        b2 = (ip >> 16) & 0xff
+        b3 = (ip >> 24) & 0xff
+        return f'{b3}.{b2}.{b1}.{b0}'

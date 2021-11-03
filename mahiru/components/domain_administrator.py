@@ -138,24 +138,34 @@ class PlainDockerDA(IDomainAdministrator):
         input_containers = None
         output_containers = None
         compute_container = None
+        nets = dict()               # type: Dict[str, str]
         images = None
-
-        assets = dict(**inputs, **{'<compute>': compute_asset}, **output_bases)
 
         try:
             workdir = Path(wd)
 
-            images = self._ensure_images_available(workdir, assets)
             pilot_container = self._create_pilot_container(job_id)
 
+            nets, local_inputs = self._network_administrator.connect_to_inputs(
+                    job_id, inputs, pilot_container.attrs['State']['Pid'])
+
+            logger.debug(f'Nets: {nets}')
+            logger.debug(f'Remaining local inputs: {local_inputs}')
+
+            local_assets = dict(
+                    **local_inputs, **{'<compute>': compute_asset},
+                    **output_bases)
+
+            images = self._ensure_images_available(workdir, local_assets)
+
             input_containers = self._start_input_containers(
-                    job_id, images, inputs.keys())
+                    job_id, images, local_inputs.keys())
 
             output_containers = self._start_output_containers(
                     job_id, images, output_bases.keys())
 
             config = self._create_config_string(
-                    workdir, inputs, step.outputs.keys(),
+                    workdir, local_inputs, nets, step.outputs.keys(),
                     dict(**input_containers, **output_containers))
 
             compute_container = self._run_compute_container(
@@ -173,6 +183,9 @@ class PlainDockerDA(IDomainAdministrator):
             raise
 
         finally:
+            if nets:
+                self._network_administrator.disconnect_inputs(job_id, inputs)
+
             if input_containers is not None:
                 self._remove_containers(input_containers.values())
 
@@ -182,8 +195,8 @@ class PlainDockerDA(IDomainAdministrator):
             if pilot_container is not None:
                 self._remove_containers([pilot_container])
 
-            if assets is not None:
-                for asset in assets.values():
+            if local_assets is not None:
+                for asset in local_assets.values():
                     self._free_image(asset.id)
 
     def serve_asset(
@@ -461,8 +474,9 @@ class PlainDockerDA(IDomainAdministrator):
             raise
 
     def _create_config_string(
-            self, workdir: Path, inputs: Dict[str, Asset],
-            outputs: Iterable[str], containers: Dict[str, Container]) -> str:
+            self, workdir: Path, local_inputs: Dict[str, Asset],
+            nets: Dict[str, str], outputs: Iterable[str],
+            containers: Dict[str, Container]) -> str:
         """Create config and return JSON-encoded string.
 
         This creates a JSON object serialised to a string which is
@@ -475,7 +489,8 @@ class PlainDockerDA(IDomainAdministrator):
 
         Args:
             workdir: Working directory for this step execution job.
-            inputs: Assets for the step's inputs.
+            local_inputs: Assets for the step's local inputs.
+            nets: IP addresses for the step's remote inputs.
             outputs: Assets for the step's outputs.
             containers: Containers for each input and output.
 
@@ -486,7 +501,10 @@ class PlainDockerDA(IDomainAdministrator):
                 'inputs': dict(),
                 'outputs': dict()}  # type: Dict[str, Dict[str, str]]
 
-        for name in list(inputs) + list(outputs):
+        for name, addr in nets.items():
+            config['inputs'][name] = f'http://{addr}'
+
+        for name in list(local_inputs) + list(outputs):
             # IP addresses were added after creation, so we need to
             # reload data from the Docker daemon to get them.
             containers[name].reload()

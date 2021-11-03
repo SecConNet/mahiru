@@ -26,41 +26,36 @@ from mahiru.rest.internal_client import InternalSiteRestClient
 logger = logging.getLogger(__file__)
 
 
+def get_tar_file(name):
+    asset_dir = Path(__file__).parents[1] / 'build'
+    tar_file = asset_dir / name
+    if not tar_file.exists():
+        pytest.skip(
+                f"Image {name} not available. Run 'make assets docker_tars'"
+                " to build the images needed for this test.")
+    return tar_file
+
+
+@pytest.fixture
+def pilot_tar():
+    return get_tar_file('pilot.tar.gz')
+
+
 @pytest.fixture
 def data_asset_tars():
-    asset_dir = Path(__file__).parents[1] / 'build'
-
-    base_file = asset_dir / 'data-asset-base.tar.gz'
-    if not base_file.exists():
-        base_file = None
-
-    input_file = asset_dir / 'data-asset-input.tar.gz'
-    if not input_file.exists():
-        input_file = None
-
+    base_file = get_tar_file('data-asset-base.tar.gz')
+    input_file = get_tar_file('data-asset-input.tar.gz')
     return base_file, input_file
 
 
 @pytest.fixture
 def compute_asset_tar():
-    asset_dir = Path(__file__).parents[1] / 'build'
-
-    compute_file = asset_dir / 'compute-asset.tar.gz'
-    if not compute_file.exists():
-        compute_file = None
-
-    return compute_file
+    return get_tar_file('compute-asset.tar.gz')
 
 
-def test_container_step(
+def run_container_step(
         registry_server, registry_client, registration_client,
-        data_asset_tars, compute_asset_tar, caplog):
-
-    caplog.set_level(logging.DEBUG)
-
-    # check that we have assets
-    if not all(data_asset_tars) or not compute_asset_tar:
-        pytest.skip("Assets not available. Run 'make assets' to build them.")
+        pilot_tar, data_asset_tars, compute_asset_tar, network_settings):
 
     # create party
     party_key = generate_private_key(
@@ -107,7 +102,7 @@ def test_container_step(
 
     # create site
     config = SiteConfiguration(
-            'test_site', 'ns', 'party:ns:test_party', NetworkSettings(), '')
+            'test_site', 'ns', 'party:ns:test_party', network_settings, '')
     site = Site(config, [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
@@ -153,3 +148,29 @@ def test_container_step(
         registration_client.deregister_site(site.id)
         registration_client.deregister_party('party:ns:test_party')
         site.close()
+
+
+def test_container_step(
+        registry_server, registry_client, registration_client,
+        pilot_tar, data_asset_tars, compute_asset_tar, caplog):
+
+    caplog.set_level(logging.DEBUG)
+    run_container_step(
+            registry_server, registry_client, registration_client, pilot_tar,
+            data_asset_tars, compute_asset_tar, NetworkSettings())
+
+
+def test_container_connections(
+        registry_server, registry_client, registration_client,
+        pilot_tar, data_asset_tars, compute_asset_tar, caplog):
+
+    caplog.set_level(logging.DEBUG)
+
+    network_settings = NetworkSettings(True, '127.0.0.1', [10000, 11000])
+    run_container_step(
+            registry_server, registry_client, registration_client, pilot_tar,
+            data_asset_tars, compute_asset_tar, network_settings)
+
+    assert (
+            'mahiru.components.domain_administrator', logging.DEBUG,
+            'Nets: {}') not in caplog.record_tuples

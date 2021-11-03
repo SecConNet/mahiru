@@ -15,7 +15,8 @@ from docker.models.containers import Container
 from mahiru.definitions.assets import (
         Asset, ComputeAsset, DataAsset, DataMetadata)
 from mahiru.definitions.identifier import Identifier
-from mahiru.definitions.interfaces import IDomainAdministrator, IStepResult
+from mahiru.definitions.interfaces import (
+        IDomainAdministrator, INetworkAdministrator, IStepResult)
 from mahiru.definitions.workflows import Job, WorkflowStep
 from mahiru.rest.site_client import SiteRestClient
 
@@ -61,12 +62,16 @@ class PlainDockerDA(IDomainAdministrator):
     implementation which doesn't offer much in the way of security
     or performance.
     """
-    def __init__(self, site_rest_client: SiteRestClient) -> None:
+    def __init__(
+            self, network_administrator: INetworkAdministrator,
+            site_rest_client: SiteRestClient) -> None:
         """Create a PlainDockerDA.
 
         Args:
+            network_administrator: Network administrator to use.
             site_rest_client: Client to use for downloading images.
         """
+        self._network_administrator = network_administrator
         self._site_rest_client = site_rest_client
         self._dcli = docker.from_env()
 

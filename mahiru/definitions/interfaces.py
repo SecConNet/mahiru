@@ -1,8 +1,9 @@
 """Widely used interface definitions."""
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Generic, Iterable, Set, Type, TypeVar
+from typing import Dict, Generic, Iterable, Set, Tuple, Type, TypeVar
 
+from mahiru.definitions.connections import ConnectionInfo, ConnectionRequest
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.assets import Asset, ComputeAsset, DataAsset
 from mahiru.definitions.policy import Rule
@@ -187,7 +188,7 @@ class IStepResult:
 
 
 class IDomainAdministrator:
-    """Manages container and network resources for a site.
+    """Manages container resources for a site.
 
     The "domain" in the name is a system administration or networking
     domain, containing (virtual) networks and containers (and
@@ -195,6 +196,9 @@ class IDomainAdministrator:
     hardware, etc. in which workflows are executed. Classes
     implementing this interface manage ("administrate") these resources
     in the domain to implement workflow execution.
+
+    Network administration should be delegated to an
+    INetworkAdministrator.
     """
     def execute_step(
             self, step: WorkflowStep, inputs: Dict[str, Asset],
@@ -211,5 +215,71 @@ class IDomainAdministrator:
             id_hashes: A hash for each workflow item, indexed by its
                 name.
             step_subjob: A subjob for the step's results' metadata.
+        """
+        raise NotImplementedError()
+
+
+class INetworkAdministrator:
+    """Manages network resources for a site.
+
+    The network administrator is in charge of the (virtual) networks
+    and related things like routing and firewalling, as well as
+    potentially (virtual) programmable networking hardware.
+
+    Classes implementing this interface manage ("administrate") these
+    resources to help implement workflow execution.
+    """
+    def serve_asset(
+            self, conn_id: str, network_namespace: int,
+            request: ConnectionRequest) -> ConnectionInfo:
+        """Create a public endpoint to serve an asset.
+
+        Args:
+            conn_id: Connection id for this connection.
+            network_namespace: PID of the network namespace to create
+                    the endpoint inside of.
+            request: Connection request from the client side.
+
+        Return:
+            A connection info object to send back to the client.
+        """
+        raise NotImplementedError()
+
+    def stop_serving_asset(
+            self, conn_id: str, network_namespace: int) -> None:
+        """Remove a public endpoint and free resources.
+
+        Args:
+            conn_id: Id of the connection to stop.
+            network_namespace: PID of the network namespace the
+                    endpoint was created inside of.
+        """
+        raise NotImplementedError()
+
+    def connect_to_inputs(
+            self, job_id: int, inputs: Dict[str, Asset],
+            network_namespace: int
+            ) -> Tuple[Dict[str, str], Dict[str, Asset]]:
+        """Connect a local network namespace to a set of inputs.
+
+        Args:
+            job_id: Job id for future reference.
+            inputs: Assets to connect to, indexed by input name.
+            network_namespace: Namespace to create network interfaces
+                    inside of.
+
+        Return:
+            (nets, remaining) where nets contains a host IP for each
+            successfully connected input, and remaining contains the
+            assets from inputs that we could not connect to.
+        """
+        raise NotImplementedError()
+
+    def disconnect_inputs(self, job_id: int, inputs: Dict[str, Asset]) -> None:
+        """Disconnect inputs and free resources.
+
+        Args:
+            job_id: Job id of input connections to remove.
+            inputs: The inputs for this job.
         """
         raise NotImplementedError()

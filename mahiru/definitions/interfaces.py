@@ -146,6 +146,41 @@ class IAssetStore:
         """
         raise NotImplementedError()
 
+    def serve(
+            self, asset_id: Identifier, request: ConnectionRequest,
+            requester: Identifier) -> ConnectionInfo:
+        """Serves an asset via a secure network connection.
+
+        Args:
+            asset_id: ID of the asset to serve.
+            request: Connection request describing the desired
+                    connection.
+            requester: The site requesting this connection.
+
+        Return:
+            ConnectionInfo object for the connection.
+
+        Raises:
+            KeyError: If the asset was not found.
+            RuntimeError: If the requester does not have permission to
+                    access this asset, or connections are disabled.
+        """
+        raise NotImplementedError()
+
+    def stop_serving(self, conn_id: str, requester: Identifier) -> None:
+        """Stop serving an asset and close the connection.
+
+        Args:
+            conn_id: Connection id previously returned by serve().
+            requester: The site requesting to stop.
+
+        Raises:
+            KeyError: If the connection was not found.
+            RuntimeError: If the requester does not have permission to
+                    stop this connection.
+        """
+        raise NotImplementedError()
+
 
 class IStepRunner:
     """Interface for services for running steps at a given site."""

@@ -7,8 +7,9 @@ from tempfile import mkdtemp
 from typing import Dict, Optional
 
 from mahiru.definitions.assets import Asset, ComputeAsset, DataAsset
+from mahiru.definitions.connections import ConnectionInfo, ConnectionRequest
 from mahiru.definitions.identifier import Identifier
-from mahiru.definitions.interfaces import IAssetStore
+from mahiru.definitions.interfaces import IAssetStore, IDomainAdministrator
 from mahiru.policy.evaluation import PermissionCalculator, PolicyEvaluator
 
 
@@ -19,14 +20,30 @@ class AssetStore(IAssetStore):
     """A simple store for assets."""
     def __init__(
             self, policy_evaluator: PolicyEvaluator,
+            domain_administrator: IDomainAdministrator,
             image_dir: Optional[Path] = None) -> None:
-        """Create a new empty AssetStore."""
+        """Create a new empty AssetStore.
+
+        Args:
+            policy_evaluator: Policy evaluator to use for access
+                    checks.
+            domain_administrator: Domain administrator to use for
+                    serving assets over the network.
+            image_dir: Local directory to store image files in.
+        """
         self._policy_evaluator = policy_evaluator
+        self._domain_administrator = domain_administrator
         self._permission_calculator = PermissionCalculator(policy_evaluator)
+
+        # TODO: lock this
         self._assets = dict()  # type: Dict[Identifier, Asset]
         if image_dir is None:
+            # TODO: add mahiru prefix
             image_dir = Path(mkdtemp())
         self._image_dir = image_dir
+
+        # Requester per connection
+        self._connection_owners = dict()    # type: Dict[str, Identifier]
 
     def close(self) -> None:
         """Releases resources, call when done."""
@@ -48,6 +65,7 @@ class AssetStore(IAssetStore):
         if asset.id in self._assets:
             raise KeyError(f'There is already an asset with id {id}')
 
+        # TODO: ordering, get file first then insert Asset object
         self._assets[asset.id] = copy(asset)
         if asset.image_location is not None:
             src_path = Path(asset.image_location)
@@ -98,6 +116,70 @@ class AssetStore(IAssetStore):
         """
         logger.info(f'{self}: servicing request from {requester} for data: '
                     f'{asset_id}')
+        self._check_request(asset_id, requester)
+        logger.info(f'{self}: Sending asset {asset_id} to {requester}')
+        return self._assets[asset_id]
+
+    def serve(
+            self, asset_id: Identifier, request: ConnectionRequest,
+            requester: Identifier) -> ConnectionInfo:
+        """Serves an asset via a secure network connection.
+
+        Args:
+            asset_id: ID of the asset to serve.
+            request: Connection request describing the desired
+                    connection.
+            requester: The site requesting this connection.
+
+        Return:
+            ConnectionInfo object for the connection.
+
+        Raises:
+            KeyError: If the asset was not found.
+            RuntimeError: If the requester does not have permission to
+                    access this asset, or connections are disabled.
+        """
+        logger.info(f'{self}: servicing request from {requester} for'
+                    f' connection to {asset_id}')
+        self._check_request(asset_id, requester)
+        conn_info = self._domain_administrator.serve_asset(
+                self._assets[asset_id], request)
+        self._connection_owners[conn_info.conn_id] = requester
+        return conn_info
+
+    def stop_serving(self, conn_id: str, requester: Identifier) -> None:
+        """Stop serving an asset and close the connection.
+
+        Args:
+            conn_id: Connection id previously returned by serve().
+            requester: The site requesting to stop.
+
+        Raises:
+            KeyError: If the connection was not found.
+            RuntimeError: If the requester does not have permission to
+                    stop this connection.
+        """
+        if conn_id not in self._connection_owners:
+            raise KeyError('Invalid connection id')
+
+        if self._connection_owners[conn_id] != requester:
+            raise RuntimeError('Permission denied')
+
+        self._domain_administrator.stop_serving_asset(conn_id)
+        del self._connection_owners[conn_id]
+
+    def _check_request(
+            self, asset_id: Identifier, requester: Identifier) -> None:
+        """Check that a request for an asset is allowed.
+
+        Args:
+            asset_id: The asset being requested.
+            requester: The site requesting access to it.
+
+        Raises:
+            KeyError: If we don't have this asset.
+            RuntimeError: If the request is not allowed.
+        """
         if asset_id not in self._assets:
             msg = (
                     f'{self}: Asset {asset_id} not found'
@@ -118,5 +200,3 @@ class AssetStore(IAssetStore):
         if not self._policy_evaluator.may_access(perm, requester):
             raise RuntimeError(f'{self}: Security error, access denied'
                                f'for {requester} to {asset_id}')
-        logger.info(f'{self}: Sending asset {asset_id} to {requester}')
-        return asset

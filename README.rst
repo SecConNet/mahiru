@@ -10,6 +10,8 @@
    :target: https://github.com/SecConNet/mahiru
    :alt: License Badge
 
+.. image:: https://github.com/SecConNet/mahiru/raw/develop/docs/mahiru_logo.png
+
 #######################################
 Mahiru Data Exchange - Proof of Concept
 #######################################
@@ -45,6 +47,22 @@ external auditor to audit software used to process the data.
 The Mahiru design focuses on secure, federated data exchange and processing.
 Buying and selling access rights are outside of its scope, although the system
 could be extended to incorporate this.
+
+Mahiru is the
+[Akkadian word for market](https://www.assyrianlanguages.org/akkadian/dosearch.php?searchkey=2951&language=id).
+Akkadian was spoken in ancient Mesopotamia, in particular in the city of
+Babylon, home of [King Hammurabi](https://en.wikipedia.org/wiki/Hammurabi)
+whose [Code of Hammurabi](https://en.wikipedia.org/wiki/Code_of_Hammurabi) is
+one of the oldest known written legal texts. During his reign in the 18th
+century BCE, Hammurabi made Babylon into a major city and a center of commerce,
+art and learning, and some one thousand years later,
+[Babylonian astronomy](https://en.wikipedia.org/wiki/Babylonian_astronomy) would
+form the beginning of the Western exact sciences.
+
+A thousand years is a long time to sustain a software project, but we hope
+Mahiru can be a center of policy-driven data exchange and learning for a
+thousand weeks at least.
+
 
 Contributing
 ************

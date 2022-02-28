@@ -25,34 +25,38 @@ from mahiru.rest.registry_client import RegistrationRestClient
 logger = logging.getLogger(__file__)
 
 
-def create_parties(
-        site_descriptions: Dict[str, Any]
+def create_keys(
+        party_descriptions: Dict[str, str]
         ) -> Dict[str, RSAPrivateKey]:
-    """Creates parties with private keys."""
+    """Creates private keys of parties."""
     return {
-            desc['owner']: generate_private_key(
+            f'party:{ns}:{name}': generate_private_key(
                 public_exponent=65537,
                 key_size=2048,
                 backend=default_backend())
-            for desc in site_descriptions.values()}
+            for name, ns in party_descriptions.items()}
 
 
 def register_parties(
         registration_client: RegistrationRestClient,
-        parties: Dict[str, RSAPrivateKey]
+        parties: Dict[str, str],
+        party_keys: Dict[str, RSAPrivateKey]
         ) -> None:
     """Register parties with their public keys."""
-    for party_id, private_key in parties.items():
+    for name, namespace in parties.items():
+        party_id = f'party:{namespace}:{name}'
+        private_key = party_keys[party_id]
         registration_client.register_party(
-                PartyDescription(party_id, private_key.public_key()))
+                PartyDescription(
+                    party_id, namespace, private_key.public_key()))
 
 
 def sign_rules(
-        site_descriptions: Dict[str, Any], parties: Dict[str, RSAPrivateKey]
+        site_descriptions: Dict[str, Any], party_keys: Dict[str, RSAPrivateKey]
         ) -> None:
     """Update site descriptions by signing rules."""
     for desc in site_descriptions.values():
-        private_key = parties[desc['owner']]
+        private_key = party_keys[desc['owner']]
         for rule in desc['rules']:
             rule.sign(private_key)
 
@@ -139,11 +143,11 @@ def deregister_sites(
 
 def deregister_parties(
         registration_client: RegistrationRestClient,
-        parties: Dict[str, RSAPrivateKey]
+        parties: Dict[str, str]
         ) -> None:
     """Deregisters parties from the registry."""
-    for party_id in parties:
-        registration_client.deregister_party(party_id)
+    for name, ns in parties.items():
+        registration_client.deregister_party(f'party:{ns}:{name}')
 
 
 def run_scenario(
@@ -154,10 +158,10 @@ def run_scenario(
         scenario['user_site']))
     logger.info('Job:\n{}'.format(indent(str(scenario["job"]), " "*4)))
 
-    parties = create_parties(scenario['sites'])
-    register_parties(registration_client, parties)
+    party_keys = create_keys(scenario['parties'])
+    register_parties(registration_client, scenario['parties'], party_keys)
 
-    sign_rules(scenario['sites'], parties)
+    sign_rules(scenario['sites'], party_keys)
     sites = create_sites(registry_client, scenario['sites'])
     servers = create_servers(sites)
     clients = create_clients(servers, sites)
@@ -173,7 +177,7 @@ def run_scenario(
 
     stop_servers(servers)
     deregister_sites(registration_client, sites)
-    deregister_parties(registration_client, parties)
+    deregister_parties(registration_client, scenario['parties'])
 
     logger.info(f'Result: {result.outputs}')
     return result.outputs
@@ -181,6 +185,12 @@ def run_scenario(
 
 def test_pii(registry_server, registry_client, registration_client):
     scenario = dict()     # type: Dict[str, Any]
+
+    scenario['parties'] = {
+            'party1': 'party1_ns',
+            'party2': 'party2_ns',
+            'ddm': 'ddm_ns'
+            }
 
     scenario['rules-party1'] = [
             InAssetCollection(
@@ -341,6 +351,11 @@ def test_pii(registry_server, registry_client, registration_client):
 
 def test_saas_with_data(registry_server, registry_client, registration_client):
     scenario = dict()     # type: Dict[str, Any]
+
+    scenario['parties'] = {
+            'party1': 'party1_ns',
+            'party2': 'party2_ns'
+            }
 
     scenario['rules-party1'] = [
             MayAccess(

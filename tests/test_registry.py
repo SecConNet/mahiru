@@ -15,7 +15,7 @@ def test_parties_are_values(private_key):
     registry = Registry()
     party1_key = private_key.public_key()
     party1 = PartyDescription(
-            Identifier('party:party1_ns:party1'), party1_key)
+            Identifier('party:party1_ns:party1'), 'ns', party1_key)
 
     registry.register_party(copy(party1))
     update1 = registry.get_updates_since(0)
@@ -34,7 +34,7 @@ def test_sites_are_values(private_key):
     registry = Registry()
     party1_key = private_key.public_key()
     party1 = PartyDescription(
-            Identifier('party:party1_ns:party1'), party1_key)
+            Identifier('party:party1_ns:party1'), 'ns', party1_key)
     registry.register_party(copy(party1))
 
     site1 = SiteDescription(

@@ -342,10 +342,14 @@ components:
       type: object
       required:
         - id
+        - namespace
         - public_key
       properties:
         id:
           description: Identifier of the party
+          type: string
+        namespace:
+          description: The party's namespace
           type: string
         public_key:
           description: The party's PEM-encoded RSA public key

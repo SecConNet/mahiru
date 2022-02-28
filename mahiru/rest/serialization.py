@@ -56,15 +56,17 @@ def _serialize_party_description(party_desc: PartyDescription) -> JSON:
 
     return {
             'id': party_desc.id,
+            'namespace': party_desc.namespace,
             'public_key': public_key}
 
 
 def _deserialize_party_description(user_input: JSON) -> PartyDescription:
     """Deserialize a PartyDescription object from JSON."""
     id_ = user_input['id']
+    namespace = user_input['namespace']
     public_key = load_pem_public_key(
             user_input['public_key'].encode('ascii'), default_backend())
-    return PartyDescription(id_, public_key)
+    return PartyDescription(id_, namespace, public_key)
 
 
 def _serialize_site_description(site_desc: SiteDescription) -> JSON:

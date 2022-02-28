@@ -17,22 +17,27 @@ class PartyDescription(RegisteredObject):
 
     Attributes:
         id: Id of the party.
+        namespace: The party's namespace.
         public_key: The party's public key for signing rules.
 
     """
-    def __init__(self, party_id: Identifier, public_key: RSAPublicKey) -> None:
+    def __init__(
+            self, party_id: Identifier, namespace: str,
+            public_key: RSAPublicKey) -> None:
         """Create a PartyDescription.
 
         Args:
             party_id: ID of the party.
+            namespace: The party's namespace.
             public_key: The party's public key for signing rules.
         """
         self.id = party_id
+        self.namespace = namespace
         self.public_key = public_key
 
     def __repr__(self) -> str:
         """Returns a string representation of the object."""
-        return f'PartyDescription({self.id})'
+        return f'PartyDescription({self.id}, {self.namespace})'
 
 
 class SiteDescription(RegisteredObject):

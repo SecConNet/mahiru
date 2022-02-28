@@ -57,7 +57,7 @@ class PolicyClient(IPolicyCollection):
             if isinstance(o, SiteDescription) and o.namespace:
                 client = PolicyRestClient(o.endpoint + '/rules/updates')
 
-                key = self._registry_client.get_public_key_for_ns(o.namespace)
+                key = self._registry_client.get_public_key(o.owner_id)
                 validator = RuleValidator(o.namespace, key)
                 self._policy_replicas[o.id] = Replica[Rule](
                         client, validator)

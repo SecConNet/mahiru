@@ -69,17 +69,14 @@ class RegistryClient:
         """
         self._registry_replica.update()
 
-    def get_public_key_for_ns(self, namespace: str) -> RSAPublicKey:
-        """Get the public key of the owner of a namespace."""
+    def get_public_key(self, party_id: Identifier) -> RSAPublicKey:
+        """Get the public key of a party."""
         # Do not update here, when this is called we're processing one
         # already.
-        site = self._get_site('namespace', namespace)
-        if site is not None:
-            owner = self._get_party(site.owner_id)
-            if owner is None:
-                raise RuntimeError(f'Registry replica is broken')
-            return owner.public_key
-        raise RuntimeError(f'No site with namespace {namespace} found')
+        party = self._get_party(party_id)
+        if party is None:
+            raise RuntimeError(f'Party with id {party_id} not found')
+        return party.public_key
 
     def list_sites_with_runners(self) -> List[Identifier]:
         """Returns a list of id's of sites with runners."""

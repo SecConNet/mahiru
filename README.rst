@@ -1,3 +1,5 @@
+.. image:: https://github.com/SecConNet/mahiru/raw/develop/docs/mahiru_logo.png
+
 .. image:: https://img.shields.io/badge/github-repo-000.svg?logo=github&labelColor=gray&color=blue
    :target: https://github.com/SecConNet/mahiru
    :alt: GitHub Badge
@@ -9,8 +11,6 @@
 .. image:: https://img.shields.io/github/license/SecConNet/mahiru
    :target: https://github.com/SecConNet/mahiru
    :alt: License Badge
-
-.. image:: https://github.com/SecConNet/mahiru/raw/develop/docs/mahiru_logo.png
 
 #######################################
 Mahiru Data Exchange - Proof of Concept
@@ -49,14 +49,14 @@ Buying and selling access rights are outside of its scope, although the system
 could be extended to incorporate this.
 
 Mahiru is the
-[Akkadian word for market](https://www.assyrianlanguages.org/akkadian/dosearch.php?searchkey=2951&language=id).
+`Akkadian word for market <https://www.assyrianlanguages.org/akkadian/dosearch.php?searchkey=2951&language=id>`_.
 Akkadian was spoken in ancient Mesopotamia, in particular in the city of
-Babylon, home of [King Hammurabi](https://en.wikipedia.org/wiki/Hammurabi)
-whose [Code of Hammurabi](https://en.wikipedia.org/wiki/Code_of_Hammurabi) is
+Babylon, home of `King Hammurabi <https://en.wikipedia.org/wiki/Hammurabi>`_
+whose `Code of Hammurabi <https://en.wikipedia.org/wiki/Code_of_Hammurabi>`_ is
 one of the oldest known written legal texts. During his reign in the 18th
 century BCE, Hammurabi made Babylon into a major city and a center of commerce,
 art and learning, and some one thousand years later,
-[Babylonian astronomy](https://en.wikipedia.org/wiki/Babylonian_astronomy) would
+`Babylonian astronomy <https://en.wikipedia.org/wiki/Babylonian_astronomy>`_ would
 form the beginning of the Western exact sciences.
 
 A thousand years is a long time to sustain a software project, but we hope

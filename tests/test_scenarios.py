@@ -124,7 +124,7 @@ def register_sites(
                 SiteDescription(
                     site.id, site.owner, site.administrator,
                     servers[site_name].external_endpoint,
-                    True, True, site.namespace))
+                    True, True, True))
 
 
 def stop_servers(servers: Dict[str, SiteServer]):

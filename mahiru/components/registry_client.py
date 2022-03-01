@@ -1,6 +1,6 @@
 """Functionality for connecting to the central registry."""
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Set
+from typing import Any, Callable, List, Optional, Set, Tuple
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
@@ -69,14 +69,14 @@ class RegistryClient:
         """
         self._registry_replica.update()
 
-    def get_public_key(self, party_id: Identifier) -> RSAPublicKey:
-        """Get the public key of a party."""
+    def get_ns_and_key(self, party_id: Identifier) -> Tuple[str, RSAPublicKey]:
+        """Get the namespace and public key of a party."""
         # Do not update here, when this is called we're processing one
         # already.
         party = self._get_party(party_id)
         if party is None:
             raise RuntimeError(f'Party with id {party_id} not found')
-        return party.public_key
+        return party.namespace, party.public_key
 
     def list_sites_with_runners(self) -> List[Identifier]:
         """Returns a list of id's of sites with runners."""

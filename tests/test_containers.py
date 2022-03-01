@@ -125,7 +125,7 @@ def run_container_step(
         SiteDescription(
                 site.id, site.owner, site.administrator,
                 site_server.external_endpoint,
-                True, True, site.namespace))
+                True, True, True))
 
     # create single-step workflow
     workflow = Workflow(

@@ -50,9 +50,7 @@ class SiteDescription(RegisteredObject):
         endpoint: This site's REST endpoint.
         runner: Whether the site has a runner.
         store: Whether the site has a store.
-        namespace: The namespace managed by this site's policy server,
-            if any.
-
+        policies: Whether the site serves policies.
     """
     def __init__(
             self,
@@ -62,7 +60,7 @@ class SiteDescription(RegisteredObject):
             endpoint: str,
             runner: bool,
             store: bool,
-            namespace: Optional[str]
+            policies: bool
             ) -> None:
         """Create a SiteDescription.
 
@@ -74,9 +72,7 @@ class SiteDescription(RegisteredObject):
             endpoint: URL of the REST endpoint of this site.
             runner: Whether the site has a runner.
             store: Whether the site has a store.
-            namespace: The namespace managed by this site's policy
-                server, if any.
-
+            policies: Whether the site serves policies.
         """
         self.id = site_id
         self.owner_id = owner_id
@@ -84,7 +80,7 @@ class SiteDescription(RegisteredObject):
         self.endpoint = endpoint
         self.runner = runner
         self.store = store
-        self.namespace = namespace
+        self.policies = policies
 
         if runner and not store:
             raise RuntimeError('Site with runner needs a store')

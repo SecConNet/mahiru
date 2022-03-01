@@ -50,15 +50,16 @@ class PolicyClient(IPolicyCollection):
             deleted: Set of removed objects.
         """
         for o in deleted:
-            if isinstance(o, SiteDescription) and o.namespace:
+            if isinstance(o, SiteDescription) and o.policies:
                 del(self._policy_replicas[o.id])
 
         for o in created:
-            if isinstance(o, SiteDescription) and o.namespace:
+            if isinstance(o, SiteDescription) and o.policies:
                 client = PolicyRestClient(o.endpoint + '/rules/updates')
 
-                key = self._registry_client.get_public_key(o.owner_id)
-                validator = RuleValidator(o.namespace, key)
+                namespace, key = self._registry_client.get_ns_and_key(
+                        o.owner_id)
+                validator = RuleValidator(namespace, key)
                 self._policy_replicas[o.id] = Replica[Rule](
                         client, validator)
 

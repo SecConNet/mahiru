@@ -62,7 +62,8 @@ def run_container_step(
             public_exponent=65537, key_size=2048, backend=default_backend())
 
     registration_client.register_party(
-            PartyDescription('party:ns:test_party', party_key.public_key()))
+            PartyDescription(
+                'party:ns:test_party', 'ns', party_key.public_key()))
 
     # create assets
     data_asset_output_tar, data_asset_input_tar = data_asset_tars
@@ -124,7 +125,7 @@ def run_container_step(
         SiteDescription(
                 site.id, site.owner, site.administrator,
                 site_server.external_endpoint,
-                True, True, site.namespace))
+                True, True, True))
 
     # create single-step workflow
     workflow = Workflow(

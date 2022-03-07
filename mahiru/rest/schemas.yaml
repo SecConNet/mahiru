@@ -342,10 +342,14 @@ components:
       type: object
       required:
         - id
+        - namespace
         - public_key
       properties:
         id:
           description: Identifier of the party
+          type: string
+        namespace:
+          description: The party's namespace
           type: string
         public_key:
           description: The party's PEM-encoded RSA public key
@@ -358,9 +362,9 @@ components:
         - owner_id
         - admin_id
         - endpoint
-        - runner
-        - store
-        - namespace
+        - has_runner
+        - has_store
+        - has_policies
       properties:
         id:
           description: Identifier of the site
@@ -376,18 +380,15 @@ components:
             REST endpoint at which the site may be contacted.
           type: string
           format: uri
-        runner:
+        has_runner:
           description: Whether the site has a runner
           type: boolean
-        store:
+        has_store:
           description: Whether the site has a store
           type: boolean
-        namespace:
-          description: >-
-            Namespace for which the policy server serves policy, if there
-            is a policy server at this site, otherwise null.
-          type: string
-          nullable: true
+        has_policies:
+          description: Whether the site serves policies
+          type: boolean
 
     RegistryUpdate:
       type: object

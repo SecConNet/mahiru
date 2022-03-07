@@ -19,13 +19,13 @@ ASSET_DIR = Path.home() / 'mahiru' / 'assets'
 def register(public_key: RSAPublicKey) -> None:
     """Registers the current party and site with the registry."""
     party_id = 'party:party2_ns:party2'
-    party_desc = PartyDescription(party_id, public_key)
+    namespace = 'party2_ns'
+    party_desc = PartyDescription(party_id, namespace, public_key)
 
     site_id = 'site:party2_ns:site2'
     endpoint = 'http://site2'
-    namespace = 'party2_ns'
     site_desc = SiteDescription(
-            site_id, party_id, party_id, endpoint, True, True, namespace)
+            site_id, party_id, party_id, endpoint, True, True, True)
 
     client = RegistrationRestClient("http://registry")
 

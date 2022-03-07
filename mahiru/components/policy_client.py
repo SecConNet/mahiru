@@ -2,6 +2,7 @@
 from typing import Dict, Iterable, Set
 
 from mahiru.components.registry_client import RegistryClient
+from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.definitions.registry import RegisteredObject, SiteDescription
 from mahiru.definitions.policy import Rule
@@ -23,7 +24,7 @@ class PolicyClient(IPolicyCollection):
         """
         self._registry_client = registry_client
 
-        self._policy_replicas = dict()  # type: Dict[str, Replica[Rule]]
+        self._policy_replicas = dict()  # type: Dict[Identifier, Replica[Rule]]
         self._registry_client.register_callback(self.on_update)
 
     def policies(self) -> Iterable[Rule]:
@@ -49,16 +50,17 @@ class PolicyClient(IPolicyCollection):
             deleted: Set of removed objects.
         """
         for o in deleted:
-            if isinstance(o, SiteDescription) and o.namespace:
-                del(self._policy_replicas[o.namespace])
+            if isinstance(o, SiteDescription) and o.has_policies:
+                del(self._policy_replicas[o.id])
 
         for o in created:
-            if isinstance(o, SiteDescription) and o.namespace:
+            if isinstance(o, SiteDescription) and o.has_policies:
                 client = PolicyRestClient(o.endpoint + '/rules/updates')
 
-                key = self._registry_client.get_public_key_for_ns(o.namespace)
-                validator = RuleValidator(o.namespace, key)
-                self._policy_replicas[o.namespace] = Replica[Rule](
+                namespace, key = self._registry_client.get_ns_and_key(
+                        o.owner_id)
+                validator = RuleValidator(namespace, key)
+                self._policy_replicas[o.id] = Replica[Rule](
                         client, validator)
 
     def _update(self) -> None:

@@ -84,7 +84,7 @@ class RegistryClient:
         sites = list()
         for o in self._registry_replica.objects:
             if isinstance(o, SiteDescription):
-                if o.runner:
+                if o.has_runner:
                     sites.append(o.id)
         return sites
 

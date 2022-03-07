@@ -362,9 +362,9 @@ components:
         - owner_id
         - admin_id
         - endpoint
-        - runner
-        - store
-        - policies
+        - has_runner
+        - has_store
+        - has_policies
       properties:
         id:
           description: Identifier of the site
@@ -380,13 +380,13 @@ components:
             REST endpoint at which the site may be contacted.
           type: string
           format: uri
-        runner:
+        has_runner:
           description: Whether the site has a runner
           type: boolean
-        store:
+        has_store:
           description: Whether the site has a store
           type: boolean
-        policies:
+        has_policies:
           description: Whether the site serves policies
           type: boolean
 

@@ -48,9 +48,9 @@ class SiteDescription(RegisteredObject):
         owner_id: The party which owns this site.
         admin_id: The party which administrates this site.
         endpoint: This site's REST endpoint.
-        runner: Whether the site has a runner.
-        store: Whether the site has a store.
-        policies: Whether the site serves policies.
+        has_runner: Whether the site has a runner.
+        has_store: Whether the site has a store.
+        has_policies: Whether the site serves policies.
     """
     def __init__(
             self,
@@ -58,9 +58,9 @@ class SiteDescription(RegisteredObject):
             owner_id: Identifier,
             admin_id: Identifier,
             endpoint: str,
-            runner: bool,
-            store: bool,
-            policies: bool
+            has_runner: bool,
+            has_store: bool,
+            has_policies: bool
             ) -> None:
         """Create a SiteDescription.
 
@@ -70,19 +70,19 @@ class SiteDescription(RegisteredObject):
             admin_id: Identifier of the party which administrates this
                 site.
             endpoint: URL of the REST endpoint of this site.
-            runner: Whether the site has a runner.
-            store: Whether the site has a store.
-            policies: Whether the site serves policies.
+            has_runner: Whether the site has a runner.
+            has_store: Whether the site has a store.
+            has_policies: Whether the site serves policies.
         """
         self.id = site_id
         self.owner_id = owner_id
         self.admin_id = admin_id
         self.endpoint = endpoint
-        self.runner = runner
-        self.store = store
-        self.policies = policies
+        self.has_runner = has_runner
+        self.has_store = has_store
+        self.has_policies = has_policies
 
-        if runner and not store:
+        if has_runner and not has_store:
             raise RuntimeError('Site with runner needs a store')
 
     def __repr__(self) -> str:

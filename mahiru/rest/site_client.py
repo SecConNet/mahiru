@@ -34,7 +34,7 @@ class SiteRestClient:
         except KeyError:
             raise RuntimeError(f'Site or store at site {site_id} not found')
 
-        if site.store is not None:
+        if site.has_store:
             safe_asset_id = quote(asset_id, safe='')
             r = requests.get(
                     f'{site.endpoint}/assets/{safe_asset_id}',
@@ -102,7 +102,7 @@ class SiteRestClient:
         except KeyError:
             raise RuntimeError(f'Site or store at site {site_id} not found')
 
-        if site.store is not None:
+        if site.has_store:
             safe_asset_id = quote(asset_id, safe='')
             r = requests.post(
                     f'{site.endpoint}/assets/{safe_asset_id}/connect',
@@ -113,6 +113,8 @@ class SiteRestClient:
             conn_info_json = r.json()
             validate_json('ConnectionInfo', conn_info_json)
             return deserialize(ConnectionInfo, conn_info_json)
+
+        raise RuntimeError(f'Site {site_id} does not have a store')
 
     def disconnect_asset(
             self, asset_id: Identifier, conn_id: str) -> None:
@@ -151,7 +153,7 @@ class SiteRestClient:
         except KeyError:
             raise RuntimeError(f'Site or runner at site {site_id} not found')
 
-        if site.runner:
+        if site.has_runner:
             requests.post(f'{site.endpoint}/jobs', json=serialize(request))
         else:
             raise ValueError(f'Site {site_id} does not have a runner')

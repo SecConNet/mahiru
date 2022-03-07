@@ -76,9 +76,9 @@ def _serialize_site_description(site_desc: SiteDescription) -> JSON:
     result['owner_id'] = site_desc.owner_id
     result['admin_id'] = site_desc.admin_id
     result['endpoint'] = site_desc.endpoint
-    result['store'] = site_desc.store
-    result['runner'] = site_desc.runner
-    result['policies'] = site_desc.policies
+    result['has_store'] = site_desc.has_store
+    result['has_runner'] = site_desc.has_runner
+    result['has_policies'] = site_desc.has_policies
     return result
 
 
@@ -89,9 +89,9 @@ def _deserialize_site_description(user_input: JSON) -> SiteDescription:
             user_input['owner_id'],
             user_input['admin_id'],
             user_input['endpoint'],
-            user_input['store'],
-            user_input['runner'],
-            user_input['policies'])
+            user_input['has_store'],
+            user_input['has_runner'],
+            user_input['has_policies'])
 
 
 def _deserialize_registered_object(user_input: JSON) -> RegisteredObject:

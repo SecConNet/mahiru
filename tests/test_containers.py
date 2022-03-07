@@ -87,13 +87,13 @@ def run_container_step(
             MayAccess(
                 'site:ns:test_site', 'asset:ns:output_base:ns:test_site'),
             ResultOfDataIn(
-                'asset:ns:dataset1:ns:test_site', '*',
+                'asset:ns:dataset1:ns:test_site', '*', 'output0',
                 'asset_collection:ns:results1'),
             ResultOfDataIn(
-                'asset:ns:output_base:ns:test_site', '*',
+                'asset:ns:output_base:ns:test_site', '*', '*',
                 'asset_collection:ns:results1'),
             ResultOfComputeIn(
-                '*', 'asset:ns:compute1:ns:test_site',
+                '*', 'asset:ns:compute1:ns:test_site', '*',
                 'asset_collection:ns:public'),
             MayAccess('site:ns:test_site', 'asset_collection:ns:results1'),
             MayAccess('*', 'asset_collection:ns:public')]

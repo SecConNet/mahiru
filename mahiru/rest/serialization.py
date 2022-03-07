@@ -138,6 +138,7 @@ def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'data_asset': rule.data_asset,
             'compute_asset': rule.compute_asset,
+            'output': rule.output,
             'collection': rule.collection}
 
 
@@ -148,6 +149,7 @@ def _serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'data_asset': rule.data_asset,
             'compute_asset': rule.compute_asset,
+            'output': rule.output,
             'collection': rule.collection}
 
 
@@ -163,11 +165,11 @@ def _deserialize_rule(user_input: JSON) -> Rule:
     elif user_input['type'] == 'ResultOfDataIn':
         rule = ResultOfDataIn(
                 user_input['data_asset'], user_input['compute_asset'],
-                user_input['collection'])
+                user_input['output'], user_input['collection'])
     elif user_input['type'] == 'ResultOfComputeIn':
         rule = ResultOfComputeIn(
                 user_input['data_asset'], user_input['compute_asset'],
-                user_input['collection'])
+                user_input['output'], user_input['collection'])
     else:
         raise RuntimeError('Invalid rule type when deserialising')
 

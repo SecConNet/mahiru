@@ -79,6 +79,7 @@ components:
         - signature
         - data_asset
         - compute_asset
+        - output
         - collection
       properties:
         type:
@@ -92,6 +93,9 @@ components:
           type: string
         compute_asset:
           description: Id of the compute asset used to processs it
+          type: string
+        output:
+          description: Name of the output the rule governs.
           type: string
         collection:
           description: Id of the collection the result is in

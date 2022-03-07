@@ -122,6 +122,7 @@ class ResultOfIn(Rule):
             self,
             data_asset: Union[str, Identifier],
             compute_asset: Union[str, Identifier],
+            output: str,
             collection: Union[str, Identifier]
             ) -> None:
         """Create a ResultOfIn rule.
@@ -129,6 +130,8 @@ class ResultOfIn(Rule):
         Args:
             data_asset: The source data asset.
             compute_asset: The compute asset used to process the data.
+            output: The name of the workflow step output that produced
+                    the result Asset, or '*' to match any output.
             collection: The output collection.
         """
         if not isinstance(data_asset, Identifier):
@@ -142,21 +145,23 @@ class ResultOfIn(Rule):
 
         self.data_asset = data_asset
         self.compute_asset = compute_asset
+        self.output = output
         self.collection = collection
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
-        return '(result of "{}" on "{}" is in collection "{}")'.format(
-                self.compute_asset, self.data_asset, self.collection)
+        return '(result "{}" of "{}" on "{}" is in collection "{}")'.format(
+                self.output, self.compute_asset, self.data_asset,
+                self.collection)
 
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}|{}'.format(
-                self.data_asset, self.compute_asset, self.collection
-                ).encode('utf-8')
+        return '{}|{}|{}|{}'.format(
+                self.data_asset, self.compute_asset, self.output,
+                self.collection).encode('utf-8')
 
 
 class ResultOfDataIn(ResultOfIn):

@@ -51,7 +51,8 @@ class PolicyEvaluator:
     def propagate_permissions(
             self,
             input_permissions: List[Permissions],
-            compute_asset: Identifier
+            compute_asset: Identifier,
+            output: str
             ) -> Permissions:
         """Determines access for the result of an operation.
 
@@ -64,6 +65,7 @@ class PolicyEvaluator:
             input_permissions: A list of access permissions to
                     propagate, one for each input.
             compute_asset: The compute asset used in the operation.
+            output: The step output to propagate permissions for.
 
         Returns:
             The access permissions of the results.
@@ -72,14 +74,14 @@ class PolicyEvaluator:
         for input_perms in input_permissions:
             for asset_set in input_perms._sets:
                 data_rules = self._resultofin_rules(
-                        ResultOfDataIn, asset_set, compute_asset)
+                        ResultOfDataIn, asset_set, compute_asset, output)
                 result._sets.append({
                         asset
                         for rule in data_rules
                         for asset in self._equivalent_assets(rule.collection)})
 
                 compute_rules = self._resultofin_rules(
-                        ResultOfComputeIn, asset_set, compute_asset)
+                        ResultOfComputeIn, asset_set, compute_asset, output)
                 result._sets.append({
                         asset
                         for rule in compute_rules
@@ -155,7 +157,7 @@ class PolicyEvaluator:
 
     def _resultofin_rules(
             self, typ: Type, asset_set: Set[Identifier],
-            compute_asset: Identifier
+            compute_asset: Identifier, output: str,
             ) -> List[ResultOfIn]:
         """Returns all ResultOfIn rules that apply to these assets.
 
@@ -169,6 +171,7 @@ class PolicyEvaluator:
                     the kind of rules to return.
             asset_set: Set of data assets to match rules to.
             compute_asset: Compute asset to match rules to.
+            output: Output to match rules to.
         """
         def rules_for_asset(asset: Identifier) -> List[ResultOfIn]:
             """Gets all matching rules for the given single asset."""
@@ -177,7 +180,9 @@ class PolicyEvaluator:
             for rule in self._policy_collection.policies():
                 if isinstance(rule, typ):
                     for asset in assets:
-                        if rule.data_asset == asset:
+                        output_matches = (
+                                rule.output == output or rule.output == '*')
+                        if rule.data_asset == asset and output_matches:
                             result.append(rule)
             return result
 
@@ -290,15 +295,16 @@ class PermissionCalculator:
             for inp in step.inputs:
                 inp_item = '{}.{}'.format(step.name, inp)
                 input_perms.append(permissions[inp_item])
-            for outp in step.outputs:
-                base_item = '{}.@{}'.format(step.name, outp)
-                if base_item in permissions:
-                    input_perms.append(permissions[base_item])
-
-            perms = self._policy_evaluator.propagate_permissions(
-                        input_perms, step.compute_asset_id)
 
             for output in step.outputs:
+                o_input_perms = list(input_perms)
+                base_item = '{}.@{}'.format(step.name, output)
+                if base_item in permissions:
+                    o_input_perms.append(permissions[base_item])
+
+                perms = self._policy_evaluator.propagate_permissions(
+                            o_input_perms, step.compute_asset_id, output)
+
                 output_item = '{}.{}'.format(step.name, output)
                 permissions[output_item] = perms
 

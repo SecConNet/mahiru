@@ -42,10 +42,10 @@ def test_rules_are_values():
 
     rule4a = ResultOfDataIn(
             'asset:party4_ns:data4:ns:s', 'asset:party4_ns:compute4:ns:s',
-            'asset_collection:party4_ns:collection4')
+            '*', 'asset_collection:party4_ns:collection4')
     rule4b = ResultOfComputeIn(
             'asset:party4_ns:data4:ns:s', 'asset:party4_ns:compute4:ns:s',
-            'asset_collection:party4_ns:collection4')
+            '*', 'asset_collection:party4_ns:collection4')
     policy_store.insert(copy(rule4a))
     policy_store.insert(copy(rule4b))
 

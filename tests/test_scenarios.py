@@ -200,18 +200,18 @@ def test_pii(registry_server, registry_client, registration_client):
                 'site:party1_ns:site1',
                 'asset_collection:party1_ns:collection.PII1'),
             ResultOfDataIn(
-                'asset_collection:party1_ns:collection.PII1', '*',
+                'asset_collection:party1_ns:collection.PII1', '*', '*',
                 'asset_collection:party1_ns:collection.PII1'),
             ResultOfDataIn(
                 'asset_collection:party1_ns:collection.PII1',
-                'asset:ddm_ns:software.anonymise:ddm_ns:site3',
+                'asset:ddm_ns:software.anonymise:ddm_ns:site3', 'y',
                 'asset_collection:party1_ns:collection.ScienceOnly1'),
             ResultOfDataIn(
                 'asset_collection:party1_ns:collection.PII1',
-                'asset:ddm_ns:software.aggregate:ddm_ns:site3',
+                'asset:ddm_ns:software.aggregate:ddm_ns:site3', 'y',
                 'asset_collection:ddm_ns:collection.Public'),
             ResultOfDataIn(
-                'asset_collection:party1_ns:collection.ScienceOnly1', '*',
+                'asset_collection:party1_ns:collection.ScienceOnly1', '*', '*',
                 'asset_collection:party1_ns:collection.ScienceOnly1'),
             InAssetCollection(
                 'asset_collection:party1_ns:collection.ScienceOnly1',
@@ -229,14 +229,14 @@ def test_pii(registry_server, registry_client, registration_client):
                 'site:party1_ns:site1',
                 'asset_collection:party2_ns:collection.PII2'),
             ResultOfDataIn(
-                'asset_collection:party2_ns:collection.PII2', '*',
+                'asset_collection:party2_ns:collection.PII2', '*', '*',
                 'asset_collection:party2_ns:collection.PII2'),
             ResultOfDataIn(
                 'asset_collection:party2_ns:collection.PII2',
-                'asset:ddm_ns:software.anonymise:ddm_ns:site3',
+                'asset:ddm_ns:software.anonymise:ddm_ns:site3', 'y',
                 'asset_collection:party2_ns:collection.ScienceOnly2'),
             ResultOfDataIn(
-                'asset_collection:party2_ns:collection.ScienceOnly2', '*',
+                'asset_collection:party2_ns:collection.ScienceOnly2', '*', '*',
                 'asset_collection:party2_ns:collection.ScienceOnly2'),
             InAssetCollection(
                 'asset_collection:party2_ns:collection.ScienceOnly2',
@@ -256,19 +256,19 @@ def test_pii(registry_server, registry_client, registration_client):
             MayAccess(
                 '*', 'asset_collection:ddm_ns:collection.PublicSoftware'),
             ResultOfDataIn(
-                'asset_collection:ddm_ns:collection.Public', '*',
+                'asset_collection:ddm_ns:collection.Public', '*', '*',
                 'asset_collection:ddm_ns:collection.Public'),
 
             ResultOfComputeIn(
-                '*', 'asset:ddm_ns:software.anonymise:ddm_ns:site3',
+                '*', 'asset:ddm_ns:software.anonymise:ddm_ns:site3', 'y',
                 'asset_collection:ddm_ns:collection.Public'),
 
             ResultOfComputeIn(
-                '*', 'asset:ddm_ns:software.aggregate:ddm_ns:site3',
+                '*', 'asset:ddm_ns:software.aggregate:ddm_ns:site3', 'y',
                 'asset_collection:ddm_ns:collection.Public'),
 
             ResultOfComputeIn(
-                '*', 'asset:ddm_ns:software.combine:ddm_ns:site3',
+                '*', 'asset:ddm_ns:software.combine:ddm_ns:site3', 'y',
                 'asset_collection:ddm_ns:collection.Public'),
 
             MayAccess(
@@ -366,7 +366,7 @@ def test_saas_with_data(registry_server, registry_client, registration_client):
                 'asset:party1_ns:dataset.data1:party1_ns:site1'),
             ResultOfDataIn(
                 'asset:party1_ns:dataset.data1:party1_ns:site1',
-                'asset:party2_ns:software.addition:party2_ns:site2',
+                'asset:party2_ns:software.addition:party2_ns:site2', 'y',
                 'asset_collection:party1_ns:collection.result1'),
             MayAccess(
                 'site:party1_ns:site1',
@@ -385,15 +385,15 @@ def test_saas_with_data(registry_server, registry_client, registration_client):
                 'asset:party2_ns:software.addition:party2_ns:site2'),
             ResultOfDataIn(
                 'asset:party2_ns:dataset.data2:party2_ns:site2',
-                'asset:party2_ns:software.addition:party2_ns:site2',
+                'asset:party2_ns:software.addition:party2_ns:site2', 'y',
                 'asset_collection:party2_ns:collection.result2'),
             ResultOfComputeIn(
                 'asset:party2_ns:dataset.data2:party2_ns:site2',
-                'asset:party2_ns:software.addition:party2_ns:site2',
+                'asset:party2_ns:software.addition:party2_ns:site2', '*',
                 'asset_collection:party2_ns:collection.result2'),
             ResultOfComputeIn(
                 'asset:party1_ns:dataset.data1:party1_ns:site1',
-                'asset:party2_ns:software.addition:party2_ns:site2',
+                'asset:party2_ns:software.addition:party2_ns:site2', 'y',
                 'asset_collection:party2_ns:collection.result2'),
             MayAccess(
                 'site:party1_ns:site1',

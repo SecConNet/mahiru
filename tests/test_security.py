@@ -30,22 +30,24 @@ def test_wf_output_checks():
             MayAccess('site:ns1:s1', 'asset:ns:Anonymise:ns:s'),
             MayAccess('site:ns1:s1', 'asset:ns:Aggregate:ns:s'),
             ResultOfDataIn(
-                'asset_collection:ns:Public', '*',
+                'asset_collection:ns:Public', '*', '*',
                 'asset_collection:ns:Public'),
             MayAccess('site:ns1:s1', 'asset_collection:ns:Public'),
             MayAccess('site:ns2:s2', 'asset_collection:ns:Public'),
             MayAccess('site:ns1:s1', 'asset:ns1:dataset.d1:ns1:s1'),
             ResultOfDataIn(
-                'asset:ns1:dataset.d1:ns1:s1', 'asset:ns:Anonymise:ns:s',
+                'asset:ns1:dataset.d1:ns1:s1', 'asset:ns:Anonymise:ns:s', 'y',
                 'asset_collection:ns1:Anonymous'),
             ResultOfComputeIn(
-                '*', 'asset:ns:Anonymise:ns:s', 'asset_collection:ns:Public'),
+                '*', 'asset:ns:Anonymise:ns:s', 'y',
+                'asset_collection:ns:Public'),
             MayAccess('site:ns1:s1', 'asset_collection:ns1:Anonymous'),
             ResultOfDataIn(
                 'asset_collection:ns1:Anonymous', 'asset:ns:Aggregate:ns:s',
-                'asset_collection:ns1:Aggregated'),
+                'y', 'asset_collection:ns1:Aggregated'),
             ResultOfComputeIn(
-                '*', 'asset:ns:Aggregate:ns:s', 'asset_collection:ns:Public'),
+                '*', 'asset:ns:Aggregate:ns:s', 'y',
+                'asset_collection:ns:Public'),
             MayAccess('site:ns1:s1', 'asset_collection:ns1:Aggregated'),
             MayAccess('site:ns2:s2', 'asset_collection:ns1:Aggregated'),
             ]

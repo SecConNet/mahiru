@@ -1,20 +1,22 @@
 """Components for evaluating workflow permissions."""
-from typing import Dict, Iterable, List, Optional, Set, Type
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.definitions.workflows import Job, Plan, Workflow, WorkflowStep
 from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfIn,
-        ResultOfDataIn, ResultOfComputeIn)
+        InAssetCategory, InAssetCollection, InPartyCollection, MayAccess,
+        ResultOfIn, ResultOfDataIn, ResultOfComputeIn)
 
 
 class Permissions:
     """Represents permissions for an asset."""
-    def __init__(self) -> None:
+    def __init__(self, sets: Optional[List[Set[Identifier]]] = None) -> None:
         """Creates Permissions that do not allow access."""
         # friend PolicyEvaluator
         self._sets = list()     # type: List[Set[Identifier]]
+        if sets is not None:
+            self._sets = sets
 
     def __str__(self) -> str:
         """Returns a string representationf this object."""
@@ -45,7 +47,7 @@ class PolicyEvaluator:
             asset: The asset to get permissions for.
         """
         result = Permissions()
-        result._sets = [self._equivalent_assets(asset)]
+        result._sets = [self._coll_equivalent_assets(asset)]
         return result
 
     def propagate_permissions(
@@ -73,19 +75,11 @@ class PolicyEvaluator:
         result = Permissions()
         for input_perms in input_permissions:
             for asset_set in input_perms._sets:
-                data_rules = self._resultofin_rules(
-                        ResultOfDataIn, asset_set, compute_asset, output)
-                result._sets.append({
-                        asset
-                        for rule in data_rules
-                        for asset in self._equivalent_assets(rule.collection)})
+                data_coll, compute_coll = self._resultofin_collections(
+                        asset_set, compute_asset, output)
+                result._sets.append(data_coll)
+                result._sets.append(compute_coll)
 
-                compute_rules = self._resultofin_rules(
-                        ResultOfComputeIn, asset_set, compute_asset, output)
-                result._sets.append({
-                        asset
-                        for rule in compute_rules
-                        for asset in self._equivalent_assets(rule.collection)})
         return result
 
     def may_access(self, permissions: Permissions, site: Identifier) -> bool:
@@ -132,8 +126,8 @@ class PolicyEvaluator:
                             new_parties.append(rule.collection)
         return cur_parties
 
-    def _equivalent_assets(self, asset: Identifier) -> Set[Identifier]:
-        """Returns all the assets whose rules apply to an asset.
+    def _coll_equivalent_assets(self, asset: Identifier) -> Set[Identifier]:
+        """Returns all the collection-equivalent assets.
 
         These are the asset itself, and all assets that are asset
         collections that the asset is directly or indirectly in.
@@ -146,55 +140,84 @@ class PolicyEvaluator:
         while new_assets:
             cur_assets |= new_assets
             new_assets = set()
-            for asset in cur_assets:
+            for a in cur_assets:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, InAssetCollection):
-                        if rule.asset == asset:
+                        if rule.asset == a:
                             if rule.collection not in cur_assets:
                                 new_assets.add(rule.collection)
-        cur_assets.add(Identifier('*'))
         return cur_assets
 
-    def _resultofin_rules(
-            self, typ: Type, asset_set: Set[Identifier],
-            compute_asset: Identifier, output: str,
-            ) -> List[ResultOfIn]:
-        """Returns all ResultOfIn rules that apply to these assets.
+    def _cat_equivalent_assets(self, asset: Identifier) -> Set[Identifier]:
+        """Returns all the category-equivalent assets.
 
-        These are rules that have one of the given assets in their
-        asset field, and the given compute_asset or an equivalent one.
-
-        The returned list contains only items of type typ.
+        These are the asset itself, and if it is an asset category, all
+        assets that are in it or in a subcategory.
 
         Args:
-            typ: Either ResultOfDataIn or ResultOfComputeIn, specifies
-                    the kind of rules to return.
-            asset_set: Set of data assets to match rules to.
+            asset: The asset or asset category to find equivalents for.
+        """
+        cur_assets = set()      # type: Set[Identifier]
+        new_assets = {asset}
+        while new_assets:
+            cur_assets |= new_assets
+            new_assets = set()
+            for a in cur_assets:
+                for rule in self._policy_collection.policies():
+                    if isinstance(rule, InAssetCategory):
+                        if rule.category == a:
+                            if rule.asset not in cur_assets:
+                                new_assets.add(rule.asset)
+        return cur_assets
+
+    def _resultofin_collections(
+            self, input_assets: Set[Identifier],
+            compute_asset: Identifier, output: str,
+            ) -> Tuple[Set[Identifier], Set[Identifier]]:
+        """Returns collections these assets propagate to.
+
+        This finds ResultOfIn rules that apply to the given assets,
+        and collects the collections that they propagate to. Two sets
+        of collections are returned, the first one for ResultOfDataIn
+        rules and the second one for ResultOfComputein rules.
+
+        Args:
+            input_assets: Set of data assets to match rules to.
             compute_asset: Compute asset to match rules to.
             output: Output to match rules to.
         """
-        def rules_for_asset(asset: Identifier) -> List[ResultOfIn]:
-            """Gets all matching rules for the given single asset."""
-            result = list()     # type: List[ResultOfIn]
-            assets = self._equivalent_assets(asset)
-            for rule in self._policy_collection.policies():
-                if isinstance(rule, typ):
-                    for asset in assets:
-                        output_matches = (
-                                rule.output == output or rule.output == '*')
-                        if rule.data_asset == asset and output_matches:
-                            result.append(rule)
-            return result
+        data_collections, compute_collections = set(), set()
 
-        comp_assets = self._equivalent_assets(compute_asset)
+        input_assets_colls = {
+                a for input_asset in input_assets
+                for a in self._coll_equivalent_assets(input_asset)}
+        compute_asset_colls = self._coll_equivalent_assets(compute_asset)
 
-        rules = list()  # type: List[ResultOfIn]
-        for asset in asset_set:
-            new_rules = rules_for_asset(asset)
-            rules.extend([rule
-                          for rule in new_rules
-                          if rule.compute_asset in comp_assets])
-        return rules
+        for rule in self._policy_collection.policies():
+            if isinstance(rule, ResultOfIn):
+                if rule.output != '*' and rule.output != output:
+                    continue
+
+            if isinstance(rule, ResultOfDataIn):
+                if rule.data_asset in input_assets_colls:
+                    if rule.compute_asset == '*':
+                        data_collections.add(rule.collection)
+                    elif compute_asset in self._cat_equivalent_assets(
+                            rule.compute_asset):
+                        data_collections.add(rule.collection)
+
+            elif isinstance(rule, ResultOfComputeIn):
+                if rule.compute_asset in compute_asset_colls:
+                    if rule.data_asset == '*':
+                        compute_collections.add(rule.collection)
+                        continue
+
+                    equiv_data_assets = self._cat_equivalent_assets(
+                            rule.data_asset)
+                    if not input_assets.isdisjoint(equiv_data_assets):
+                        compute_collections.add(rule.collection)
+
+        return data_collections, compute_collections
 
 
 class PermissionCalculator:

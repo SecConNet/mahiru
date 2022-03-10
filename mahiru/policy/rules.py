@@ -44,6 +44,41 @@ class InAssetCollection(Rule):
         return self.asset.namespace()
 
 
+class InAssetCategory(Rule):
+    """Says that an AssetCategory contains an Asset."""
+    def __init__(
+            self, asset: Union[str, Identifier],
+            category: Union[str, Identifier]
+            ) -> None:
+        """Create an InAssetCategory rule.
+
+        Args:
+            asset: The asset to add to the category.
+            category: The category to add it to.
+        """
+        if not isinstance(asset, Identifier):
+            asset = Identifier(asset)
+        self.asset = asset
+        if not isinstance(category, Identifier):
+            category = Identifier(category)
+        self.category = category
+
+    def __repr__(self) -> str:
+        """Return a string representation of this rule."""
+        return '("{}" is in "{}")'.format(self.asset, self.category)
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.asset, self.category).encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.category.namespace()
+
+
 class InPartyCollection(Rule):
     """Says that Party party is in PartyCollection collection."""
     def __init__(

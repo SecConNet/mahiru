@@ -13,7 +13,8 @@ class Identifier(str):
     3. site:<namespace>:<name>
     4. asset:<namespace>:<name>:<site_namespace>:<site_name>
     5. asset_collection:<namespace>:<name>
-    6. result:<id_hash>
+    6. asset_category:<namespace>:<name>
+    7. result:<id_hash>
 
     This class also accepts a single asterisk as an identifier, as it
     is used as a wildcard in rules.
@@ -101,10 +102,10 @@ class Identifier(str):
 
     _kinds = (
         'party', 'party_collection', 'site', 'asset', 'asset_collection',
-        'result')
+        'asset_category', 'result')
 
     _lengths = {
             'party': 3, 'party_collection': 3, 'site': 3, 'asset': 5,
-            'asset_collection': 3, 'result': 2}
+            'asset_collection': 3, 'asset_category': 3, 'result': 2}
 
     _segment_regex = re.compile('[a-zA-Z0-9_.-]*')

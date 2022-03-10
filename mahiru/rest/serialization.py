@@ -24,8 +24,8 @@ from mahiru.definitions.workflows import (
 
 from mahiru.policy.definitions import PolicyUpdate
 from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
-        ResultOfDataIn)
+        InAssetCollection, InAssetCategory, InPartyCollection, MayAccess,
+        ResultOfComputeIn, ResultOfDataIn)
 
 from mahiru.registry.replication import RegistryUpdate
 from mahiru.replication import ReplicaUpdate
@@ -113,6 +113,15 @@ def _serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
             'collection': rule.collection}
 
 
+def _serialize_in_asset_category(rule: InAssetCategory) -> JSON:
+    """Serialize an InAssetCategory object to JSON."""
+    return {
+            'type': 'InAssetCategory',
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
+            'asset': rule.asset,
+            'category': rule.category}
+
+
 def _serialize_in_party_collection(rule: InPartyCollection) -> JSON:
     """Serialize an InPartyCollection object to JSON."""
     return {
@@ -158,6 +167,8 @@ def _deserialize_rule(user_input: JSON) -> Rule:
     rule = None     # type: Optional[Rule]
     if user_input['type'] == 'InAssetCollection':
         rule = InAssetCollection(user_input['asset'], user_input['collection'])
+    elif user_input['type'] == 'InAssetCategory':
+        rule = InAssetCategory(user_input['asset'], user_input['category'])
     elif user_input['type'] == 'InPartyCollection':
         rule = InPartyCollection(user_input['party'], user_input['collection'])
     elif user_input['type'] == 'MayAccess':
@@ -434,6 +445,7 @@ _serializers = {
         PartyDescription: _serialize_party_description,
         SiteDescription: _serialize_site_description,
         InAssetCollection: _serialize_in_asset_collection,
+        InAssetCategory: _serialize_in_asset_category,
         InPartyCollection: _serialize_in_party_collection,
         MayAccess: _serialize_may_access,
         ResultOfDataIn: _serialize_result_of_data_in,

@@ -6,12 +6,12 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.policy.evaluation import Permissions, PolicyEvaluator
 from mahiru.policy.rules import (
-        InAssetCategory, InAssetCollection, MayAccess, ResultOfComputeIn,
-        ResultOfDataIn, Rule)
+        InAssetCategory, InAssetCollection, InSiteCategory, MayAccess,
+        ResultOfComputeIn, ResultOfDataIn, Rule)
 
 
 @pytest.fixture
-def any_asset() -> Identifier:
+def any_object() -> Identifier:
     """Return a wildcard identifier."""
     return Identifier('*')
 
@@ -44,6 +44,12 @@ def site1() -> Identifier:
 def site2() -> Identifier:
     """Identifier for a site owned by party2."""
     return Identifier('site:ns2:site2')
+
+
+@pytest.fixture
+def site_category1a() -> Identifier:
+    """Identifier for a site category owned by party1."""
+    return Identifier('site_category:ns1:site_category_a')
 
 
 @pytest.fixture
@@ -149,6 +155,28 @@ def test_asset_category_access(asset1, asset_category1a, site1):
     policies = MockPolicies([
         InAssetCategory(asset1, asset_category1a),
         MayAccess(site1, asset_category1a)])
+    evaluator = PolicyEvaluator(policies)
+
+    perms = evaluator.permissions_for_asset(asset1)
+    assert perms._sets == [{asset1}]
+    assert not evaluator.may_access(perms, site1)
+
+
+def test_site_category_access(asset1, site_category1a, site2):
+    policies = MockPolicies([
+        InSiteCategory(site2, site_category1a),
+        MayAccess(site_category1a, asset1)])
+    evaluator = PolicyEvaluator(policies)
+
+    perms = evaluator.permissions_for_asset(asset1)
+    assert perms._sets == [{asset1}]
+    assert evaluator.may_access(perms, site2)
+
+
+def test_asset_category_any_site(any_object, asset1, asset_category1a, site1):
+    policies = MockPolicies([
+        InAssetCategory(asset1, asset_category1a),
+        MayAccess(any_object, asset_category1a)])
     evaluator = PolicyEvaluator(policies)
 
     perms = evaluator.permissions_for_asset(asset1)
@@ -394,10 +422,10 @@ def test_propagate_multiple_outputs(
 
 
 def test_propagate_asset_wildcards(
-        asset1, asset2, asset_collection1a, asset_collection2a, any_asset):
+        asset1, asset2, asset_collection1a, asset_collection2a, any_object):
     policies = MockPolicies([
-        ResultOfDataIn(asset1, any_asset, 'output1', asset_collection1a),
-        ResultOfComputeIn(any_asset, asset2, 'output1', asset_collection2a)])
+        ResultOfDataIn(asset1, any_object, 'output1', asset_collection1a),
+        ResultOfComputeIn(any_object, asset2, 'output1', asset_collection2a)])
     evaluator = PolicyEvaluator(policies)
 
     input_perms = [Permissions([{asset1}])]

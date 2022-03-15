@@ -6,7 +6,7 @@ from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.definitions.workflows import Job, Plan, Workflow, WorkflowStep
 from mahiru.policy.rules import (
         GroupingRule, InAssetCategory, InAssetCollection, InPartyCollection,
-        MayAccess, ResultOfIn, ResultOfDataIn,
+        InSiteCategory, MayAccess, ResultOfIn, ResultOfDataIn,
         ResultOfComputeIn)
 
 
@@ -97,17 +97,20 @@ class PolicyEvaluator:
             permissions: Permissions for the asset to check.
             site: A site which needs access.
         """
-        def matches_one(asset_set: Set[Identifier], site: Identifier) -> bool:
+        def matches_one(
+                asset_set: Set[Identifier], equiv_sites: Set[Identifier]
+                ) -> bool:
             for asset in asset_set:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, MayAccess):
-                        if rule.asset == asset and rule.site == site:
+                        if rule.asset == asset and rule.site in equiv_sites:
                             return True
                         if rule.asset == asset and rule.site == '*':
                             return True
             return False
 
-        return all([matches_one(asset_set, site)
+        equiv_sites = self._upward_equivalent_objects(InSiteCategory, site)
+        return all([matches_one(asset_set, equiv_sites)
                     for asset_set in permissions._sets])
 
     def _equivalent_parties(self, party: str) -> List[str]:

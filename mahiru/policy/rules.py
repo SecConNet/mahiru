@@ -144,6 +144,49 @@ class InPartyCollection(Rule):
         return self.collection.namespace()
 
 
+class InSiteCategory(GroupingRule):
+    """Says that a SiteCategory contains an Site."""
+    def __init__(
+            self, site: Union[str, Identifier],
+            category: Union[str, Identifier]
+            ) -> None:
+        """Create an InSiteCategory rule.
+
+        Args:
+            site: The site to add to the category.
+            category: The category to add it to.
+        """
+        if not isinstance(site, Identifier):
+            site = Identifier(site)
+        self.site = site
+        if not isinstance(category, Identifier):
+            category = Identifier(category)
+        self.category = category
+
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.site
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.category
+
+    def __repr__(self) -> str:
+        """Return a string representation of this rule."""
+        return '("{}" is in "{}")'.format(self.site, self.category)
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.site, self.category).encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.category.namespace()
+
+
 class MayAccess(Rule):
     """Says that Site site may access Asset asset."""
     def __init__(

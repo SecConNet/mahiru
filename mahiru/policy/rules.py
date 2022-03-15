@@ -5,7 +5,21 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.policy import Rule
 
 
-class InAssetCollection(Rule):
+class GroupingRule(Rule):
+    """Subclass for rules that represent groupings."""
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        raise NotImplementedError
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule.
+
+        This returns the collection or category.
+        """
+        raise NotImplementedError
+
+
+class InAssetCollection(GroupingRule):
     """Says that an Asset is in an AssetCollection.
 
     This implies that anyone who can access the collection can access
@@ -32,6 +46,14 @@ class InAssetCollection(Rule):
         """Return a string representation of this rule."""
         return '("{}" is in "{}")'.format(self.asset, self.collection)
 
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.asset
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.collection
+
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
@@ -44,7 +66,7 @@ class InAssetCollection(Rule):
         return self.asset.namespace()
 
 
-class InAssetCategory(Rule):
+class InAssetCategory(GroupingRule):
     """Says that an AssetCategory contains an Asset."""
     def __init__(
             self, asset: Union[str, Identifier],
@@ -62,6 +84,14 @@ class InAssetCategory(Rule):
         if not isinstance(category, Identifier):
             category = Identifier(category)
         self.category = category
+
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.asset
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.category
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""

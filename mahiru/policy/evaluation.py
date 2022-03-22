@@ -5,7 +5,7 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.definitions.workflows import Job, Plan, Workflow, WorkflowStep
 from mahiru.policy.rules import (
-        GroupingRule, InAssetCategory, InAssetCollection, InPartyCollection,
+        GroupingRule, InAssetCategory, InAssetCollection,
         InSiteCategory, MayAccess, ResultOfIn, ResultOfDataIn,
         ResultOfComputeIn)
 
@@ -112,27 +112,6 @@ class PolicyEvaluator:
         equiv_sites = self._upward_equivalent_objects(InSiteCategory, site)
         return all([matches_one(asset_set, equiv_sites)
                     for asset_set in permissions._sets])
-
-    def _equivalent_parties(self, party: str) -> List[str]:
-        """Returns all the parties whose rules apply to an asset.
-
-        These are the parties itself, and all parties that are party
-        collections that the party is directly or indirectly in.
-
-        Args:
-            party: The party to find equivalents for.
-        """
-        cur_parties = list()     # type: List[str]
-        new_parties = [party]
-        while new_parties:
-            cur_parties.extend(new_parties)
-            new_parties = list()
-            for party in cur_parties:
-                for rule in self._policy_collection.policies():
-                    if isinstance(rule, InPartyCollection):
-                        if rule.party == party:
-                            new_parties.append(rule.collection)
-        return cur_parties
 
     def _upward_equivalent_objects(
             self, rule_type: Type[_GroupingRule], obj: Identifier

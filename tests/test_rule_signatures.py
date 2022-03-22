@@ -1,5 +1,5 @@
 from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn)
+        InAssetCollection, InPartyCategory, MayAccess, ResultOfDataIn)
 
 
 def test_in_asset_collection_signatures(private_key):
@@ -18,9 +18,9 @@ def test_in_asset_collection_signatures(private_key):
 
 
 def test_in_party_collection_signatures(private_key):
-    rule = InPartyCollection(
+    rule = InPartyCategory(
             'party:ns1:party1',
-            'party_collection:ns1:collection.parties')
+            'party_category:ns1:category.parties')
     assert not rule.has_valid_signature(private_key.public_key())
     rule.sign(private_key)
     assert rule.has_valid_signature(private_key.public_key())
@@ -28,7 +28,7 @@ def test_in_party_collection_signatures(private_key):
     assert not rule.has_valid_signature(private_key.public_key())
     rule.party = 'party:ns1:party1'
     assert rule.has_valid_signature(private_key.public_key())
-    rule.collection = 'party_collection:ns2:collection.parties'
+    rule.category = 'party_category:ns2:category.parties'
     assert not rule.has_valid_signature(private_key.public_key())
 
 

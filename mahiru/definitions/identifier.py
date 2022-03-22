@@ -9,7 +9,7 @@ class Identifier(str):
     An Identifier is a string of any of the following forms:
 
     1. party:<namespace>:<name>
-    2. party_collection:<namespace>:<name>
+    2. party_category:<namespace>:<name>
     3. site:<namespace>:<name>
     4. site_category:<namespace>:<name>
     5. asset:<namespace>:<name>:<site_namespace>:<site_name>
@@ -102,11 +102,11 @@ class Identifier(str):
         return Identifier(f'site:{self.segments[3]}:{self.segments[4]}')
 
     _kinds = (
-        'party', 'party_collection', 'site', 'site_category', 'asset',
+        'party', 'party_category', 'site', 'site_category', 'asset',
         'asset_collection', 'asset_category', 'result')
 
     _lengths = {
-            'party': 3, 'party_collection': 3, 'site': 3, 'site_category': 3,
+            'party': 3, 'party_category': 3, 'site': 3, 'site_category': 3,
             'asset': 5, 'asset_collection': 3, 'asset_category': 3,
             'result': 2}
 

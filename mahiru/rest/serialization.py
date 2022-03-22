@@ -24,7 +24,7 @@ from mahiru.definitions.workflows import (
 
 from mahiru.policy.definitions import PolicyUpdate
 from mahiru.policy.rules import (
-        InAssetCollection, InAssetCategory, InPartyCollection, MayAccess,
+        InAssetCollection, InAssetCategory, InPartyCategory, MayAccess,
         ResultOfComputeIn, ResultOfDataIn)
 
 from mahiru.registry.replication import RegistryUpdate
@@ -122,13 +122,13 @@ def _serialize_in_asset_category(rule: InAssetCategory) -> JSON:
             'category': rule.category}
 
 
-def _serialize_in_party_collection(rule: InPartyCollection) -> JSON:
-    """Serialize an InPartyCollection object to JSON."""
+def _serialize_in_party_category(rule: InPartyCategory) -> JSON:
+    """Serialize an InPartyCategory object to JSON."""
     return {
-            'type': 'InPartyCollection',
+            'type': 'InPartyCategory',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'party': rule.party,
-            'collection': rule.collection}
+            'category': rule.category}
 
 
 def _serialize_may_access(rule: MayAccess) -> JSON:
@@ -169,8 +169,8 @@ def _deserialize_rule(user_input: JSON) -> Rule:
         rule = InAssetCollection(user_input['asset'], user_input['collection'])
     elif user_input['type'] == 'InAssetCategory':
         rule = InAssetCategory(user_input['asset'], user_input['category'])
-    elif user_input['type'] == 'InPartyCollection':
-        rule = InPartyCollection(user_input['party'], user_input['collection'])
+    elif user_input['type'] == 'InPartyCategory':
+        rule = InPartyCategory(user_input['party'], user_input['category'])
     elif user_input['type'] == 'MayAccess':
         rule = MayAccess(user_input['site'], user_input['asset'])
     elif user_input['type'] == 'ResultOfDataIn':
@@ -446,7 +446,7 @@ _serializers = {
         SiteDescription: _serialize_site_description,
         InAssetCollection: _serialize_in_asset_collection,
         InAssetCategory: _serialize_in_asset_category,
-        InPartyCollection: _serialize_in_party_collection,
+        InPartyCategory: _serialize_in_party_category,
         MayAccess: _serialize_may_access,
         ResultOfDataIn: _serialize_result_of_data_in,
         ResultOfComputeIn: _serialize_result_of_compute_in,

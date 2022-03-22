@@ -109,39 +109,47 @@ class InAssetCategory(GroupingRule):
         return self.category.namespace()
 
 
-class InPartyCollection(Rule):
-    """Says that Party party is in PartyCollection collection."""
+class InPartyCategory(GroupingRule):
+    """Says that a PartyCollection contains a Party."""
     def __init__(
             self, party: Union[str, Identifier],
-            collection: Union[str, Identifier]
+            category: Union[str, Identifier]
             ) -> None:
-        """Create an InPartyCollection rule.
+        """Create an InPartyCategory rule.
 
         Args:
             party: A party.
-            collection: The collection it is in.
+            category: The category it is in.
         """
         if not isinstance(party, Identifier):
             party = Identifier(party)
         self.party = party
-        if not isinstance(collection, Identifier):
-            collection = Identifier(collection)
-        self.collection = collection
+        if not isinstance(category, Identifier):
+            category = Identifier(category)
+        self.category = category
+
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.party
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.category
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
-        return '("{}" is in "{}")'.format(self.party, self.collection)
+        return '("{}" is in "{}")'.format(self.party, self.category)
 
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.party, self.collection).encode('utf-8')
+        return '{}|{}'.format(self.party, self.category).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
-        return self.collection.namespace()
+        return self.category.namespace()
 
 
 class InSiteCategory(GroupingRule):

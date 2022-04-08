@@ -1,6 +1,7 @@
 """Components for evaluating workflow permissions."""
 from typing import (
-        Dict, Iterable, List, Optional, Set, Union, Tuple, Type, TypeVar)
+        Callable, Dict, Iterable, List, Optional, Set, Union, Tuple, Type,
+        TypeVar)
 
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
@@ -52,8 +53,8 @@ class PolicyEvaluator:
             asset: The asset to get permissions for.
         """
         result = Permissions()
-        result._sets = [self._upward_equivalent_objects(
-            InAssetCollection, asset)]
+        result._sets = [self._equivalent_objects(
+            InAssetCollection, 'up', asset)]
         return result
 
     def propagate_permissions(
@@ -107,8 +108,8 @@ class PolicyEvaluator:
                 True iff there's an asset in asset_set a site in
                 equiv_sites has access to.
             """
-            equiv_assets = self._upward_equivalent_objects(
-                    InAssetCollection, asset_set)
+            equiv_assets = self._equivalent_objects(
+                    InAssetCollection, 'up', asset_set)
             for asset in equiv_assets:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, MayAccess):
@@ -118,56 +119,30 @@ class PolicyEvaluator:
                             return True
             return False
 
-        equiv_sites = self._upward_equivalent_objects(InSiteCategory, site)
+        equiv_sites = self._equivalent_objects(InSiteCategory, 'up', site)
         return all([matches_one(asset_set, equiv_sites)
                     for asset_set in permissions._sets])
 
-    def _upward_equivalent_objects(
+    def _equivalent_objects(
             self, rule_type: Type[_GroupingRule],
+            direction: str,
             obj: Union[Identifier, Set[Identifier]]
             ) -> Set[Identifier]:
-        """Returns all the upward-equivalent objects.
-
-        These are the object itself, and all objects that are object
-        groupings that the object is directly or indirectly in.
+        """Return objects reachable by traversing grouping rules.
 
         Args:
             rule_type: Type of rule to follow, e.g. InAssetCategory.
-            obj: The object(s) or object collection(s) to find
-                    equivalents for.
-        """
-        if not isinstance(obj, set):
-            obj = {obj}
-
-        cur_objects = set()     # type: Set[Identifier]
-        new_objects = obj
-        while new_objects:
-            cur_objects |= new_objects
-            new_objects = set()
-            for o in cur_objects:
-                for rule in self._policy_collection.policies():
-                    if isinstance(rule, rule_type):
-                        if rule.grouped() == o:
-                            if rule.group() not in cur_objects:
-                                new_objects.add(rule.group())
-        return cur_objects
-
-    def _downward_equivalent_objects(
-            self, rule_type: Type[_GroupingRule],
-            obj: Union[Identifier, Set[Identifier]]
-            ) -> Set[Identifier]:
-        """Returns all the downward-equivalent objects.
-
-        These are the object itself, and if it is a grouping, all
-        objects that are in it or in a subgrouping.
-
-        Args:
-            rule_type: Type of rule to follow, e.g. InAssetCategory.
+            direction: Either 'up' or 'down'.
             obj: The objects or object categories to find equivalents
                     for.
         """
         if not isinstance(obj, set):
             obj = {obj}
+
+        if direction == 'up':
+            near_end, far_end = rule_type.grouped, rule_type.group
+        else:
+            near_end, far_end = rule_type.group, rule_type.grouped
 
         cur_objects = set()      # type: Set[Identifier]
         new_objects = obj
@@ -177,9 +152,9 @@ class PolicyEvaluator:
             for o in cur_objects:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, rule_type):
-                        if rule.group() == o:
-                            if rule.grouped() not in cur_objects:
-                                new_objects.add(rule.grouped())
+                        if near_end(rule) == o:
+                            if far_end(rule) not in cur_objects:
+                                new_objects.add(far_end(rule))
         return cur_objects
 
     def _resultofin_collections(
@@ -202,10 +177,10 @@ class PolicyEvaluator:
 
         input_assets_colls = {
                 a for input_asset in input_assets
-                for a in self._upward_equivalent_objects(
-                    InAssetCollection, input_asset)}
-        compute_asset_colls = self._upward_equivalent_objects(
-                InAssetCollection, compute_asset)
+                for a in self._equivalent_objects(
+                    InAssetCollection, 'up', input_asset)}
+        compute_asset_colls = self._equivalent_objects(
+                InAssetCollection, 'up', compute_asset)
 
         for rule in self._policy_collection.policies():
             if isinstance(rule, ResultOfIn):
@@ -216,8 +191,8 @@ class PolicyEvaluator:
                 if rule.data_asset in input_assets_colls:
                     if rule.compute_asset == '*':
                         data_collections.add(rule.collection)
-                    elif compute_asset in self._downward_equivalent_objects(
-                            InAssetCategory, rule.compute_asset):
+                    elif compute_asset in self._equivalent_objects(
+                            InAssetCategory, 'down', rule.compute_asset):
                         data_collections.add(rule.collection)
 
             elif isinstance(rule, ResultOfComputeIn):
@@ -226,8 +201,8 @@ class PolicyEvaluator:
                         compute_collections.add(rule.collection)
                         continue
 
-                    equiv_data_assets = self._downward_equivalent_objects(
-                            InAssetCategory, rule.data_asset)
+                    equiv_data_assets = self._equivalent_objects(
+                            InAssetCategory, 'down', rule.data_asset)
                     if not input_assets.isdisjoint(equiv_data_assets):
                         compute_collections.add(rule.collection)
 

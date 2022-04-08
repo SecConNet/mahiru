@@ -16,7 +16,7 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.definitions.workflows import Job, WorkflowStep, Workflow
 from mahiru.policy.rules import (
-    InAssetCollection, MayAccess, ResultOfDataIn,
+    InAssetCollection, MayAccess, MayUse, ResultOfDataIn,
     ResultOfComputeIn)
 from mahiru.rest.ddm_site import SiteRestApi, SiteServer
 from mahiru.rest.internal_client import InternalSiteRestClient
@@ -276,18 +276,34 @@ def test_pii(registry_server, registry_client, registration_client):
             MayAccess(
                 'site:ddm_ns:site3',
                 'asset_collection:ddm_ns:collection.ScienceOnly'),
+            MayUse(
+                'party:party2_ns:party2',
+                'asset_collection:ddm_ns:collection.ScienceOnly',
+                'Only for non-commercial scientific purposes'),
 
             MayAccess(
                 'site:party1_ns:site1',
                 'asset_collection:ddm_ns:collection.Public'),
+            MayUse(
+                'party:party1_ns:party1',
+                'asset_collection:ddm_ns:collection.Public',
+                'For any purpose'),
 
             MayAccess(
                 'site:party2_ns:site2',
                 'asset_collection:ddm_ns:collection.Public'),
+            MayUse(
+                'party:party2_ns:party2',
+                'asset_collection:ddm_ns:collection.Public',
+                'For any purpose'),
 
             MayAccess(
                 'site:ddm_ns:site3',
                 'asset_collection:ddm_ns:collection.Public'),
+            MayUse(
+                'party:party3_ns:party3',
+                'asset_collection:ddm_ns:collection.Public',
+                'For any purpose'),
             ]
 
     scenario['sites'] = {
@@ -380,6 +396,10 @@ def test_saas_with_data(registry_server, registry_client, registration_client):
             MayAccess(
                 'site:party2_ns:site2',
                 'asset_collection:party1_ns:collection.result1'),
+            MayUse(
+                'party:party1_ns:party1',
+                'asset_collection:party1_ns:collection.result1',
+                'For any use'),
             ]
 
     scenario['rules-party2'] = [
@@ -410,6 +430,10 @@ def test_saas_with_data(registry_server, registry_client, registration_client):
             MayAccess(
                 'site:party2_ns:site2',
                 'asset:party2_ns:software.addition:party2_ns:site2'),
+            MayUse(
+                'party:party1_ns:party1',
+                'asset_collection:party2_ns:collection.result2',
+                'For any use'),
             ]
 
     scenario['sites'] = {

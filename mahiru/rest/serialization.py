@@ -24,7 +24,7 @@ from mahiru.definitions.workflows import (
 
 from mahiru.policy.definitions import PolicyUpdate
 from mahiru.policy.rules import (
-        InAssetCollection, InAssetCategory, InPartyCategory, MayAccess,
+        InAssetCollection, InAssetCategory, InPartyCategory, MayAccess, MayUse,
         ResultOfComputeIn, ResultOfDataIn)
 
 from mahiru.registry.replication import RegistryUpdate
@@ -140,6 +140,16 @@ def _serialize_may_access(rule: MayAccess) -> JSON:
             'asset': rule.asset}
 
 
+def _serialize_may_use(rule: MayUse) -> JSON:
+    """Serialize a MayUse object to JSON."""
+    return {
+            'type': 'MayUse',
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
+            'party': rule.party,
+            'asset': rule.asset,
+            'conditions': rule.conditions}
+
+
 def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
     """Serialize a ResultOfDataIn object to JSON."""
     return {
@@ -173,6 +183,10 @@ def _deserialize_rule(user_input: JSON) -> Rule:
         rule = InPartyCategory(user_input['party'], user_input['category'])
     elif user_input['type'] == 'MayAccess':
         rule = MayAccess(user_input['site'], user_input['asset'])
+    elif user_input['type'] == 'MayUse':
+        rule = MayUse(
+                user_input['party'], user_input['asset'],
+                user_input['conditions'])
     elif user_input['type'] == 'ResultOfDataIn':
         rule = ResultOfDataIn(
                 user_input['data_asset'], user_input['compute_asset'],
@@ -449,6 +463,7 @@ _serializers = {
         InAssetCategory: _serialize_in_asset_category,
         InPartyCategory: _serialize_in_party_category,
         MayAccess: _serialize_may_access,
+        MayUse: _serialize_may_use,
         ResultOfDataIn: _serialize_result_of_data_in,
         ResultOfComputeIn: _serialize_result_of_compute_in,
         WorkflowStep: _serialize_workflow_step,

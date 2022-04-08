@@ -227,6 +227,42 @@ class MayAccess(Rule):
         return self.asset.namespace()
 
 
+class MayUse(Rule):
+    """Says that Party party may use Asset asset."""
+    def __init__(
+            self, party: Union[str, Identifier], asset: Union[str, Identifier],
+            conditions: str) -> None:
+        """Create a MayUse rule.
+
+        Args:
+            party: The party that may access.
+            asset: The asset that may be accessed.
+            conditions: Conditions under which the asset may be used.
+        """
+        self.party = (
+                party if isinstance(party, Identifier) else Identifier(party))
+
+        if not isinstance(asset, Identifier):
+            asset = Identifier(asset)
+        self.asset = asset
+        self.conditions = conditions
+
+    def __repr__(self) -> str:
+        """Return a string representation of this rule."""
+        return f'("{self.party}" may use "{self.asset}")'
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return f'{self.party}|{self.asset}|{self.conditions}'.encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.asset.namespace()
+
+
 class ResultOfIn(Rule):
     """Defines collections of results.
 

@@ -72,6 +72,31 @@ components:
           description: Asset that may be accessed
           type: string
 
+    MayUse:
+      type: object
+      required:
+        - type
+        - signature
+        - party
+        - asset
+        - conditions
+      properties:
+        type:
+          description: Type of rule, always 'MayUse'
+          type: string
+        signature:
+          description: BASE64url serialised signature
+          type: string
+        party:
+          description: Id of the site that may access the asset
+          type: string
+        asset:
+          description: Asset that may be accessed
+          type: string
+        conditions:
+          description: Conditions of use
+          type: string
+
     ResultOfIn:
       type: object
       required:
@@ -106,6 +131,7 @@ components:
         - $ref: '#/components/schemas/InAssetCollection'
         - $ref: '#/components/schemas/InPartyCollection'
         - $ref: '#/components/schemas/MayAccess'
+        - $ref: '#/components/schemas/MayUse'
         - $ref: '#/components/schemas/ResultOfIn'
 
     PolicyUpdate:
@@ -135,6 +161,7 @@ components:
               - "$ref": "#/components/schemas/InAssetCollection"
               - "$ref": "#/components/schemas/InPartyCollection"
               - "$ref": "#/components/schemas/MayAccess"
+              - "$ref": "#/components/schemas/MayUse"
               - "$ref": "#/components/schemas/ResultOfIn"
         deleted:
           description: Objects that were deleted since the last version
@@ -144,6 +171,7 @@ components:
               - "$ref": "#/components/schemas/InAssetCollection"
               - "$ref": "#/components/schemas/InPartyCollection"
               - "$ref": "#/components/schemas/MayAccess"
+              - "$ref": "#/components/schemas/MayUse"
               - "$ref": "#/components/schemas/ResultOfIn"
 
     ComputeMetadata:

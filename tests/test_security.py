@@ -5,7 +5,8 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
 from mahiru.policy.evaluation import PolicyEvaluator
 from mahiru.components.orchestration import WorkflowPlanner
-from mahiru.policy.rules import MayAccess, ResultOfDataIn, ResultOfComputeIn
+from mahiru.policy.rules import (
+        MayAccess, MayUse, ResultOfDataIn, ResultOfComputeIn)
 
 
 class MockPolicySource:
@@ -30,11 +31,14 @@ def test_wf_output_checks():
     rules = [
             MayAccess('site:ns1:s1', 'asset:ns:Anonymise:ns:s'),
             MayAccess('site:ns1:s1', 'asset:ns:Aggregate:ns:s'),
+
             ResultOfDataIn(
                 'asset_collection:ns:Public', '*', '*',
                 'asset_collection:ns:Public'),
             MayAccess('site:ns1:s1', 'asset_collection:ns:Public'),
             MayAccess('site:ns2:s2', 'asset_collection:ns:Public'),
+            MayUse('party:ns2:party2', 'asset_collection:ns:Public', ''),
+
             MayAccess('site:ns1:s1', 'asset:ns1:dataset.d1:ns1:s1'),
             ResultOfDataIn(
                 'asset:ns1:dataset.d1:ns1:s1', 'asset:ns:Anonymise:ns:s', 'y',
@@ -51,6 +55,7 @@ def test_wf_output_checks():
                 'asset_collection:ns:Public'),
             MayAccess('site:ns1:s1', 'asset_collection:ns1:Aggregated'),
             MayAccess('site:ns2:s2', 'asset_collection:ns1:Aggregated'),
+            MayUse('party:ns2:party2', 'asset_collection:ns1:Aggregated', ''),
             ]
     policy_evaluator = PolicyEvaluator(MockPolicySource(rules))
 

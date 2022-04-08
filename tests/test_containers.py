@@ -18,7 +18,7 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
 from mahiru.policy.rules import (
-        MayAccess, ResultOfComputeIn, ResultOfDataIn)
+        MayAccess, MayUse, ResultOfComputeIn, ResultOfDataIn)
 from mahiru.rest.ddm_site import SiteRestApi, SiteServer
 from mahiru.rest.internal_client import InternalSiteRestClient
 
@@ -97,7 +97,9 @@ def run_container_step(
                 '*', 'asset:ns:compute1:ns:test_site', '*',
                 'asset_collection:ns:public'),
             MayAccess('site:ns:test_site', 'asset_collection:ns:results1'),
-            MayAccess('*', 'asset_collection:ns:public')]
+            MayUse('party:ns:test_party', 'asset_collection:ns:results1', ''),
+            MayAccess('*', 'asset_collection:ns:public'),
+            MayUse('*', 'asset_collection:ns:public', 'For any use')]
 
     for rule in rules:
         rule.sign(party_key)

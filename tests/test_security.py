@@ -83,3 +83,8 @@ def test_wf_output_checks():
     workflow.outputs['y'] = 'anonymise.y'
     plans = planner.make_plans('party:ns2:party2', 'site:ns2:s2', job)
     assert plans == []
+
+    # test that use permission is needed
+    workflow.outputs['y'] = 'aggregate.y'
+    plans = planner.make_plans('party:ns1:party1', 'site:ns1:s1', job)
+    assert plans == []

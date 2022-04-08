@@ -7,8 +7,8 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.definitions.workflows import Job, Plan, Workflow, WorkflowStep
 from mahiru.policy.rules import (
-        GroupingRule, InAssetCategory, InAssetCollection,
-        InSiteCategory, MayAccess, ResultOfIn, ResultOfDataIn,
+        GroupingRule, InAssetCategory, InAssetCollection, InPartyCategory,
+        InSiteCategory, MayAccess, MayUse, ResultOfIn, ResultOfDataIn,
         ResultOfComputeIn)
 
 
@@ -121,6 +121,40 @@ class PolicyEvaluator:
 
         equiv_sites = self._equivalent_objects(InSiteCategory, 'up', site)
         return all([matches_one(asset_set, equiv_sites)
+                    for asset_set in permissions._sets])
+
+    def may_use(self, permissions: Permissions, party: Identifier) -> bool:
+        """Checks whether an asset can be used by a party.
+
+        This function checks whether the given party has use rights
+        to at least one asset in each of the given set of assets.
+
+        Args:
+            permissions: Permissions for the asset to check.
+            party: A party which needs use rights.
+        """
+        def matches_one(
+                asset_set: Set[Identifier], equiv_parties: Set[Identifier]
+                ) -> bool:
+            """Check for usage matches.
+
+            Returns:
+                True iff there's an asset in asset_set a party in
+                equiv_parties may use.
+            """
+            equiv_assets = self._equivalent_objects(
+                    InAssetCollection, 'up', asset_set)
+            for asset in equiv_assets:
+                for rule in self._policy_collection.policies():
+                    if isinstance(rule, MayUse):
+                        if rule.asset == asset and rule.party in equiv_parties:
+                            return True
+                        if rule.asset == asset and rule.party == '*':
+                            return True
+            return False
+
+        equiv_parties = self._equivalent_objects(InPartyCategory, 'up', party)
+        return all([matches_one(asset_set, equiv_parties)
                     for asset_set in permissions._sets])
 
     def _equivalent_objects(
@@ -420,10 +454,17 @@ class PermissionCalculator:
             job: The job to be executed.
             plan: The plan to check for legality
         """
-        permitted_sites = self.permitted_sites(job, plan.step_sites.values())
+        permissions = self.calculate_permissions(job)
+        permitted_sites = self.permitted_sites(
+                job, plan.step_sites.values(), permissions)
 
         for step_name, site in plan.step_sites.items():
             if site not in permitted_sites[step_name]:
+                return False
+
+        for output in job.workflow.outputs:
+            output_perms = permissions[output]
+            if not self._policy_evaluator.may_use(output_perms, job.submitter):
                 return False
 
         return True

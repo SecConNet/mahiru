@@ -53,11 +53,17 @@ class WorkflowPlanner:
         """
         permissions = self._permission_calculator.calculate_permissions(job)
 
-        # if we cannot access the outputs, then there are no plans
+        # if we cannot access or use the outputs, then there are no
+        # plans
         for output in job.workflow.outputs:
             output_perms = permissions[output]
             if not self._policy_evaluator.may_access(
                     output_perms, submitting_site):
+                logger.debug('Submitter may not access results')
+                return []
+            if not self._policy_evaluator.may_use(
+                    output_perms, submitting_party):
+                logger.debug('Submitter may not use results')
                 return []
 
         sites = self._registry_client.list_sites_with_runners()

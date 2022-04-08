@@ -1,5 +1,6 @@
 """Components for evaluating workflow permissions."""
-from typing import Dict, Iterable, List, Optional, Set, Tuple, Type, TypeVar
+from typing import (
+        Dict, Iterable, List, Optional, Set, Union, Tuple, Type, TypeVar)
 
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
@@ -100,7 +101,15 @@ class PolicyEvaluator:
         def matches_one(
                 asset_set: Set[Identifier], equiv_sites: Set[Identifier]
                 ) -> bool:
-            for asset in asset_set:
+            """Check for access matches.
+
+            Returns:
+                True iff there's an asset in asset_set a site in
+                equiv_sites has access to.
+            """
+            equiv_assets = self._upward_equivalent_objects(
+                    InAssetCollection, asset_set)
+            for asset in equiv_assets:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, MayAccess):
                         if rule.asset == asset and rule.site in equiv_sites:
@@ -114,7 +123,8 @@ class PolicyEvaluator:
                     for asset_set in permissions._sets])
 
     def _upward_equivalent_objects(
-            self, rule_type: Type[_GroupingRule], obj: Identifier
+            self, rule_type: Type[_GroupingRule],
+            obj: Union[Identifier, Set[Identifier]]
             ) -> Set[Identifier]:
         """Returns all the upward-equivalent objects.
 
@@ -123,10 +133,14 @@ class PolicyEvaluator:
 
         Args:
             rule_type: Type of rule to follow, e.g. InAssetCategory.
-            obj: The object to find equivalents for.
+            obj: The object(s) or object collection(s) to find
+                    equivalents for.
         """
+        if not isinstance(obj, set):
+            obj = {obj}
+
         cur_objects = set()     # type: Set[Identifier]
-        new_objects = {obj}
+        new_objects = obj
         while new_objects:
             cur_objects |= new_objects
             new_objects = set()
@@ -139,7 +153,8 @@ class PolicyEvaluator:
         return cur_objects
 
     def _downward_equivalent_objects(
-            self, rule_type: Type[_GroupingRule], obj: Identifier
+            self, rule_type: Type[_GroupingRule],
+            obj: Union[Identifier, Set[Identifier]]
             ) -> Set[Identifier]:
         """Returns all the downward-equivalent objects.
 
@@ -148,10 +163,14 @@ class PolicyEvaluator:
 
         Args:
             rule_type: Type of rule to follow, e.g. InAssetCategory.
-            obj: The object or object category to find equivalents for.
+            obj: The objects or object categories to find equivalents
+                    for.
         """
+        if not isinstance(obj, set):
+            obj = {obj}
+
         cur_objects = set()      # type: Set[Identifier]
-        new_objects = {obj}
+        new_objects = obj
         while new_objects:
             cur_objects |= new_objects
             new_objects = set()

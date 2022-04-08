@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 from mahiru.definitions.assets import ComputeAsset
+from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
 from mahiru.policy.evaluation import PolicyEvaluator
 from mahiru.components.orchestration import WorkflowPlanner
@@ -64,14 +65,16 @@ def test_wf_output_checks():
                              inputs={'x1': 'anonymise.y'},
                              outputs={'y': None},
                              compute_asset_id='asset:ns:Aggregate:ns:s')])
-    job = Job(workflow, {'x': 'asset:ns1:dataset.d1:ns1:s1'})
+    job = Job(
+            Identifier('party:ns2:party2'), workflow,
+            {'x': 'asset:ns1:dataset.d1:ns1:s1'})
     planner = WorkflowPlanner(mock_client, policy_evaluator)
-    plans = planner.make_plans('site:ns2:s2', job)
+    plans = planner.make_plans('party:ns2:party2', 'site:ns2:s2', job)
     assert len(plans) == 1
     assert plans[0].step_sites['anonymise'] == 'site:ns1:s1'
     assert plans[0].step_sites['aggregate'] == 'site:ns1:s1'
 
     # test output from intermediate step
     workflow.outputs['y'] = 'anonymise.y'
-    plans = planner.make_plans('site:ns2:s2', job)
+    plans = planner.make_plans('party:ns2:party2', 'site:ns2:s2', job)
     assert plans == []

@@ -466,20 +466,26 @@ class WorkflowSubmissionHandler:
             response: A response object to configure.
 
         """
-        if 'requester' not in request.params:
+        if (
+                'requesting_party' not in request.params or
+                'requesting_site' not in request.params):
             logger.info(f'Invalid job submission')
             response.status = HTTP_400
             response.body = 'Invalid request'
             return
 
-        requester = request.params['requester']
+        requesting_party = request.params['requesting_party']
+        requesting_site = request.params['requesting_site']
 
         try:
             validate_json('Job', request.media)
             job = deserialize(Job, request.media)
-            logger.info(f'Received new job {request.media} from {requester}')
-            job_id = self._orchestrator.start_job(requester, job)
-            logger.info(f'Received new job {job_id} from {requester}')
+            logger.info(
+                    f'Received new job {request.media} from'
+                    f' {requesting_party}')
+            job_id = self._orchestrator.start_job(
+                    requesting_party, requesting_site, job)
+            logger.info(f'Created new job {job_id} for {requesting_party}')
             response.status = HTTP_303
             response.location = _request_url(request) + '/' + job_id
         except ValidationError:

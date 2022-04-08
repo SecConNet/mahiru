@@ -34,14 +34,17 @@ class WorkflowPlanner:
         self._permission_calculator = PermissionCalculator(policy_evaluator)
 
     def make_plans(
-            self, submitter: Identifier, job: Job) -> List[Plan]:
+            self, submitting_party: Identifier, submitting_site: Identifier,
+            job: Job) -> List[Plan]:
         """Assigns a site to each workflow step.
 
         Uses the given result collections to determine where steps can
         be executed.
 
         Args:
-            submitter: Id of the site which submitted this, and to
+            submitting_party: Id of the party which submitted this, and
+                    who will use the results.
+            submitting_site: Id of the site which submitted this, and to
                     which results should be returned.
             job: The job to plan.
 
@@ -53,7 +56,8 @@ class WorkflowPlanner:
         # if we cannot access the outputs, then there are no plans
         for output in job.workflow.outputs:
             output_perms = permissions[output]
-            if not self._policy_evaluator.may_access(output_perms, submitter):
+            if not self._policy_evaluator.may_access(
+                    output_perms, submitting_site):
                 return []
 
         sites = self._registry_client.list_sites_with_runners()
@@ -211,17 +215,21 @@ class WorkflowOrchestrator:
         self._jobs = dict()     # type: Dict[str, ExecutionRequest]
         self._results = dict()  # type: Dict[str, Dict[str, Any]]
 
-    def start_job(self, submitter: Identifier, job: Job) -> str:
+    def start_job(
+            self, submitting_party: Identifier, submitting_site: Identifier,
+            job: Job) -> str:
         """Plans and executes the given workflow.
 
         Args:
-            submitter: The site to submit this job.
+            submitting_party: The party which submitted this job.
+            submitting_site: The site which submitted this job.
             job: The job to execute.
 
         Return:
             A string containing the new job's id.
         """
-        plans = self._planner.make_plans(submitter, job)
+        plans = self._planner.make_plans(
+                submitting_party, submitting_site, job)
         if not plans:
             logger.warning('No plans!')
             raise RuntimeError(

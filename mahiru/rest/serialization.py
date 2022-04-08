@@ -225,14 +225,15 @@ def _deserialize_workflow(user_input: JSON) -> Workflow:
 def _serialize_job(job: Job) -> JSON:
     """Serialize a Job to JSON."""
     return {
-           'workflow': _serialize_workflow(job.workflow),
-           'inputs': job.inputs}
+            'submitter': job.submitter,
+            'workflow': _serialize_workflow(job.workflow),
+            'inputs': job.inputs}
 
 
 def _deserialize_job(user_input: JSON) -> Job:
     """Deserialize a Job from JSON."""
     workflow = _deserialize_workflow(user_input['workflow'])
-    return Job(workflow, user_input['inputs'])
+    return Job(user_input['submitter'], workflow, user_input['inputs'])
 
 
 def _serialize_plan(plan: Plan) -> JSON:

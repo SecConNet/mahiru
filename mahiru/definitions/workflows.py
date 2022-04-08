@@ -182,16 +182,18 @@ class Job:
     A Job is a workflow together with a set of inputs for it.
     """
     def __init__(
-            self, workflow: Workflow,
+            self, submitter: Identifier, workflow: Workflow,
             inputs: Mapping[str, Union[str, Identifier]]
             ) -> None:
         """Create a job.
 
         Args:
+            submitter: The party submitting this workflow.
             workflow: The workflow to run.
             inputs: A dictionary mapping the workflow's input
                     parameters to data set ids.
         """
+        self.submitter = submitter
         self.workflow = workflow
         self.inputs = {
                 inp: aid if isinstance(aid, Identifier) else Identifier(aid)
@@ -211,7 +213,9 @@ class Job:
 
         The job will have no steps, and a single input named `dataset`.
         """
-        return Job(Workflow(['dataset'], {}, []), {'dataset': asset_id})
+        return Job(
+                Identifier('*'), Workflow(['dataset'], {}, []),
+                {'dataset': asset_id})
 
     def subjob(
             self, step: WorkflowStep) -> 'Job':
@@ -229,7 +233,7 @@ class Job:
                 wf_inp: asset
                 for wf_inp, asset in self.inputs.items()
                 if wf_inp in sub_wf.inputs}
-        return Job(sub_wf, inputs)
+        return Job(self.submitter, sub_wf, inputs)
 
     def id_hashes(self) -> Dict[str, str]:
         """Calculates id hashes of all items in the job's workflow.

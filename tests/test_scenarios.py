@@ -12,6 +12,7 @@ from mahiru.components.ddm_site import Site
 from mahiru.components.registry_client import RegistryClient
 from mahiru.components.settings import NetworkSettings, SiteConfiguration
 from mahiru.definitions.assets import ComputeAsset, DataAsset
+from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.definitions.workflows import Job, WorkflowStep, Workflow
 from mahiru.policy.rules import (
@@ -95,7 +96,8 @@ def create_clients(servers: Dict[str, SiteServer], sites: Dict[str, Site]):
     """Create internal REST clients for sites."""
     return {
             site_name: InternalSiteRestClient(
-                sites[site_name].id, server.internal_endpoint)
+                sites[site_name].owner, sites[site_name].id,
+                server.internal_endpoint)
             for site_name, server in servers.items()}
 
 
@@ -274,12 +276,15 @@ def test_pii(registry_server, registry_client, registration_client):
             MayAccess(
                 'site:ddm_ns:site3',
                 'asset_collection:ddm_ns:collection.ScienceOnly'),
+
             MayAccess(
                 'site:party1_ns:site1',
                 'asset_collection:ddm_ns:collection.Public'),
+
             MayAccess(
                 'site:party2_ns:site2',
                 'asset_collection:ddm_ns:collection.Public'),
+
             MayAccess(
                 'site:ddm_ns:site3',
                 'asset_collection:ddm_ns:collection.Public'),
@@ -342,7 +347,8 @@ def test_pii(registry_server, registry_client, registration_client):
             'x1': 'asset:party1_ns:dataset.pii1:party1_ns:site1',
             'x2': 'asset:party2_ns:dataset.pii2:party2_ns:site2'}
 
-    scenario['job'] = Job(workflow, inputs)
+    scenario['job'] = Job(
+            Identifier('party:party2_ns:party2'), workflow, inputs)
     scenario['user_site'] = 'site2'
 
     output = run_scenario(scenario, registry_client, registration_client)
@@ -440,7 +446,8 @@ def test_saas_with_data(registry_server, registry_client, registration_client):
             'x1': 'asset:party1_ns:dataset.data1:party1_ns:site1',
             'x2': 'asset:party2_ns:dataset.data2:party2_ns:site2'}
 
-    scenario['job'] = Job(workflow, inputs)
+    scenario['job'] = Job(
+            Identifier('party:party1_ns:party1'), workflow, inputs)
     scenario['user_site'] = 'site1'
 
     output = run_scenario(scenario, registry_client, registration_client)

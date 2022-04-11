@@ -81,6 +81,10 @@ class SiteConfiguration:
             loglevel: Logging level to use, one of 'critical', 'error',
                     'warning', 'info', or 'debug'.
         """
+        if owner.kind() != 'party':
+            raise ValueError(
+                    'Expected a name of the form "party:<namespace>:<name>"')
+
         self.name = name
         self.namespace = namespace
         self.owner = owner

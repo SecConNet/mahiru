@@ -37,9 +37,14 @@ class InAssetCollection(GroupingRule):
         """
         if not isinstance(asset, Identifier):
             asset = Identifier(asset)
+        if asset.kind() not in ('asset', 'asset_collection'):
+            raise ValueError(f'Invalid asset kind {asset.kind()}')
         self.asset = asset
+
         if not isinstance(collection, Identifier):
             collection = Identifier(collection)
+        if collection.kind() != 'asset_collection':
+            raise ValueError(f'Invalid collection kind {collection.kind()}')
         self.collection = collection
 
     def __repr__(self) -> str:
@@ -80,9 +85,14 @@ class InAssetCategory(GroupingRule):
         """
         if not isinstance(asset, Identifier):
             asset = Identifier(asset)
+        if asset.kind() not in ('asset', 'asset_category'):
+            raise ValueError(f'Invalid asset kind {asset.kind()}')
         self.asset = asset
+
         if not isinstance(category, Identifier):
             category = Identifier(category)
+        if category.kind() != 'asset_category':
+            raise ValueError(f'Invalid category kind {category.kind()}')
         self.category = category
 
     def grouped(self) -> Identifier:
@@ -123,9 +133,14 @@ class InPartyCategory(GroupingRule):
         """
         if not isinstance(party, Identifier):
             party = Identifier(party)
+        if party.kind() not in ('party', 'party_category'):
+            raise ValueError(f'Invalid party kind {party.kind()}')
         self.party = party
+
         if not isinstance(category, Identifier):
             category = Identifier(category)
+        if category.kind() != 'party_category':
+            raise ValueError(f'Invalid category kind {category.kind()}')
         self.category = category
 
     def grouped(self) -> Identifier:
@@ -166,9 +181,14 @@ class InSiteCategory(GroupingRule):
         """
         if not isinstance(site, Identifier):
             site = Identifier(site)
+        if site.kind() not in ('site', 'site_category'):
+            raise ValueError(f'Invalid site kind {site.kind()}')
         self.site = site
+
         if not isinstance(category, Identifier):
             category = Identifier(category)
+        if category.kind() != 'site_category':
+            raise ValueError(f'Invalid category kind {site.kind()}')
         self.category = category
 
     def grouped(self) -> Identifier:
@@ -206,9 +226,16 @@ class MayAccess(Rule):
             site: The site that may access.
             asset: The asset that may be accessed.
         """
-        self.site = site if isinstance(site, Identifier) else Identifier(site)
+        if not isinstance(site, Identifier):
+            site = Identifier(site)
+        if site.kind() not in ('site', 'site_category', '*'):
+            raise ValueError(f'Invalid site kind {site.kind()}')
+        self.site = site
+
         if not isinstance(asset, Identifier):
             asset = Identifier(asset)
+        if asset.kind() not in ('asset', 'asset_collection'):
+            raise ValueError(f'Invalid asset kind {asset.kind()}')
         self.asset = asset
 
     def __repr__(self) -> str:
@@ -239,12 +266,18 @@ class MayUse(Rule):
             asset: The asset that may be accessed.
             conditions: Conditions under which the asset may be used.
         """
-        self.party = (
-                party if isinstance(party, Identifier) else Identifier(party))
+        if not isinstance(party, Identifier):
+            party = Identifier(party)
+        if party.kind() not in ('party', 'party_category', '*'):
+            raise ValueError(f'Invalid party kind {party.kind()}')
+        self.party = party
 
         if not isinstance(asset, Identifier):
             asset = Identifier(asset)
+        if asset.kind() not in ('asset', 'asset_collection'):
+            raise ValueError(f'Invalid asset kind {asset.kind()}')
         self.asset = asset
+
         self.conditions = conditions
 
     def __repr__(self) -> str:
@@ -318,6 +351,36 @@ class ResultOfIn(Rule):
 
 class ResultOfDataIn(ResultOfIn):
     """ResultOfIn rule on behalf of the data asset owner."""
+    def __init__(
+            self,
+            data_asset: Union[str, Identifier],
+            compute_asset: Union[str, Identifier],
+            output: str,
+            collection: Union[str, Identifier]
+            ) -> None:
+        """Create a ResultOfDataIn rule.
+
+        Args:
+            data_asset: The source data asset.
+            compute_asset: The compute asset used to process the data.
+            output: The name of the workflow step output that produced
+                    the result Asset, or '*' to match any output.
+            collection: The output collection.
+        """
+        super().__init__(data_asset, compute_asset, output, collection)
+
+        if self.data_asset.kind() not in ('asset', 'asset_collection'):
+            raise ValueError(
+                    f'Invalid data asset kind {self.data_asset.kind()}')
+
+        if self.compute_asset.kind() not in ('asset', 'asset_category', '*'):
+            raise ValueError(
+                    f'Invalid compute asset kind {self.compute_asset.kind()}')
+
+        if self.collection.kind() != 'asset_collection':
+            raise ValueError(
+                    f'Invalid collection kind {self.collection.kind()}')
+
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
         return self.data_asset.namespace()
@@ -325,6 +388,36 @@ class ResultOfDataIn(ResultOfIn):
 
 class ResultOfComputeIn(ResultOfIn):
     """ResultOfIn rule on behalf of the compute asset owner."""
+    def __init__(
+            self,
+            data_asset: Union[str, Identifier],
+            compute_asset: Union[str, Identifier],
+            output: str,
+            collection: Union[str, Identifier]
+            ) -> None:
+        """Create a ResultOfDataIn rule.
+
+        Args:
+            data_asset: The source data asset.
+            compute_asset: The compute asset used to process the data.
+            output: The name of the workflow step output that produced
+                    the result Asset, or '*' to match any output.
+            collection: The output collection.
+        """
+        super().__init__(data_asset, compute_asset, output, collection)
+
+        if self.data_asset.kind() not in ('asset', 'asset_category', '*'):
+            raise ValueError(
+                    f'Invalid data asset kind {self.data_asset.kind()}')
+
+        if self.compute_asset.kind() not in ('asset', 'asset_collection'):
+            raise ValueError(
+                    f'Invalid compute asset kind {self.compute_asset.kind()}')
+
+        if self.collection.kind() != 'asset_collection':
+            raise ValueError(
+                    f'Invalid collection kind {self.collection.kind()}')
+
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
         return self.compute_asset.namespace()

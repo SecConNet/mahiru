@@ -65,6 +65,10 @@ class Identifier(str):
         """Return the list of segments of this identifier."""
         return self.split(':')
 
+    def kind(self) -> str:
+        """Returns the kind of identifier this is."""
+        return self.segments[0]
+
     def namespace(self) -> str:
         """Returns the namespace part of the identifier.
 

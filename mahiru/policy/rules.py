@@ -110,7 +110,7 @@ class InAssetCategory(GroupingRule):
 
 
 class InPartyCategory(GroupingRule):
-    """Says that a PartyCollection contains a Party."""
+    """Says that a PartyCategory contains a Party."""
     def __init__(
             self, party: Union[str, Identifier],
             category: Union[str, Identifier]

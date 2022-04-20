@@ -22,14 +22,16 @@ _STANDARD_PORTS = {'http': 80, 'https': 443}
 
 class InternalSiteRestClient:
     """Handles connections to a local site."""
-    def __init__(self, site: str, endpoint: str) -> None:
+    def __init__(self, party: str, site: str, endpoint: str) -> None:
         """Create an InternalSiteRestClient.
 
         Args:
+            party: Party on whose behalf this client operates.
             site: Site this client is at.
             endpoint: Network location of the site's internal endpoint.
 
         """
+        self._party = party
         self._site = site
         self._endpoint = endpoint
 
@@ -80,7 +82,10 @@ class InternalSiteRestClient:
         """
         r = requests.post(
                 f'{self._endpoint}/jobs', json=serialize(job),
-                params={'requester': self._site}, allow_redirects=False)
+                params={
+                    'requesting_site': self._site,
+                    'requesting_party': self._party},
+                allow_redirects=False)
         if r.status_code != 303:
             raise RuntimeError(f'Error submitting job: {r.text}')
         if 'location' not in r.headers:

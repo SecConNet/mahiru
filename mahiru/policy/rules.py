@@ -5,7 +5,21 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.policy import Rule
 
 
-class InAssetCollection(Rule):
+class GroupingRule(Rule):
+    """Subclass for rules that represent groupings."""
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        raise NotImplementedError
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule.
+
+        This returns the collection or category.
+        """
+        raise NotImplementedError
+
+
+class InAssetCollection(GroupingRule):
     """Says that an Asset is in an AssetCollection.
 
     This implies that anyone who can access the collection can access
@@ -32,6 +46,14 @@ class InAssetCollection(Rule):
         """Return a string representation of this rule."""
         return '("{}" is in "{}")'.format(self.asset, self.collection)
 
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.asset
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.collection
+
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
@@ -44,39 +66,133 @@ class InAssetCollection(Rule):
         return self.asset.namespace()
 
 
-class InPartyCollection(Rule):
-    """Says that Party party is in PartyCollection collection."""
+class InAssetCategory(GroupingRule):
+    """Says that an AssetCategory contains an Asset."""
     def __init__(
-            self, party: Union[str, Identifier],
-            collection: Union[str, Identifier]
+            self, asset: Union[str, Identifier],
+            category: Union[str, Identifier]
             ) -> None:
-        """Create an InPartyCollection rule.
+        """Create an InAssetCategory rule.
 
         Args:
-            party: A party.
-            collection: The collection it is in.
+            asset: The asset to add to the category.
+            category: The category to add it to.
         """
-        if not isinstance(party, Identifier):
-            party = Identifier(party)
-        self.party = party
-        if not isinstance(collection, Identifier):
-            collection = Identifier(collection)
-        self.collection = collection
+        if not isinstance(asset, Identifier):
+            asset = Identifier(asset)
+        self.asset = asset
+        if not isinstance(category, Identifier):
+            category = Identifier(category)
+        self.category = category
+
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.asset
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.category
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
-        return '("{}" is in "{}")'.format(self.party, self.collection)
+        return '("{}" is in "{}")'.format(self.asset, self.category)
 
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.party, self.collection).encode('utf-8')
+        return '{}|{}'.format(self.asset, self.category).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
-        return self.collection.namespace()
+        return self.category.namespace()
+
+
+class InPartyCategory(GroupingRule):
+    """Says that a PartyCategory contains a Party."""
+    def __init__(
+            self, party: Union[str, Identifier],
+            category: Union[str, Identifier]
+            ) -> None:
+        """Create an InPartyCategory rule.
+
+        Args:
+            party: A party.
+            category: The category it is in.
+        """
+        if not isinstance(party, Identifier):
+            party = Identifier(party)
+        self.party = party
+        if not isinstance(category, Identifier):
+            category = Identifier(category)
+        self.category = category
+
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.party
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.category
+
+    def __repr__(self) -> str:
+        """Return a string representation of this rule."""
+        return '("{}" is in "{}")'.format(self.party, self.category)
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.party, self.category).encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.category.namespace()
+
+
+class InSiteCategory(GroupingRule):
+    """Says that a SiteCategory contains an Site."""
+    def __init__(
+            self, site: Union[str, Identifier],
+            category: Union[str, Identifier]
+            ) -> None:
+        """Create an InSiteCategory rule.
+
+        Args:
+            site: The site to add to the category.
+            category: The category to add it to.
+        """
+        if not isinstance(site, Identifier):
+            site = Identifier(site)
+        self.site = site
+        if not isinstance(category, Identifier):
+            category = Identifier(category)
+        self.category = category
+
+    def grouped(self) -> Identifier:
+        """Return the thing being grouped by this rule."""
+        return self.site
+
+    def group(self) -> Identifier:
+        """Return the grouping of the rule."""
+        return self.category
+
+    def __repr__(self) -> str:
+        """Return a string representation of this rule."""
+        return '("{}" is in "{}")'.format(self.site, self.category)
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return '{}|{}'.format(self.site, self.category).encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.category.namespace()
 
 
 class MayAccess(Rule):
@@ -111,6 +227,42 @@ class MayAccess(Rule):
         return self.asset.namespace()
 
 
+class MayUse(Rule):
+    """Says that Party party may use Asset asset."""
+    def __init__(
+            self, party: Union[str, Identifier], asset: Union[str, Identifier],
+            conditions: str) -> None:
+        """Create a MayUse rule.
+
+        Args:
+            party: The party that may access.
+            asset: The asset that may be accessed.
+            conditions: Conditions under which the asset may be used.
+        """
+        self.party = (
+                party if isinstance(party, Identifier) else Identifier(party))
+
+        if not isinstance(asset, Identifier):
+            asset = Identifier(asset)
+        self.asset = asset
+        self.conditions = conditions
+
+    def __repr__(self) -> str:
+        """Return a string representation of this rule."""
+        return f'("{self.party}" may use "{self.asset}")'
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return f'{self.party}|{self.asset}|{self.conditions}'.encode('utf-8')
+
+    def signing_namespace(self) -> str:
+        """Return the namespace whose owner must sign this rule."""
+        return self.asset.namespace()
+
+
 class ResultOfIn(Rule):
     """Defines collections of results.
 
@@ -122,6 +274,7 @@ class ResultOfIn(Rule):
             self,
             data_asset: Union[str, Identifier],
             compute_asset: Union[str, Identifier],
+            output: str,
             collection: Union[str, Identifier]
             ) -> None:
         """Create a ResultOfIn rule.
@@ -129,6 +282,8 @@ class ResultOfIn(Rule):
         Args:
             data_asset: The source data asset.
             compute_asset: The compute asset used to process the data.
+            output: The name of the workflow step output that produced
+                    the result Asset, or '*' to match any output.
             collection: The output collection.
         """
         if not isinstance(data_asset, Identifier):
@@ -142,21 +297,23 @@ class ResultOfIn(Rule):
 
         self.data_asset = data_asset
         self.compute_asset = compute_asset
+        self.output = output
         self.collection = collection
 
     def __repr__(self) -> str:
         """Return a string representation of this rule."""
-        return '(result of "{}" on "{}" is in collection "{}")'.format(
-                self.compute_asset, self.data_asset, self.collection)
+        return '(result "{}" of "{}" on "{}" is in collection "{}")'.format(
+                self.output, self.compute_asset, self.data_asset,
+                self.collection)
 
     def signing_representation(self) -> bytes:
         """Return a string of bytes representing the object.
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}|{}'.format(
-                self.data_asset, self.compute_asset, self.collection
-                ).encode('utf-8')
+        return '{}|{}|{}|{}'.format(
+                self.data_asset, self.compute_asset, self.output,
+                self.collection).encode('utf-8')
 
 
 class ResultOfDataIn(ResultOfIn):

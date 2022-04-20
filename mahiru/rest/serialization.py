@@ -24,8 +24,8 @@ from mahiru.definitions.workflows import (
 
 from mahiru.policy.definitions import PolicyUpdate
 from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfComputeIn,
-        ResultOfDataIn)
+        InAssetCollection, InAssetCategory, InPartyCategory, MayAccess, MayUse,
+        ResultOfComputeIn, ResultOfDataIn)
 
 from mahiru.registry.replication import RegistryUpdate
 from mahiru.replication import ReplicaUpdate
@@ -113,13 +113,22 @@ def _serialize_in_asset_collection(rule: InAssetCollection) -> JSON:
             'collection': rule.collection}
 
 
-def _serialize_in_party_collection(rule: InPartyCollection) -> JSON:
-    """Serialize an InPartyCollection object to JSON."""
+def _serialize_in_asset_category(rule: InAssetCategory) -> JSON:
+    """Serialize an InAssetCategory object to JSON."""
     return {
-            'type': 'InPartyCollection',
+            'type': 'InAssetCategory',
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
+            'asset': rule.asset,
+            'category': rule.category}
+
+
+def _serialize_in_party_category(rule: InPartyCategory) -> JSON:
+    """Serialize an InPartyCategory object to JSON."""
+    return {
+            'type': 'InPartyCategory',
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'party': rule.party,
-            'collection': rule.collection}
+            'category': rule.category}
 
 
 def _serialize_may_access(rule: MayAccess) -> JSON:
@@ -131,6 +140,16 @@ def _serialize_may_access(rule: MayAccess) -> JSON:
             'asset': rule.asset}
 
 
+def _serialize_may_use(rule: MayUse) -> JSON:
+    """Serialize a MayUse object to JSON."""
+    return {
+            'type': 'MayUse',
+            'signature': base64.urlsafe_b64encode(rule.signature).decode(),
+            'party': rule.party,
+            'asset': rule.asset,
+            'conditions': rule.conditions}
+
+
 def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
     """Serialize a ResultOfDataIn object to JSON."""
     return {
@@ -138,6 +157,7 @@ def _serialize_result_of_data_in(rule: ResultOfDataIn) -> JSON:
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'data_asset': rule.data_asset,
             'compute_asset': rule.compute_asset,
+            'output': rule.output,
             'collection': rule.collection}
 
 
@@ -148,6 +168,7 @@ def _serialize_result_of_compute_in(rule: ResultOfComputeIn) -> JSON:
             'signature': base64.urlsafe_b64encode(rule.signature).decode(),
             'data_asset': rule.data_asset,
             'compute_asset': rule.compute_asset,
+            'output': rule.output,
             'collection': rule.collection}
 
 
@@ -156,18 +177,24 @@ def _deserialize_rule(user_input: JSON) -> Rule:
     rule = None     # type: Optional[Rule]
     if user_input['type'] == 'InAssetCollection':
         rule = InAssetCollection(user_input['asset'], user_input['collection'])
-    elif user_input['type'] == 'InPartyCollection':
-        rule = InPartyCollection(user_input['party'], user_input['collection'])
+    elif user_input['type'] == 'InAssetCategory':
+        rule = InAssetCategory(user_input['asset'], user_input['category'])
+    elif user_input['type'] == 'InPartyCategory':
+        rule = InPartyCategory(user_input['party'], user_input['category'])
     elif user_input['type'] == 'MayAccess':
         rule = MayAccess(user_input['site'], user_input['asset'])
+    elif user_input['type'] == 'MayUse':
+        rule = MayUse(
+                user_input['party'], user_input['asset'],
+                user_input['conditions'])
     elif user_input['type'] == 'ResultOfDataIn':
         rule = ResultOfDataIn(
                 user_input['data_asset'], user_input['compute_asset'],
-                user_input['collection'])
+                user_input['output'], user_input['collection'])
     elif user_input['type'] == 'ResultOfComputeIn':
         rule = ResultOfComputeIn(
                 user_input['data_asset'], user_input['compute_asset'],
-                user_input['collection'])
+                user_input['output'], user_input['collection'])
     else:
         raise RuntimeError('Invalid rule type when deserialising')
 
@@ -212,14 +239,15 @@ def _deserialize_workflow(user_input: JSON) -> Workflow:
 def _serialize_job(job: Job) -> JSON:
     """Serialize a Job to JSON."""
     return {
-           'workflow': _serialize_workflow(job.workflow),
-           'inputs': job.inputs}
+            'submitter': job.submitter,
+            'workflow': _serialize_workflow(job.workflow),
+            'inputs': job.inputs}
 
 
 def _deserialize_job(user_input: JSON) -> Job:
     """Deserialize a Job from JSON."""
     workflow = _deserialize_workflow(user_input['workflow'])
-    return Job(workflow, user_input['inputs'])
+    return Job(user_input['submitter'], workflow, user_input['inputs'])
 
 
 def _serialize_plan(plan: Plan) -> JSON:
@@ -432,8 +460,10 @@ _serializers = {
         PartyDescription: _serialize_party_description,
         SiteDescription: _serialize_site_description,
         InAssetCollection: _serialize_in_asset_collection,
-        InPartyCollection: _serialize_in_party_collection,
+        InAssetCategory: _serialize_in_asset_category,
+        InPartyCategory: _serialize_in_party_category,
         MayAccess: _serialize_may_access,
+        MayUse: _serialize_may_use,
         ResultOfDataIn: _serialize_result_of_data_in,
         ResultOfComputeIn: _serialize_result_of_compute_in,
         WorkflowStep: _serialize_workflow_step,

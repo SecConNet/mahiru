@@ -2,7 +2,7 @@ from copy import copy
 
 from mahiru.policy.replication import PolicyStore
 from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfDataIn,
+        InAssetCollection, InPartyCategory, MayAccess, ResultOfDataIn,
         ResultOfComputeIn)
 from mahiru.replication import ReplicableArchive
 from mahiru.definitions.policy import Rule
@@ -25,8 +25,8 @@ def test_rules_are_values():
     rule1 = InAssetCollection(
             'asset:party1_ns:data1:ns:s',
             'asset_collection:party1_ns:collection1')
-    rule2 = InPartyCollection(
-            'party:party2_ns:party2', 'party_collection:party2_ns:collection2')
+    rule2 = InPartyCategory(
+            'party:party2_ns:party2', 'party_category:party2_ns:collection2')
     rule3 = MayAccess('site:party3_ns:site3', 'asset:party3_ns:data3:ns:s')
 
     for rule in (rule1, rule2, rule3):
@@ -42,10 +42,10 @@ def test_rules_are_values():
 
     rule4a = ResultOfDataIn(
             'asset:party4_ns:data4:ns:s', 'asset:party4_ns:compute4:ns:s',
-            'asset_collection:party4_ns:collection4')
+            '*', 'asset_collection:party4_ns:collection4')
     rule4b = ResultOfComputeIn(
             'asset:party4_ns:data4:ns:s', 'asset:party4_ns:compute4:ns:s',
-            'asset_collection:party4_ns:collection4')
+            '*', 'asset_collection:party4_ns:collection4')
     policy_store.insert(copy(rule4a))
     policy_store.insert(copy(rule4b))
 

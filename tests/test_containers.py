@@ -18,7 +18,7 @@ from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
 from mahiru.policy.rules import (
-        MayAccess, ResultOfComputeIn, ResultOfDataIn)
+        MayAccess, MayUse, ResultOfComputeIn, ResultOfDataIn)
 from mahiru.rest.ddm_site import SiteRestApi, SiteServer
 from mahiru.rest.internal_client import InternalSiteRestClient
 
@@ -58,12 +58,13 @@ def run_container_step(
         pilot_tar, data_asset_tars, compute_asset_tar, network_settings):
 
     # create party
+    party = Identifier('party:ns:test_party')
     party_key = generate_private_key(
             public_exponent=65537, key_size=2048, backend=default_backend())
 
     registration_client.register_party(
             PartyDescription(
-                'party:ns:test_party', 'ns', party_key.public_key()))
+                party, 'ns', party_key.public_key()))
 
     # create assets
     data_asset_output_tar, data_asset_input_tar = data_asset_tars
@@ -87,23 +88,25 @@ def run_container_step(
             MayAccess(
                 'site:ns:test_site', 'asset:ns:output_base:ns:test_site'),
             ResultOfDataIn(
-                'asset:ns:dataset1:ns:test_site', '*',
+                'asset:ns:dataset1:ns:test_site', '*', 'output0',
                 'asset_collection:ns:results1'),
             ResultOfDataIn(
-                'asset:ns:output_base:ns:test_site', '*',
+                'asset:ns:output_base:ns:test_site', '*', '*',
                 'asset_collection:ns:results1'),
             ResultOfComputeIn(
-                '*', 'asset:ns:compute1:ns:test_site',
+                '*', 'asset:ns:compute1:ns:test_site', '*',
                 'asset_collection:ns:public'),
             MayAccess('site:ns:test_site', 'asset_collection:ns:results1'),
-            MayAccess('*', 'asset_collection:ns:public')]
+            MayUse('party:ns:test_party', 'asset_collection:ns:results1', ''),
+            MayAccess('*', 'asset_collection:ns:public'),
+            MayUse('*', 'asset_collection:ns:public', 'For any use')]
 
     for rule in rules:
         rule.sign(party_key)
 
     # create site
     config = SiteConfiguration(
-            'test_site', 'ns', 'party:ns:test_party', network_settings, '')
+            'test_site', 'ns', party, network_settings, '')
     site = Site(config, [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
@@ -114,7 +117,7 @@ def run_container_step(
 
     # initialise site
     internal_client = InternalSiteRestClient(
-            site.id, site_server.internal_endpoint)
+            site.owner, site.id, site_server.internal_endpoint)
     for asset in assets:
         internal_client.store_asset(asset)
 
@@ -143,11 +146,11 @@ def run_container_step(
 
     # run workflow
     try:
-        result = site.run_job(Job(workflow, inputs))
+        result = site.run_job(Job(party, workflow, inputs))
     finally:
         site_server.close()
         registration_client.deregister_site(site.id)
-        registration_client.deregister_party('party:ns:test_party')
+        registration_client.deregister_party(party)
         site.close()
 
 

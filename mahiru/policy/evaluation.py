@@ -1,20 +1,28 @@
 """Components for evaluating workflow permissions."""
-from typing import Dict, Iterable, List, Optional, Set, Type
+from typing import (
+        Callable, Dict, Iterable, List, Optional, Set, Union, Tuple, Type,
+        TypeVar)
 
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IPolicyCollection
 from mahiru.definitions.workflows import Job, Plan, Workflow, WorkflowStep
 from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfIn,
-        ResultOfDataIn, ResultOfComputeIn)
+        GroupingRule, InAssetCategory, InAssetCollection, InPartyCategory,
+        InSiteCategory, MayAccess, MayUse, ResultOfIn, ResultOfDataIn,
+        ResultOfComputeIn)
+
+
+_GroupingRule = TypeVar('_GroupingRule', bound=GroupingRule)
 
 
 class Permissions:
     """Represents permissions for an asset."""
-    def __init__(self) -> None:
+    def __init__(self, sets: Optional[List[Set[Identifier]]] = None) -> None:
         """Creates Permissions that do not allow access."""
         # friend PolicyEvaluator
         self._sets = list()     # type: List[Set[Identifier]]
+        if sets is not None:
+            self._sets = sets
 
     def __str__(self) -> str:
         """Returns a string representationf this object."""
@@ -45,13 +53,15 @@ class PolicyEvaluator:
             asset: The asset to get permissions for.
         """
         result = Permissions()
-        result._sets = [self._equivalent_assets(asset)]
+        result._sets = [self._equivalent_objects(
+            InAssetCollection, 'up', asset)]
         return result
 
     def propagate_permissions(
             self,
             input_permissions: List[Permissions],
-            compute_asset: Identifier
+            compute_asset: Identifier,
+            output: str
             ) -> Permissions:
         """Determines access for the result of an operation.
 
@@ -64,6 +74,7 @@ class PolicyEvaluator:
             input_permissions: A list of access permissions to
                     propagate, one for each input.
             compute_asset: The compute asset used in the operation.
+            output: The step output to propagate permissions for.
 
         Returns:
             The access permissions of the results.
@@ -71,19 +82,11 @@ class PolicyEvaluator:
         result = Permissions()
         for input_perms in input_permissions:
             for asset_set in input_perms._sets:
-                data_rules = self._resultofin_rules(
-                        ResultOfDataIn, asset_set, compute_asset)
-                result._sets.append({
-                        asset
-                        for rule in data_rules
-                        for asset in self._equivalent_assets(rule.collection)})
+                data_coll, compute_coll = self._resultofin_collections(
+                        asset_set, compute_asset, output)
+                result._sets.append(data_coll)
+                result._sets.append(compute_coll)
 
-                compute_rules = self._resultofin_rules(
-                        ResultOfComputeIn, asset_set, compute_asset)
-                result._sets.append({
-                        asset
-                        for rule in compute_rules
-                        for asset in self._equivalent_assets(rule.collection)})
         return result
 
     def may_access(self, permissions: Permissions, site: Identifier) -> bool:
@@ -96,100 +99,148 @@ class PolicyEvaluator:
             permissions: Permissions for the asset to check.
             site: A site which needs access.
         """
-        def matches_one(asset_set: Set[Identifier], site: str) -> bool:
-            for asset in asset_set:
+        def matches_one(
+                asset_set: Set[Identifier], equiv_sites: Set[Identifier]
+                ) -> bool:
+            """Check for access matches.
+
+            Returns:
+                True iff there's an asset in asset_set a site in
+                equiv_sites has access to.
+            """
+            equiv_assets = self._equivalent_objects(
+                    InAssetCollection, 'up', asset_set)
+            for asset in equiv_assets:
                 for rule in self._policy_collection.policies():
                     if isinstance(rule, MayAccess):
-                        if rule.asset == asset and rule.site == site:
+                        if rule.asset == asset and rule.site in equiv_sites:
                             return True
                         if rule.asset == asset and rule.site == '*':
                             return True
             return False
 
-        return all([matches_one(asset_set, site)
+        equiv_sites = self._equivalent_objects(InSiteCategory, 'up', site)
+        return all([matches_one(asset_set, equiv_sites)
                     for asset_set in permissions._sets])
 
-    def _equivalent_parties(self, party: str) -> List[str]:
-        """Returns all the parties whose rules apply to an asset.
+    def may_use(self, permissions: Permissions, party: Identifier) -> bool:
+        """Checks whether an asset can be used by a party.
 
-        These are the parties itself, and all parties that are party
-        collections that the party is directly or indirectly in.
+        This function checks whether the given party has use rights
+        to at least one asset in each of the given set of assets.
 
         Args:
-            party: The party to find equivalents for.
+            permissions: Permissions for the asset to check.
+            party: A party which needs use rights.
         """
-        cur_parties = list()     # type: List[str]
-        new_parties = [party]
-        while new_parties:
-            cur_parties.extend(new_parties)
-            new_parties = list()
-            for party in cur_parties:
+        def matches_one(
+                asset_set: Set[Identifier], equiv_parties: Set[Identifier]
+                ) -> bool:
+            """Check for usage matches.
+
+            Returns:
+                True iff there's an asset in asset_set a party in
+                equiv_parties may use.
+            """
+            equiv_assets = self._equivalent_objects(
+                    InAssetCollection, 'up', asset_set)
+            for asset in equiv_assets:
                 for rule in self._policy_collection.policies():
-                    if isinstance(rule, InPartyCollection):
-                        if rule.party == party:
-                            new_parties.append(rule.collection)
-        return cur_parties
+                    if isinstance(rule, MayUse):
+                        if rule.asset == asset and rule.party in equiv_parties:
+                            return True
+                        if rule.asset == asset and rule.party == '*':
+                            return True
+            return False
 
-    def _equivalent_assets(self, asset: Identifier) -> Set[Identifier]:
-        """Returns all the assets whose rules apply to an asset.
+        equiv_parties = self._equivalent_objects(InPartyCategory, 'up', party)
+        return all([matches_one(asset_set, equiv_parties)
+                    for asset_set in permissions._sets])
 
-        These are the asset itself, and all assets that are asset
-        collections that the asset is directly or indirectly in.
+    def _equivalent_objects(
+            self, rule_type: Type[_GroupingRule],
+            direction: str,
+            obj: Union[Identifier, Set[Identifier]]
+            ) -> Set[Identifier]:
+        """Return objects reachable by traversing grouping rules.
 
         Args:
-            asset: The asset to find equivalents for.
+            rule_type: Type of rule to follow, e.g. InAssetCategory.
+            direction: Either 'up' or 'down'.
+            obj: The objects or object categories to find equivalents
+                    for.
         """
-        cur_assets = set()     # type: Set[Identifier]
-        new_assets = {asset}
-        while new_assets:
-            cur_assets |= new_assets
-            new_assets = set()
-            for asset in cur_assets:
+        if not isinstance(obj, set):
+            obj = {obj}
+
+        if direction == 'up':
+            near_end, far_end = rule_type.grouped, rule_type.group
+        else:
+            near_end, far_end = rule_type.group, rule_type.grouped
+
+        cur_objects = set()      # type: Set[Identifier]
+        new_objects = obj
+        while new_objects:
+            cur_objects |= new_objects
+            new_objects = set()
+            for o in cur_objects:
                 for rule in self._policy_collection.policies():
-                    if isinstance(rule, InAssetCollection):
-                        if rule.asset == asset:
-                            if rule.collection not in cur_assets:
-                                new_assets.add(rule.collection)
-        cur_assets.add(Identifier('*'))
-        return cur_assets
+                    if isinstance(rule, rule_type):
+                        if near_end(rule) == o:
+                            if far_end(rule) not in cur_objects:
+                                new_objects.add(far_end(rule))
+        return cur_objects
 
-    def _resultofin_rules(
-            self, typ: Type, asset_set: Set[Identifier],
-            compute_asset: Identifier
-            ) -> List[ResultOfIn]:
-        """Returns all ResultOfIn rules that apply to these assets.
+    def _resultofin_collections(
+            self, input_assets: Set[Identifier],
+            compute_asset: Identifier, output: str,
+            ) -> Tuple[Set[Identifier], Set[Identifier]]:
+        """Returns collections these assets propagate to.
 
-        These are rules that have one of the given assets in their
-        asset field, and the given compute_asset or an equivalent one.
-
-        The returned list contains only items of type typ.
+        This finds ResultOfIn rules that apply to the given assets,
+        and collects the collections that they propagate to. Two sets
+        of collections are returned, the first one for ResultOfDataIn
+        rules and the second one for ResultOfComputein rules.
 
         Args:
-            typ: Either ResultOfDataIn or ResultOfComputeIn, specifies
-                    the kind of rules to return.
-            asset_set: Set of data assets to match rules to.
+            input_assets: Set of data assets to match rules to.
             compute_asset: Compute asset to match rules to.
+            output: Output to match rules to.
         """
-        def rules_for_asset(asset: Identifier) -> List[ResultOfIn]:
-            """Gets all matching rules for the given single asset."""
-            result = list()     # type: List[ResultOfIn]
-            assets = self._equivalent_assets(asset)
-            for rule in self._policy_collection.policies():
-                if isinstance(rule, typ):
-                    for asset in assets:
-                        if rule.data_asset == asset:
-                            result.append(rule)
-            return result
+        data_collections, compute_collections = set(), set()
 
-        comp_assets = self._equivalent_assets(compute_asset)
+        input_assets_colls = {
+                a for input_asset in input_assets
+                for a in self._equivalent_objects(
+                    InAssetCollection, 'up', input_asset)}
+        compute_asset_colls = self._equivalent_objects(
+                InAssetCollection, 'up', compute_asset)
 
-        rules = list()  # type: List[ResultOfIn]
-        for asset in asset_set:
-            new_rules = rules_for_asset(asset)
-            rules.extend([rule
-                          for rule in new_rules
-                          if rule.compute_asset in comp_assets])
-        return rules
+        for rule in self._policy_collection.policies():
+            if isinstance(rule, ResultOfIn):
+                if rule.output != '*' and rule.output != output:
+                    continue
+
+            if isinstance(rule, ResultOfDataIn):
+                if rule.data_asset in input_assets_colls:
+                    if rule.compute_asset == '*':
+                        data_collections.add(rule.collection)
+                    elif compute_asset in self._equivalent_objects(
+                            InAssetCategory, 'down', rule.compute_asset):
+                        data_collections.add(rule.collection)
+
+            elif isinstance(rule, ResultOfComputeIn):
+                if rule.compute_asset in compute_asset_colls:
+                    if rule.data_asset == '*':
+                        compute_collections.add(rule.collection)
+                        continue
+
+                    equiv_data_assets = self._equivalent_objects(
+                            InAssetCategory, 'down', rule.data_asset)
+                    if not input_assets.isdisjoint(equiv_data_assets):
+                        compute_collections.add(rule.collection)
+
+        return data_collections, compute_collections
 
 
 class PermissionCalculator:
@@ -290,15 +341,16 @@ class PermissionCalculator:
             for inp in step.inputs:
                 inp_item = '{}.{}'.format(step.name, inp)
                 input_perms.append(permissions[inp_item])
-            for outp in step.outputs:
-                base_item = '{}.@{}'.format(step.name, outp)
-                if base_item in permissions:
-                    input_perms.append(permissions[base_item])
-
-            perms = self._policy_evaluator.propagate_permissions(
-                        input_perms, step.compute_asset_id)
 
             for output in step.outputs:
+                o_input_perms = list(input_perms)
+                base_item = '{}.@{}'.format(step.name, output)
+                if base_item in permissions:
+                    o_input_perms.append(permissions[base_item])
+
+                perms = self._policy_evaluator.propagate_permissions(
+                            o_input_perms, step.compute_asset_id, output)
+
                 output_item = '{}.{}'.format(step.name, output)
                 permissions[output_item] = perms
 
@@ -402,10 +454,17 @@ class PermissionCalculator:
             job: The job to be executed.
             plan: The plan to check for legality
         """
-        permitted_sites = self.permitted_sites(job, plan.step_sites.values())
+        permissions = self.calculate_permissions(job)
+        permitted_sites = self.permitted_sites(
+                job, plan.step_sites.values(), permissions)
 
         for step_name, site in plan.step_sites.items():
             if site not in permitted_sites[step_name]:
+                return False
+
+        for output in job.workflow.outputs:
+            output_perms = permissions[output]
+            if not self._policy_evaluator.may_use(output_perms, job.submitter):
                 return False
 
         return True

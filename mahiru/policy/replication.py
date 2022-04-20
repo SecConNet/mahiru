@@ -3,9 +3,6 @@ import logging
 
 from mahiru.definitions.policy import Rule
 from mahiru.policy.definitions import PolicyUpdate
-from mahiru.policy.rules import (
-        InAssetCollection, InPartyCollection, MayAccess, ResultOfIn,
-        ResultOfDataIn, ResultOfComputeIn)
 from mahiru.replication import CanonicalStore, ObjectValidator
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey

@@ -64,7 +64,8 @@ class InAssetCollection(GroupingRule):
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.asset, self.collection).encode('utf-8')
+        return 'InAssetCollection|{}|{}'.format(
+                self.asset, self.collection).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
@@ -112,7 +113,8 @@ class InAssetCategory(GroupingRule):
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.asset, self.category).encode('utf-8')
+        return 'InAssetCategory|{}|{}'.format(
+                self.asset, self.category).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
@@ -160,7 +162,8 @@ class InPartyCategory(GroupingRule):
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.party, self.category).encode('utf-8')
+        return 'InPartyCategory|{}|{}'.format(
+                self.party, self.category).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
@@ -208,7 +211,8 @@ class InSiteCategory(GroupingRule):
 
         This adapts the Signable base class to this class.
         """
-        return '{}|{}'.format(self.site, self.category).encode('utf-8')
+        return 'InSiteCategory|{}|{}'.format(
+                self.site, self.category).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
@@ -247,7 +251,7 @@ class MayAccess(Rule):
 
         This adapts the Signable base class to this class.
         """
-        return f'{self.site}|{self.asset}'.encode('utf-8')
+        return f'MayAccess|{self.site}|{self.asset}'.encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
@@ -289,7 +293,8 @@ class MayUse(Rule):
 
         This adapts the Signable base class to this class.
         """
-        return f'{self.party}|{self.asset}|{self.conditions}'.encode('utf-8')
+        return 'MayUse|{}|{}|{}'.format(
+                self.party, self.asset, self.conditions).encode('utf-8')
 
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
@@ -339,15 +344,6 @@ class ResultOfIn(Rule):
                 self.output, self.compute_asset, self.data_asset,
                 self.collection)
 
-    def signing_representation(self) -> bytes:
-        """Return a string of bytes representing the object.
-
-        This adapts the Signable base class to this class.
-        """
-        return '{}|{}|{}|{}'.format(
-                self.data_asset, self.compute_asset, self.output,
-                self.collection).encode('utf-8')
-
 
 class ResultOfDataIn(ResultOfIn):
     """ResultOfIn rule on behalf of the data asset owner."""
@@ -385,6 +381,15 @@ class ResultOfDataIn(ResultOfIn):
         """Return the namespace whose owner must sign this rule."""
         return self.data_asset.namespace()
 
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return 'ResultOfDataIn|{}|{}|{}|{}'.format(
+                self.data_asset, self.compute_asset, self.output,
+                self.collection).encode('utf-8')
+
 
 class ResultOfComputeIn(ResultOfIn):
     """ResultOfIn rule on behalf of the compute asset owner."""
@@ -421,3 +426,12 @@ class ResultOfComputeIn(ResultOfIn):
     def signing_namespace(self) -> str:
         """Return the namespace whose owner must sign this rule."""
         return self.compute_asset.namespace()
+
+    def signing_representation(self) -> bytes:
+        """Return a string of bytes representing the object.
+
+        This adapts the Signable base class to this class.
+        """
+        return 'ResultOfComputeIn|{}|{}|{}|{}'.format(
+                self.data_asset, self.compute_asset, self.output,
+                self.collection).encode('utf-8')

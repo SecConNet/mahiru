@@ -15,7 +15,7 @@
 
   - name: Copy assets
     synchronize:
-      src: "../../build/{{ item }}"
+      src: "../../build/images/{{ item }}"
       dest: "{{ asset_dir }}/{{ item }}"
     loop:
       - data-asset-base.tar.gz
@@ -54,7 +54,7 @@
 
   - name: Copy assets
     synchronize:
-      src: ../../build/data-asset-input.tar.gz
+      src: ../../build/images/data-asset-input.tar.gz
       dest: "{{ asset_dir }}/data-asset-input.tar.gz"
 
   - name: Create script directory

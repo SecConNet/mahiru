@@ -20,7 +20,7 @@
       src: '{{ item.src }}'
       dest: '{{ item.dest }}'
     loop:
-      - src: ../../build/mahiru-registry-latest.tar
+      - src: ../../build/images/mahiru-registry-latest.tar
         dest: "{{ home }}/mahiru/mahiru-registry-latest.tar"
       - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/registry_nginx.conf"
@@ -131,7 +131,7 @@
       src: '{{ item.src }}'
       dest: '{{ item.dest }}'
     loop:
-      - src: ../../build/mahiru-site-latest.tar
+      - src: ../../build/images/mahiru-site-latest.tar
         dest: "{{ home }}/mahiru/mahiru-site-latest.tar"
       - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/internal_site_nginx.conf"

@@ -97,3 +97,7 @@ compute_asset_base:
 .PHONY: compute_asset
 compute_asset: compute_asset_base
 	docker build docker/assets -f docker/assets/compute-asset.Dockerfile -t mahiru-test/compute-asset:latest
+
+.PHONY: certificates
+certificates:
+	$(MAKE) -C build/certs all

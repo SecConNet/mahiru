@@ -152,9 +152,14 @@ def test_asset_collection_access(asset1, asset_collection1a, site1, site2):
 
 
 def test_asset_category_access(asset1, asset_category1a, site1):
+    # Make a broken rule and check that we don't follow categories
+    # even if that happens.
+    may_access = MayAccess(site1, 'asset:dummy:dummy:dummy:dummy')
+    may_access.asset = asset_category1a
+
     policies = MockPolicies([
         InAssetCategory(asset1, asset_category1a),
-        MayAccess(site1, asset_category1a)])
+        may_access])
     evaluator = PolicyEvaluator(policies)
 
     perms = evaluator.permissions_for_asset(asset1)
@@ -174,9 +179,13 @@ def test_site_category_access(asset1, site_category1a, site2):
 
 
 def test_asset_category_any_site(any_object, asset1, asset_category1a, site1):
+    # Make a broken rule and check that we don't follow categories
+    # even if that happens, and also to any site.
+    may_access = MayAccess(any_object, 'asset:dummy:dummy:dummy:dummy')
+    may_access.asset = asset_category1a
     policies = MockPolicies([
         InAssetCategory(asset1, asset_category1a),
-        MayAccess(any_object, asset_category1a)])
+        may_access])
     evaluator = PolicyEvaluator(policies)
 
     perms = evaluator.permissions_for_asset(asset1)
@@ -212,10 +221,12 @@ def test_propagate_result_of_data_in_data_collection(
 
 def test_propagate_result_of_data_in_data_category(
         asset1, asset2, asset_category1a, asset_collection1a):
+    rodi = ResultOfDataIn(asset1, asset2, 'output1', asset_collection1a)
+    rodi.data_asset = asset_category1a
+
     policies = MockPolicies([
         InAssetCategory(asset1, asset_category1a),
-        ResultOfDataIn(
-            asset_category1a, asset2, 'output1', asset_collection1a)])
+        rodi])
     evaluator = PolicyEvaluator(policies)
 
     input_perms = [Permissions([{asset1}])]
@@ -225,10 +236,12 @@ def test_propagate_result_of_data_in_data_category(
 
 def test_propagate_result_of_data_in_compute_collection(
         asset1, asset2, asset_collection1a, asset_collection1b):
+    rodi = ResultOfDataIn(asset2, asset1, 'output1', asset_collection1b)
+    rodi.compute_asset = asset_collection1a
+
     policies = MockPolicies([
         InAssetCollection(asset1, asset_collection1a),
-        ResultOfDataIn(
-            asset2, asset_collection1a, 'output1', asset_collection1b)])
+        rodi])
     evaluator = PolicyEvaluator(policies)
 
     input_perms = [Permissions([{asset2}])]
@@ -261,10 +274,12 @@ def test_propagate_result_of_compute_in(asset1, asset2, asset_collection2a):
 
 def test_propagate_result_of_compute_in_data_collection(
         asset1, asset2, asset_collection1a, asset_collection2a):
+    roci = ResultOfComputeIn(asset1, asset2, 'output1', asset_collection2a)
+    roci.data_asset = asset_collection1a
+
     policies = MockPolicies([
         InAssetCollection(asset1, asset_collection1a),
-        ResultOfComputeIn(
-            asset_collection1a, asset2, 'output1', asset_collection2a)])
+        roci])
     evaluator = PolicyEvaluator(policies)
 
     input_perms = [Permissions([{asset1}])]
@@ -300,10 +315,12 @@ def test_propagate_result_of_compute_in_compute_collection(
 
 def test_propagate_result_of_compute_in_compute_category(
         asset1, asset2, asset_collection1a, asset_category1a):
+    roci = ResultOfComputeIn(asset2, asset1, 'output1', asset_collection1a)
+    roci.compute_asset = asset_category1a
+
     policies = MockPolicies([
         InAssetCategory(asset1, asset_category1a),
-        ResultOfComputeIn(
-            asset2, asset_category1a, 'output1', asset_collection1a)])
+        roci])
     evaluator = PolicyEvaluator(policies)
 
     input_perms = [Permissions([{asset2}])]

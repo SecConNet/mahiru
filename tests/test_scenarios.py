@@ -70,7 +70,7 @@ def create_sites(
     return {
             site_name: Site(
                 SiteConfiguration(
-                    site_name, desc['namespace'], desc['owner'],
+                    site_name, desc['namespace'], Identifier(desc['owner']),
                     NetworkSettings(), ''),
                 [], [], registry_client)
             for site_name, desc in site_descriptions.items()}

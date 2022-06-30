@@ -12,7 +12,7 @@ import requests
 from mahiru.definitions.assets import ComputeAsset, ComputeMetadata, DataAsset
 from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.policy.rules import (
-        MayAccess, ResultOfComputeIn, ResultOfDataIn)
+        MayAccess, MayUse, ResultOfComputeIn, ResultOfDataIn)
 from mahiru.rest.registry_client import RegistrationRestClient
 from mahiru.rest.internal_client import InternalSiteRestClient
 
@@ -77,19 +77,24 @@ def add_initial_rules(
                 'asset:party1_ns:da.software.script1:party1_ns:site1'),
             ResultOfDataIn(
                 'asset:party1_ns:da.data.output_base:party1_ns:site1', '*',
-                'asset_collection:party1_ns:da.data.public'),
+                '*', 'asset_collection:party1_ns:da.data.public'),
             ResultOfDataIn(
-                'asset_collection:party1_ns:da.data.public', '*',
+                'asset_collection:party1_ns:da.data.public', '*', '*',
                 'asset_collection:party1_ns:da.data.public'),
             ResultOfComputeIn(
                 '*', 'asset:party1_ns:da.software.script1:party1_ns:site1',
-                'asset_collection:party1_ns:da.data.results'),
+                '*', 'asset_collection:party1_ns:da.data.results'),
             MayAccess(
                 '*',
                 'asset_collection:party1_ns:da.data.public'),
             MayAccess(
                 'site:party1_ns:site1',
-                'asset_collection:party1_ns:da.data.results')
+                'asset_collection:party1_ns:da.data.results'),
+            MayUse(
+                '*', 'asset_collection:party1_ns:da.data.public', 'Any use'),
+            MayUse(
+                'party:party1_ns:party1',
+                'asset_collection:party1_ns:da.data.results', 'Any use')
             ]
 
     for rule in rules:
@@ -110,6 +115,8 @@ if __name__ == "__main__":
 
     register(private_key.public_key())
 
-    client = InternalSiteRestClient("site1", "http://site1:1080")
+    client = InternalSiteRestClient(
+            'party:party1_ns:party1', 'site:party1_ns:site1',
+            'http://site1:1080')
     add_initial_assets(client)
     add_initial_rules(client, private_key)

@@ -2,7 +2,7 @@
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Set, Tuple
 
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IRegistryService
@@ -69,14 +69,18 @@ class RegistryClient:
         """
         self._registry_replica.update()
 
-    def get_ns_and_key(self, party_id: Identifier) -> Tuple[str, RSAPublicKey]:
+    def get_ns_and_key(
+            self, party_id: Identifier) -> Tuple[str, Ed25519PublicKey]:
         """Get the namespace and public key of a party."""
         # Do not update here, when this is called we're processing one
         # already.
         party = self._get_party(party_id)
         if party is None:
             raise RuntimeError(f'Party with id {party_id} not found')
-        return party.namespace, party.public_key
+        key = party.main_certificate.public_key()
+        if not isinstance(key, Ed25519PublicKey):
+            raise RuntimeError('Mahiru requires ED25519 keys')
+        return party.namespace, key
 
     def list_sites_with_runners(self) -> List[Identifier]:
         """Returns a list of id's of sites with runners."""

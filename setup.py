@@ -39,7 +39,7 @@ setup(
         'Programming Language :: Python :: 3.9',
     ],
     install_requires=[
-        'cryptography<3.4',
+        'cryptography>=36',
         'docker',
         'falcon==3.0.0a3',
         'openapi-schema-validator',

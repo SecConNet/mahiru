@@ -2,11 +2,8 @@
 
 from pathlib import Path
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.rsa import (
-        generate_private_key, RSAPrivateKey, RSAPublicKey)
-from cryptography.hazmat.primitives.serialization import (
-    Encoding, PublicFormat)
+from cryptography import x509
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import requests
 
 from mahiru.definitions.assets import ComputeAsset, ComputeMetadata, DataAsset
@@ -18,18 +15,34 @@ from mahiru.rest.internal_client import InternalSiteRestClient
 
 
 ASSET_DIR = Path.home() / 'mahiru' / 'assets'
+CERTS_DIR = Path.home() / 'mahiru' / 'certs'
+PRIVATE_DIR = Path.home() / 'mahiru' / 'private'
 
 
-def register(public_key: RSAPublicKey) -> None:
+def register() -> None:
     """Registers the current party and site with the registry."""
-    party_id = 'party:party1_ns:party1'
-    namespace = 'party1_ns'
-    party_desc = PartyDescription(party_id, namespace, public_key)
+    cert_file = CERTS_DIR / 'party1_main_cert.pem'
+    with cert_file.open('rb') as f:
+        main_cert = x509.load_pem_x509_certificate(f.read())
 
-    site_id = 'site:party1_ns:site1'
+    cert_file = CERTS_DIR / 'party1_user_ca_cert.pem'
+    with cert_file.open('rb') as f:
+        user_ca_cert = x509.load_pem_x509_certificate(f.read())
+
+    party_id = 'party:party1.mahiru.example.org:party1'
+    namespace = 'party1.mahiru.example.org'
+    party_desc = PartyDescription(
+            party_id, namespace, main_cert, user_ca_cert, [])
+
+    cert_file = CERTS_DIR / 'site1_https_cert.pem'
+    with cert_file.open('rb') as f:
+        https_cert = x509.load_pem_x509_certificate(f.read())
+
+    site_id = 'site:party1.mahiru.example.org:site1'
     endpoint = 'http://site1'
     site_desc = SiteDescription(
-            site_id, party_id, party_id, endpoint, True, True, True)
+            site_id, party_id, party_id, endpoint, https_cert, True, True,
+            True)
 
     client = RegistrationRestClient("http://registry")
 
@@ -49,14 +62,18 @@ def register(public_key: RSAPublicKey) -> None:
 
 def add_initial_assets(client: InternalSiteRestClient) -> None:
     output_base = DataAsset(
-            'asset:party1_ns:da.data.output_base:party1_ns:site1', None,
+            'asset:party1.mahiru.example.org:da.data.output_base:'
+            'party1.mahiru.example.org:site1', None,
             f'{ASSET_DIR}/data-asset-base.tar.gz')
 
     script_metadata = ComputeMetadata({
-            'output0': 'asset:party1_ns:da.data.output_base:party1_ns:site1'})
+            'output0':
+                'asset:party1.mahiru.example.org:da.data.output_base'
+                ':party1.mahiru.example.org:site1'})
 
     script = ComputeAsset(
-            'asset:party1_ns:da.software.script1:party1_ns:site1', None,
+            'asset:party1.mahiru.example.org:da.software.script1'
+            ':party1.mahiru.example.org:site1', None,
             f'{ASSET_DIR}/compute-asset.tar.gz',
             script_metadata)
 
@@ -66,57 +83,59 @@ def add_initial_assets(client: InternalSiteRestClient) -> None:
         client.store_asset(asset)
 
 
-def add_initial_rules(
-        client: InternalSiteRestClient, private_key: RSAPrivateKey) -> None:
+def add_initial_rules(client: InternalSiteRestClient) -> None:
+    key_file = PRIVATE_DIR / 'party1_main_key.pem'
+    with key_file.open('rb') as f:
+        main_key = load_pem_private_key(f.read(), None)
+
     rules = [
             MayAccess(
-                'site:party1_ns:site1',
-                'asset:party1_ns:da.data.output_base:party1_ns:site1'),
+                'site:party1.mahiru.example.org:site1',
+                'asset:party1.mahiru.example.org:da.data.output_base'
+                ':party1.mahiru.example.org:site1'),
             MayAccess(
-                'site:party1_ns:site1',
-                'asset:party1_ns:da.software.script1:party1_ns:site1'),
+                'site:party1.mahiru.example.org:site1',
+                'asset:party1.mahiru.example.org:da.software.script1'
+                ':party1.mahiru.example.org:site1'),
             ResultOfDataIn(
-                'asset:party1_ns:da.data.output_base:party1_ns:site1', '*',
-                '*', 'asset_collection:party1_ns:da.data.public'),
+                'asset:party1.mahiru.example.org:da.data.output_base'
+                ':party1.mahiru.example.org:site1', '*', '*',
+                'asset_collection:party1.mahiru.example.org:da.data.public'),
             ResultOfDataIn(
-                'asset_collection:party1_ns:da.data.public', '*', '*',
-                'asset_collection:party1_ns:da.data.public'),
+                'asset_collection:party1.mahiru.example.org:da.data.public',
+                '*', '*',
+                'asset_collection:party1.mahiru.example.org:da.data.public'),
             ResultOfComputeIn(
-                '*', 'asset:party1_ns:da.software.script1:party1_ns:site1',
-                '*', 'asset_collection:party1_ns:da.data.results'),
+                '*', 'asset:party1.mahiru.example.org:da.software.script1'
+                ':party1.mahiru.example.org:site1', '*',
+                'asset_collection:party1.mahiru.example.org:da.data.results'),
             MayAccess(
                 '*',
-                'asset_collection:party1_ns:da.data.public'),
+                'asset_collection:party1.mahiru.example.org:da.data.public'),
             MayAccess(
-                'site:party1_ns:site1',
-                'asset_collection:party1_ns:da.data.results'),
+                'site:party1.mahiru.example.org:site1',
+                'asset_collection:party1.mahiru.example.org:da.data.results'),
             MayUse(
-                '*', 'asset_collection:party1_ns:da.data.public', 'Any use'),
+                '*',
+                'asset_collection:party1.mahiru.example.org:da.data.public',
+                'Any use'),
             MayUse(
-                'party:party1_ns:party1',
-                'asset_collection:party1_ns:da.data.results', 'Any use')
+                'party:party1.mahiru.example.org:party1',
+                'asset_collection:party1.mahiru.example.org:da.data.results',
+                'Any use')
             ]
 
     for rule in rules:
-        rule.sign(private_key)
+        rule.sign(main_key)
         client.add_rule(rule)
 
 
 if __name__ == "__main__":
-    private_key = generate_private_key(
-            public_exponent=65537, key_size=2048, backend=default_backend())
-
-    key_pem = private_key.public_key().public_bytes(
-            encoding=Encoding.PEM,
-            format=PublicFormat.SubjectPublicKeyInfo
-            ).decode('ascii')
-
-    print(f'Public key: {key_pem}')
-
-    register(private_key.public_key())
+    register()
 
     client = InternalSiteRestClient(
-            'party:party1_ns:party1', 'site:party1_ns:site1',
+            'party:party1.mahiru.example.org:party1',
+            'site:party1.mahiru.example.org:site1',
             'http://site1:1080')
     add_initial_assets(client)
-    add_initial_rules(client, private_key)
+    add_initial_rules(client)

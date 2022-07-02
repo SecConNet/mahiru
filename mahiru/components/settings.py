@@ -53,7 +53,7 @@ class SiteConfiguration:
     """Configuration for a site.
 
     Attributes:
-        name: Name of the site.
+        site_id: Id of the site.
         namespace: Namespace controlled by the site's policy server.
         owner: Party owning the site.
         network_settings: Settings for external asset network
@@ -64,14 +64,14 @@ class SiteConfiguration:
     """
     def __init__(
             self,
-            name: str, namespace: str, owner: Identifier,
+            site_id: Identifier, namespace: str, owner: Identifier,
             network_settings: NetworkSettings,
             registry_endpoint: str, loglevel: str = 'info'
             ) -> None:
         """Create a SiteConfiguration object.
 
         Args:
-            name: Name of the site (without namespace or tag).
+            site_id: Id of the site
             namespace: Namespace controlled by the site's policy server.
             owner: Id of the party owning the site, e.g.
                     "party:namespace:name".
@@ -85,7 +85,7 @@ class SiteConfiguration:
             raise ValueError(
                     'Expected a name of the form "party:<namespace>:<name>"')
 
-        self.name = name
+        self.site_id = site_id
         self.namespace = namespace
         self.owner = owner
         self.network_settings = network_settings

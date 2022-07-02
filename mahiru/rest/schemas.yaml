@@ -375,7 +375,9 @@ components:
       required:
         - id
         - namespace
-        - public_key
+        - main_certificate
+        - user_ca_certificate
+        - user_certificates
       properties:
         id:
           description: Identifier of the party
@@ -383,9 +385,16 @@ components:
         namespace:
           description: The party's namespace
           type: string
-        public_key:
-          description: The party's PEM-encoded RSA public key
+        main_certificate:
+          description: The party's PEM-encoded main certificate
           type: string
+        user_ca_certificate:
+          description: The party's PEM-encoded user CA certificate
+          type: string
+        user_certificates:
+          description: The party's PEM-encoded user certificates
+          type: array
+          items: string
 
     Site:
       type: object
@@ -394,6 +403,7 @@ components:
         - owner_id
         - admin_id
         - endpoint
+        - https_certificate
         - has_runner
         - has_store
         - has_policies
@@ -412,6 +422,9 @@ components:
             REST endpoint at which the site may be contacted.
           type: string
           format: uri
+        https_certificate:
+          description: The site's current HTTPS certificate, in PEM format
+          type: string
         has_runner:
           description: Whether the site has a runner
           type: boolean

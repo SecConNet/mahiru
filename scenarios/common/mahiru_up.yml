@@ -138,6 +138,34 @@
       - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/external_site_nginx.conf"
 
+  - name: Create private dir
+    file:
+      path: "{{ home }}/mahiru/private"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: '../../build/certs/site{{ site_id }}/private/site{{ site_id }}_https_key.pem'
+      dest: '{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem'
+
+  - name: Create certs dir
+    file:
+      path: "{{ home }}/mahiru/certs"
+      state: directory
+
+  - name: Copy certs
+    synchronize:
+      src: '../../build/certs/{{ item.src }}'
+      dest: '{{ home }}/mahiru/certs/{{ item.dest }}'
+    loop:
+      - src: site{{ site_id }}/certs/party{{ site_id }}_main_cert.pem
+        dest: party{{ site_id }}_main_cert.pem
+      - src: site{{ site_id }}/certs/party{{ site_id }}_user_ca_cert.pem
+        dest: party{{ site_id }}_user_ca_cert.pem
+      - src: site{{ site_id }}/certs/site{{ site_id }}_https_cert.pem
+        dest: site{{ site_id }}_https_cert.pem
+
   - name: Configure site name in proxy config
     lineinfile:
       path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
@@ -180,8 +208,8 @@
       path: "{{ config_file }}"
       state: present
       create: yes
-      regexp: '^name: .*$'
-      line: 'name: site{{ site_id }}'
+      regexp: '^site_id: .*$'
+      line: 'site_id: site:party{{ site_id }}.mahiru.example.org:site{{ site_id }}'
 
   - name: Configure namespace
     lineinfile:

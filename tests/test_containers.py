@@ -3,9 +3,8 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.rsa import (
-        generate_private_key, RSAPrivateKey)
+from cryptography import x509
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import pytest
 import requests
 import time
@@ -26,9 +25,14 @@ from mahiru.rest.internal_client import InternalSiteRestClient
 logger = logging.getLogger(__file__)
 
 
+BUILD_DIR = Path(__file__).parents[1] / 'build'
+IMAGE_DIR = BUILD_DIR / 'images'
+CERTS_DIR = BUILD_DIR / 'certs' / 'site1' / 'certs'
+PRIVATE_DIR = BUILD_DIR / 'certs' / 'site1' / 'private'
+
+
 def get_tar_file(name):
-    asset_dir = Path(__file__).parents[1] / 'build'
-    tar_file = asset_dir / name
+    tar_file = IMAGE_DIR / name
     if not tar_file.exists():
         pytest.skip(
                 f"Image {name} not available. Run 'make assets docker_tars'"
@@ -52,56 +56,95 @@ def run_container_step(
         registry_server, registry_client, registration_client,
         data_asset_tars, compute_asset_tar, network_settings):
 
-    # create party
-    party = Identifier('party:ns:test_party')
-    party_key = generate_private_key(
-            public_exponent=65537, key_size=2048, backend=default_backend())
+    # load certificates
+    cert_file = CERTS_DIR / 'party1_main_cert.pem'
+    with cert_file.open('rb') as f:
+        main_cert = x509.load_pem_x509_certificate(f.read())
 
+    cert_file = CERTS_DIR / 'party1_user_ca_cert.pem'
+    with cert_file.open('rb') as f:
+        user_ca_cert = x509.load_pem_x509_certificate(f.read())
+
+    # create party
+    party = Identifier('party:party1.mahiru.example.org:party1')
     registration_client.register_party(
             PartyDescription(
-                party, 'ns', party_key.public_key()))
+                party, 'party1.mahiru.example.org', main_cert, user_ca_cert,
+                []))
 
     # create assets
     data_asset_output_tar, data_asset_input_tar = data_asset_tars
     assets = [
             DataAsset(
-                'asset:ns:dataset1:ns:test_site', None,
+                'asset:party1.mahiru.example.org:dataset1'
+                ':party1.mahiru.example.org:site1', None,
                 str(data_asset_input_tar)),
             ComputeAsset(
-                'asset:ns:compute1:ns:test_site', None,
+                'asset:party1.mahiru.example.org:compute1'
+                ':party1.mahiru.example.org:site1', None,
                 str(compute_asset_tar),
                 ComputeMetadata(
-                    {'output0': 'asset:ns:output_base:ns:test_site'})),
+                    {'output0':
+                        'asset:party1.mahiru.example.org:output_base'
+                        ':party1.mahiru.example.org:site1'})),
             DataAsset(
-                'asset:ns:output_base:ns:test_site', None,
+                'asset:party1.mahiru.example.org:output_base'
+                ':party1.mahiru.example.org:site1', None,
                 str(data_asset_output_tar))]
 
     # create rules
     rules = [
-            MayAccess('site:ns:test_site', 'asset:ns:dataset1:ns:test_site'),
-            MayAccess('site:ns:test_site', 'asset:ns:compute1:ns:test_site'),
             MayAccess(
-                'site:ns:test_site', 'asset:ns:output_base:ns:test_site'),
+                'site:party1.mahiru.example.org:site1',
+                'asset:party1.mahiru.example.org:dataset1'
+                ':party1.mahiru.example.org:site1'),
+            MayAccess(
+                'site:party1.mahiru.example.org:site1',
+                'asset:party1.mahiru.example.org:compute1'
+                ':party1.mahiru.example.org:site1'),
+            MayAccess(
+                'site:party1.mahiru.example.org:site1',
+                'asset:party1.mahiru.example.org:output_base'
+                ':party1.mahiru.example.org:site1'),
             ResultOfDataIn(
-                'asset:ns:dataset1:ns:test_site', '*', 'output0',
-                'asset_collection:ns:results1'),
+                'asset:party1.mahiru.example.org:dataset1'
+                ':party1.mahiru.example.org:site1', '*', 'output0',
+                'asset_collection:party1.mahiru.example.org:results1'),
             ResultOfDataIn(
-                'asset:ns:output_base:ns:test_site', '*', '*',
-                'asset_collection:ns:results1'),
+                'asset:party1.mahiru.example.org:output_base'
+                ':party1.mahiru.example.org:site1', '*', '*',
+                'asset_collection:party1.mahiru.example.org:results1'),
             ResultOfComputeIn(
-                '*', 'asset:ns:compute1:ns:test_site', '*',
-                'asset_collection:ns:public'),
-            MayAccess('site:ns:test_site', 'asset_collection:ns:results1'),
-            MayUse('party:ns:test_party', 'asset_collection:ns:results1', ''),
-            MayAccess('*', 'asset_collection:ns:public'),
-            MayUse('*', 'asset_collection:ns:public', 'For any use')]
+                '*', 'asset:party1.mahiru.example.org:compute1'
+                ':party1.mahiru.example.org:site1', '*',
+                'asset_collection:party1.mahiru.example.org:public'),
+            MayAccess(
+                'site:party1.mahiru.example.org:site1',
+                'asset_collection:party1.mahiru.example.org:results1'),
+            MayUse(
+                'party:party1.mahiru.example.org:party1',
+                'asset_collection:party1.mahiru.example.org:results1', ''),
+            MayAccess(
+                '*', 'asset_collection:party1.mahiru.example.org:public'),
+            MayUse(
+                '*', 'asset_collection:party1.mahiru.example.org:public',
+                'For any use')]
+
+    key_file = PRIVATE_DIR / 'party1_main_key.pem'
+    with key_file.open('rb') as f:
+        main_key = load_pem_private_key(f.read(), None)
 
     for rule in rules:
-        rule.sign(party_key)
+        rule.sign(main_key)
 
     # create site
+    cert_file = CERTS_DIR / 'site1_https_cert.pem'
+    with cert_file.open('rb') as f:
+        https_cert = x509.load_pem_x509_certificate(f.read())
+
     config = SiteConfiguration(
-            'test_site', 'ns', party, network_settings, '')
+            'site:party1.mahiru.example.org:site1',
+            'party1.mahiru.example.org', party, network_settings, '')
     site = Site(config, [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
@@ -122,7 +165,7 @@ def run_container_step(
     registration_client.register_site(
         SiteDescription(
                 site.id, site.owner, site.administrator,
-                site_server.external_endpoint,
+                site_server.external_endpoint, https_cert,
                 True, True, True))
 
     # create single-step workflow
@@ -131,13 +174,20 @@ def run_container_step(
                 WorkflowStep(
                     name='compute',
                     inputs={'input0': 'input'},
-                    outputs={'output0': 'asset:ns:output_base:ns:test_site'},
+                    outputs={
+                        'output0':
+                            'asset:party1.mahiru.example.org:output_base'
+                            ':party1.mahiru.example.org:site1'},
                     compute_asset_id=(
-                        'asset:ns:compute1:ns:test_site'))
+                        'asset:party1.mahiru.example.org:compute1'
+                        ':party1.mahiru.example.org:site1'))
             ]
     )
 
-    inputs = {'input': 'asset:ns:dataset1:ns:test_site'}
+    inputs = {
+            'input':
+            'asset:party1.mahiru.example.org:dataset1'
+            ':party1.mahiru.example.org:site1'}
 
     # run workflow
     try:

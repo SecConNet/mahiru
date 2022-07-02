@@ -6,6 +6,7 @@ from typing import (
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import (
         Encoding, load_pem_public_key, PublicFormat)
+from cryptography.x509 import load_pem_x509_certificate
 from dateutil import parser as dateparser
 
 from mahiru.definitions.assets import (
@@ -49,33 +50,49 @@ _SerializableT = TypeVar('_SerializableT', bound=Serializable)
 
 def _serialize_party_description(party_desc: PartyDescription) -> JSON:
     """Serialize a PartyDescription object to JSON."""
-    public_key = party_desc.public_key.public_bytes(
-            encoding=Encoding.PEM,
-            format=PublicFormat.SubjectPublicKeyInfo
-            ).decode('ascii')
+    main_certificate = party_desc.main_certificate.public_bytes(
+            Encoding.PEM).decode('ascii')
+    user_ca_certificate = party_desc.user_ca_certificate.public_bytes(
+            Encoding.PEM).decode('ascii')
+    user_certificates = [
+            c.public_bytes(Encoding.PEM).decode('ascii')
+            for c in party_desc.user_certificates]
 
     return {
             'id': party_desc.id,
             'namespace': party_desc.namespace,
-            'public_key': public_key}
+            'main_certificate': main_certificate,
+            'user_ca_certificate': user_ca_certificate,
+            'user_certificates': user_certificates}
 
 
 def _deserialize_party_description(user_input: JSON) -> PartyDescription:
     """Deserialize a PartyDescription object from JSON."""
     id_ = user_input['id']
     namespace = user_input['namespace']
-    public_key = load_pem_public_key(
-            user_input['public_key'].encode('ascii'), default_backend())
-    return PartyDescription(id_, namespace, public_key)
+    main_certificate = load_pem_x509_certificate(
+            user_input['main_certificate'].encode('ascii'))
+    user_ca_certificate = load_pem_x509_certificate(
+            user_input['user_ca_certificate'].encode('ascii'))
+    user_certificates = [
+            load_pem_x509_certificate(c.encode('ascii'))
+            for c in user_input['user_certificates']]
+    return PartyDescription(
+            id_, namespace, main_certificate, user_ca_certificate,
+            user_certificates)
 
 
 def _serialize_site_description(site_desc: SiteDescription) -> JSON:
     """Serialize a SiteDescription object to JSON."""
+    https_certificate = site_desc.https_certificate.public_bytes(
+            Encoding.PEM).decode('ascii')
+
     result = dict()     # type: JSON
     result['id'] = site_desc.id
     result['owner_id'] = site_desc.owner_id
     result['admin_id'] = site_desc.admin_id
     result['endpoint'] = site_desc.endpoint
+    result['https_certificate'] = https_certificate
     result['has_store'] = site_desc.has_store
     result['has_runner'] = site_desc.has_runner
     result['has_policies'] = site_desc.has_policies
@@ -84,11 +101,14 @@ def _serialize_site_description(site_desc: SiteDescription) -> JSON:
 
 def _deserialize_site_description(user_input: JSON) -> SiteDescription:
     """Deserialize a SiteDescription object from JSON."""
+    https_certificate = load_pem_x509_certificate(
+            user_input['https_certificate'].encode('ascii'))
     return SiteDescription(
             user_input['id'],
             user_input['owner_id'],
             user_input['admin_id'],
             user_input['endpoint'],
+            https_certificate,
             user_input['has_store'],
             user_input['has_runner'],
             user_input['has_policies'])
@@ -96,7 +116,7 @@ def _deserialize_site_description(user_input: JSON) -> SiteDescription:
 
 def _deserialize_registered_object(user_input: JSON) -> RegisteredObject:
     """Deserialize a RegisteredObject object from JSON."""
-    if 'public_key' in user_input:
+    if 'main_certificate' in user_input:
         return _deserialize_party_description(user_input)
     return _deserialize_site_description(user_input)
 

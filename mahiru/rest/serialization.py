@@ -3,9 +3,7 @@ import base64
 from typing import (
         Any, Callable, cast, Dict, Optional, Type, TypeVar, Union)
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.serialization import (
-        Encoding, load_pem_public_key, PublicFormat)
+from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate
 from dateutil import parser as dateparser
 
@@ -60,6 +58,8 @@ def _serialize_party_description(party_desc: PartyDescription) -> JSON:
 
     return {
             'id': party_desc.id,
+            'signature': base64.urlsafe_b64encode(
+                party_desc.signature).decode(),
             'namespace': party_desc.namespace,
             'main_certificate': main_certificate,
             'user_ca_certificate': user_ca_certificate,
@@ -77,9 +77,11 @@ def _deserialize_party_description(user_input: JSON) -> PartyDescription:
     user_certificates = [
             load_pem_x509_certificate(c.encode('ascii'))
             for c in user_input['user_certificates']]
-    return PartyDescription(
+    result = PartyDescription(
             id_, namespace, main_certificate, user_ca_certificate,
             user_certificates)
+    result.signature = base64.urlsafe_b64decode(user_input['signature'])
+    return result
 
 
 def _serialize_site_description(site_desc: SiteDescription) -> JSON:
@@ -89,6 +91,8 @@ def _serialize_site_description(site_desc: SiteDescription) -> JSON:
 
     result = dict()     # type: JSON
     result['id'] = site_desc.id
+    result['signature'] = base64.urlsafe_b64encode(
+            site_desc.signature).decode()
     result['owner_id'] = site_desc.owner_id
     result['admin_id'] = site_desc.admin_id
     result['endpoint'] = site_desc.endpoint
@@ -103,7 +107,7 @@ def _deserialize_site_description(user_input: JSON) -> SiteDescription:
     """Deserialize a SiteDescription object from JSON."""
     https_certificate = load_pem_x509_certificate(
             user_input['https_certificate'].encode('ascii'))
-    return SiteDescription(
+    result = SiteDescription(
             user_input['id'],
             user_input['owner_id'],
             user_input['admin_id'],
@@ -112,6 +116,8 @@ def _deserialize_site_description(user_input: JSON) -> SiteDescription:
             user_input['has_store'],
             user_input['has_runner'],
             user_input['has_policies'])
+    result.signature = base64.urlsafe_b64decode(user_input['signature'])
+    return result
 
 
 def _deserialize_registered_object(user_input: JSON) -> RegisteredObject:

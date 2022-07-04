@@ -1,8 +1,9 @@
 """Definitions of the contents of the central registry."""
-from typing import List, Optional
+from typing import cast, List, Optional
 
 from cryptography.x509 import Certificate
 from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.signable import Signable
@@ -46,6 +47,16 @@ class PartyDescription(RegisteredObject):
             user_certificates: Certificates for the party's users, for
                 verifying workflow execution requests.
         """
+        if not isinstance(main_certificate.public_key(), Ed25519PublicKey):
+            raise RuntimeError('Main certificate does not use ED25519')
+
+        if not isinstance(user_ca_certificate.public_key(), Ed25519PublicKey):
+            raise RuntimeError('User CA certificate does not use ED25519')
+
+        for cert in user_certificates:
+            if not isinstance(cert.public_key(), Ed25519PublicKey):
+                raise RuntimeError('User certificate does not use ED25519')
+
         self.id = party_id
         self.namespace = namespace
         self.main_certificate = main_certificate
@@ -77,6 +88,13 @@ class PartyDescription(RegisteredObject):
                     Encoding.PEM).decode('ascii')
             base += f'|{user_cert_pem}'
         return base.encode('utf-8')
+
+    def main_key(self) -> Ed25519PublicKey:
+        """Returns the public key from the main certificate.
+
+        This is here to avoid having to cast all over the place.
+        """
+        return cast(Ed25519PublicKey, self.main_certificate.public_key())
 
 
 class SiteDescription(RegisteredObject):

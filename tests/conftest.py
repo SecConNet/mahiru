@@ -8,7 +8,6 @@ from unittest.mock import patch
 from wsgiref.simple_server import WSGIServer
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import pytest
 

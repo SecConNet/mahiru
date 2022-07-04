@@ -1,7 +1,10 @@
 """Central registry of remote-accessible things."""
 import logging
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, cast, Dict, Optional, Type, TypeVar
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from mahiru.definitions.errors import ValidationError
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import (
         IAssetStore, IRegistration, IRegistryService, IReplicaUpdate)
@@ -52,6 +55,10 @@ class Registry(IRegistration, IRegistryService):
         Args:
             description: A description of the party
         """
+        if not description.has_valid_signature(description.main_key()):
+            raise ValidationError(
+                    'Invalid signature on PartyDescription object')
+
         if self._in_store(PartyDescription, 'id', description.id):
             raise RuntimeError(
                     f'There is already a party called {description.id}')
@@ -90,6 +97,10 @@ class Registry(IRegistration, IRegistryService):
                 PartyDescription, 'id', description.admin_id)
         if admin is None:
             raise RuntimeError(f'Party {description.admin_id} not found')
+
+        if not description.has_valid_signature(admin.main_key()):
+            raise ValidationError(
+                    'Invalid signature on SiteDescription object')
 
         self._store.insert(description)
         logger.info(f'{self} Registered site {description}')

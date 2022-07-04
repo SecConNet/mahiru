@@ -16,10 +16,8 @@ import jsonschema
 from jsonschema.validators import RefResolver
 from openapi_schema_validator import OAS30Validator
 
+from mahiru.definitions.errors import ValidationError
 from mahiru.rest.definitions import JSON
-
-
-ValidationError = jsonschema.ValidationError
 
 
 def _create_validators() -> Dict[str, OAS30Validator]:
@@ -51,4 +49,7 @@ def validate_json(class_: str, user_input: JSON) -> None:
         KeyError: If the class is not available for validation.
         ValidationError: If the input was invalid.
     """
-    _validators[class_].validate(user_input)
+    try:
+        _validators[class_].validate(user_input)
+    except jsonschema.ValidationError as e:
+        raise ValidationError(*e.args)

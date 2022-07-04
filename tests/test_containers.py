@@ -66,11 +66,15 @@ def run_container_step(
         user_ca_cert = x509.load_pem_x509_certificate(f.read())
 
     # create party
+    key_file = PRIVATE_DIR / 'party1_main_key.pem'
+    with key_file.open('rb') as f:
+        main_key = load_pem_private_key(f.read(), None)
+
     party = Identifier('party:party1.mahiru.example.org:party1')
-    registration_client.register_party(
-            PartyDescription(
-                party, 'party1.mahiru.example.org', main_cert, user_ca_cert,
-                []))
+    party_desc = PartyDescription(
+            party, 'party1.mahiru.example.org', main_cert, user_ca_cert, [])
+    party_desc.sign(main_key)
+    registration_client.register_party(party_desc)
 
     # create assets
     data_asset_output_tar, data_asset_input_tar = data_asset_tars
@@ -130,10 +134,6 @@ def run_container_step(
                 '*', 'asset_collection:party1.mahiru.example.org:public',
                 'For any use')]
 
-    key_file = PRIVATE_DIR / 'party1_main_key.pem'
-    with key_file.open('rb') as f:
-        main_key = load_pem_private_key(f.read(), None)
-
     for rule in rules:
         rule.sign(main_key)
 
@@ -162,11 +162,11 @@ def run_container_step(
     for rule in rules:
         internal_client.add_rule(rule)
 
-    registration_client.register_site(
-        SiteDescription(
-                site.id, site.owner, site.administrator,
-                site_server.external_endpoint, https_cert,
-                True, True, True))
+    site_desc = SiteDescription(
+            site.id, site.owner, site.administrator,
+            site_server.external_endpoint, https_cert, True, True, True)
+    site_desc.sign(main_key)
+    registration_client.register_site(site_desc)
 
     # create single-step workflow
     workflow = Workflow(

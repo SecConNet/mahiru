@@ -374,6 +374,7 @@ components:
       type: object
       required:
         - id
+        - signature
         - namespace
         - main_certificate
         - user_ca_certificate
@@ -381,6 +382,9 @@ components:
       properties:
         id:
           description: Identifier of the party
+          type: string
+        signature:
+          description: BASE64url serialised signature
           type: string
         namespace:
           description: The party's namespace
@@ -400,6 +404,7 @@ components:
       type: object
       required:
         - id
+        - signature
         - owner_id
         - admin_id
         - endpoint
@@ -410,6 +415,9 @@ components:
       properties:
         id:
           description: Identifier of the site
+          type: string
+        signature:
+          description: BASE64url serialised signature
           type: string
         owner_id:
           description: Identifier of the party which owns this site

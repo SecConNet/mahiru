@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import requests
 
@@ -17,7 +18,7 @@ CERTS_DIR = Path.home() / 'mahiru' / 'certs'
 PRIVATE_DIR = Path.home() / 'mahiru' / 'private'
 
 
-def register() -> None:
+def register(main_key: Ed25519PrivateKey) -> None:
     """Registers the current party and site with the registry."""
     cert_file = CERTS_DIR / 'party2_main_cert.pem'
     with cert_file.open('rb') as f:
@@ -31,6 +32,7 @@ def register() -> None:
     namespace = 'party2.mahiru.example.org'
     party_desc = PartyDescription(
             party_id, namespace, main_cert, user_ca_cert, [])
+    party_desc.sign(main_key)
 
     cert_file = CERTS_DIR / 'site2_https_cert.pem'
     with cert_file.open('rb') as f:
@@ -41,6 +43,7 @@ def register() -> None:
     site_desc = SiteDescription(
             site_id, party_id, party_id, endpoint, https_cert, True, True,
             True)
+    site_desc.sign(main_key)
 
     client = RegistrationRestClient("http://registry")
 
@@ -67,11 +70,8 @@ def add_initial_assets(client: InternalSiteRestClient) -> None:
     client.store_asset(data_asset)
 
 
-def add_initial_rules(client: InternalSiteRestClient) -> None:
-    key_file = PRIVATE_DIR / 'party2_main_key.pem'
-    with key_file.open('rb') as f:
-        main_key = load_pem_private_key(f.read(), None)
-
+def add_initial_rules(
+        client: InternalSiteRestClient, main_key: Ed25519PrivateKey) -> None:
     rules = [
             MayAccess(
                 '*',
@@ -105,11 +105,15 @@ def add_initial_rules(client: InternalSiteRestClient) -> None:
 
 
 if __name__ == "__main__":
-    register()
+    key_file = PRIVATE_DIR / 'party2_main_key.pem'
+    with key_file.open('rb') as f:
+        main_key = load_pem_private_key(f.read(), None)
+
+    register(main_key)
 
     client = InternalSiteRestClient(
             'party:party2.mahiru.example.org:party2',
             'site:party2.mahiru.example.org:site2',
             'http://site2:1080')
     add_initial_assets(client)
-    add_initial_rules(client)
+    add_initial_rules(client, main_key)

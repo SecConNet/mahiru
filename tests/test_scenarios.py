@@ -29,11 +29,12 @@ def register_parties(
         ) -> None:
     """Register parties with their public keys."""
     for party_id, party in parties.items():
-        registration_client.register_party(
-                PartyDescription(
-                    party_id, party['namespace'],
-                    party['main_certificate'],
-                    party['user_ca_certificate'], []))
+        party_desc = PartyDescription(
+                party_id, party['namespace'],
+                party['main_certificate'],
+                party['user_ca_certificate'], [])
+        party_desc.sign(party['main_key'])
+        registration_client.register_party(party_desc)
 
 
 def sign_rules(
@@ -103,16 +104,18 @@ def add_rules(
 
 def register_sites(
         site_descs: Dict[str, Any],
-        registration_client: RegistrationRestClient, sites: Dict[str, Site],
-        servers: Dict[str, SiteServer]) -> None:
+        registration_client: RegistrationRestClient, parties: Dict[str, Any],
+        sites: Dict[str, Site], servers: Dict[str, SiteServer]) -> None:
     """Register sites with the registry."""
     for site_name, site in sites.items():
-        registration_client.register_site(
-                SiteDescription(
-                    site.id, site.owner, site.administrator,
-                    servers[site_name].external_endpoint,
-                    site_descs[site.id]['https_certificate'],
-                    True, True, True))
+        site_desc = SiteDescription(
+                site.id, site.owner, site.administrator,
+                servers[site_name].external_endpoint,
+                site_descs[site.id]['https_certificate'],
+                True, True, True)
+        admin = parties[site.administrator]
+        site_desc.sign(admin['main_key'])
+        registration_client.register_site(site_desc)
 
 
 def stop_servers(servers: Dict[str, SiteServer]):
@@ -154,7 +157,9 @@ def run_scenario(
     clients = create_clients(servers, sites)
     upload_assets(scenario['sites'], clients)
     add_rules(scenario['sites'], clients)
-    register_sites(scenario['sites'], registration_client, sites, servers)
+    register_sites(
+            scenario['sites'], registration_client, scenario['parties'], sites,
+            servers)
 
     client = clients[scenario['user_site']]
     job_id = client.submit_job(scenario['job'])

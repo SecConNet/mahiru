@@ -10,6 +10,7 @@ from falcon import (
         Response)
 import ruamel.yaml as yaml
 
+from mahiru.definitions.errors import ValidationError
 from mahiru.definitions.identifier import Identifier
 from mahiru.definitions.interfaces import IRegistration
 from mahiru.definitions.registry import (
@@ -17,7 +18,7 @@ from mahiru.definitions.registry import (
 from mahiru.registry.registry import Registry
 from mahiru.rest.replication import ReplicationHandler
 from mahiru.rest.serialization import deserialize
-from mahiru.rest.validation import validate_json, ValidationError
+from mahiru.rest.validation import validate_json
 
 
 logger = logging.getLogger(__name__)
@@ -54,9 +55,9 @@ class PartyRegistrationHandler:
             response.status = HTTP_400
             response.body = 'Invalid request'
         except RuntimeError as e:
-            logger.error(f'Tried to reregister party {e}')
+            logger.error(f'Error registering party {e}')
             response.status = HTTP_409
-            response.body = 'Party already exists'
+            response.body = 'Error registering party'
 
     def on_delete(
             self, request: Request, response: Response, id: str) -> None:

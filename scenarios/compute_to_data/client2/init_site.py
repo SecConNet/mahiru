@@ -8,7 +8,7 @@ import requests
 
 from mahiru.definitions.assets import ComputeAsset, ComputeMetadata, DataAsset
 from mahiru.definitions.registry import PartyDescription, SiteDescription
-from mahiru.policy.rules import MayAccess, ResultOfDataIn
+from mahiru.policy.rules import MayAccess, MayUse, ResultOfDataIn
 from mahiru.rest.registry_client import RegistrationRestClient
 from mahiru.rest.internal_client import InternalSiteRestClient
 
@@ -59,14 +59,17 @@ def add_initial_rules(
                 'asset:party2_ns:ctd.data.input:party2_ns:site2'),
             ResultOfDataIn(
                 'asset:party2_ns:ctd.data.input:party2_ns:site2',
-                'asset:party1_ns:ctd.software.script1:party1_ns:site1',
+                'asset:party1_ns:ctd.software.script1:party1_ns:site1', '*',
                 'asset_collection:party2_ns:ctd.data.results'),
             MayAccess(
                 'site:party2_ns:site2',
                 'asset_collection:party2_ns:ctd.data.results'),
             MayAccess(
                 'site:party1_ns:site1',
-                'asset_collection:party2_ns:ctd.data.results')
+                'asset_collection:party2_ns:ctd.data.results'),
+            MayUse(
+                'party:party1_ns:party1',
+                'asset_collection:party2_ns:ctd.data.results', 'Any use')
             ]
 
     for rule in rules:
@@ -80,6 +83,8 @@ if __name__ == "__main__":
 
     register(private_key.public_key())
 
-    client = InternalSiteRestClient("site2", "http://site2:1080")
+    client = InternalSiteRestClient(
+            'party:party2_ns:party2', 'site:party2_ns:site2',
+            'http://site2:1080')
     add_initial_assets(client)
     add_initial_rules(client, private_key)

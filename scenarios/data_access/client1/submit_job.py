@@ -24,9 +24,10 @@ if __name__ == '__main__':
 
     # run workflow
     client = InternalSiteRestClient(
-            'site:party1_ns:site1', 'http://site1:1080')
+            'party:party1_ns:party1', 'site:party1_ns:site1',
+            'http://site1:1080')
     print('Submitting job...')
-    job_id = client.submit_job(Job(workflow, inputs))
+    job_id = client.submit_job(Job('party:party1_ns:party1', workflow, inputs))
     print(f'Submitted, waiting for result at {job_id}')
     result = client.get_job_result(job_id)
 

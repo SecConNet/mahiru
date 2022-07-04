@@ -37,11 +37,6 @@ def get_tar_file(name):
 
 
 @pytest.fixture
-def pilot_tar():
-    return get_tar_file('pilot.tar.gz')
-
-
-@pytest.fixture
 def data_asset_tars():
     base_file = get_tar_file('data-asset-base.tar.gz')
     input_file = get_tar_file('data-asset-input.tar.gz')
@@ -55,7 +50,7 @@ def compute_asset_tar():
 
 def run_container_step(
         registry_server, registry_client, registration_client,
-        pilot_tar, data_asset_tars, compute_asset_tar, network_settings):
+        data_asset_tars, compute_asset_tar, network_settings):
 
     # create party
     party = Identifier('party:ns:test_party')
@@ -156,23 +151,23 @@ def run_container_step(
 
 def test_container_step(
         registry_server, registry_client, registration_client,
-        pilot_tar, data_asset_tars, compute_asset_tar, caplog):
+        data_asset_tars, compute_asset_tar, caplog):
 
     caplog.set_level(logging.DEBUG)
     run_container_step(
-            registry_server, registry_client, registration_client, pilot_tar,
+            registry_server, registry_client, registration_client,
             data_asset_tars, compute_asset_tar, NetworkSettings())
 
 
 def test_container_connections(
         registry_server, registry_client, registration_client,
-        pilot_tar, data_asset_tars, compute_asset_tar, caplog):
+        data_asset_tars, compute_asset_tar, caplog):
 
     caplog.set_level(logging.DEBUG)
 
     network_settings = NetworkSettings(True, '127.0.0.1', [10000, 11000])
     run_container_step(
-            registry_server, registry_client, registration_client, pilot_tar,
+            registry_server, registry_client, registration_client,
             data_asset_tars, compute_asset_tar, network_settings)
 
     assert (

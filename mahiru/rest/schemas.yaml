@@ -374,32 +374,50 @@ components:
       type: object
       required:
         - id
+        - signature
         - namespace
-        - public_key
+        - main_certificate
+        - user_ca_certificate
+        - user_certificates
       properties:
         id:
           description: Identifier of the party
           type: string
+        signature:
+          description: BASE64url serialised signature
+          type: string
         namespace:
           description: The party's namespace
           type: string
-        public_key:
-          description: The party's PEM-encoded RSA public key
+        main_certificate:
+          description: The party's PEM-encoded main certificate
           type: string
+        user_ca_certificate:
+          description: The party's PEM-encoded user CA certificate
+          type: string
+        user_certificates:
+          description: The party's PEM-encoded user certificates
+          type: array
+          items: string
 
     Site:
       type: object
       required:
         - id
+        - signature
         - owner_id
         - admin_id
         - endpoint
+        - https_certificate
         - has_runner
         - has_store
         - has_policies
       properties:
         id:
           description: Identifier of the site
+          type: string
+        signature:
+          description: BASE64url serialised signature
           type: string
         owner_id:
           description: Identifier of the party which owns this site
@@ -412,6 +430,9 @@ components:
             REST endpoint at which the site may be contacted.
           type: string
           format: uri
+        https_certificate:
+          description: The site's current HTTPS certificate, in PEM format
+          type: string
         has_runner:
           description: Whether the site has a runner
           type: boolean

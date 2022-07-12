@@ -5,7 +5,7 @@ from mahiru.definitions.policy import Rule
 from mahiru.policy.definitions import PolicyUpdate
 from mahiru.replication import CanonicalStore, ObjectValidator
 
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class RuleValidator(ObjectValidator[Rule]):
     """Validates incoming policy rules by checking signatures."""
-    def __init__(self, namespace: str, key: RSAPublicKey) -> None:
+    def __init__(self, namespace: str, key: Ed25519PublicKey) -> None:
         """Create a RuleValidator.
 
         Checks that rules apply to the given namespace, and that they

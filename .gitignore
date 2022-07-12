@@ -7,7 +7,6 @@
 .tox
 .vagrant
 
-build
 dist
 .cache
 __pycache__

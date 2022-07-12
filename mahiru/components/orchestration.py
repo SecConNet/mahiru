@@ -51,12 +51,17 @@ class WorkflowPlanner:
         Returns:
             A list of plans that will execute the workflow.
         """
+        logger.debug(
+                'Rules:'
+                f' {self._policy_evaluator._policy_collection.policies()}')
         permissions = self._permission_calculator.calculate_permissions(job)
+        logger.debug(f'Workflow permissions: {permissions}')
 
         # if we cannot access or use the outputs, then there are no
         # plans
         for output in job.workflow.outputs:
             output_perms = permissions[output]
+            logger.debug(f'perms for {output}: {output_perms}')
             if not self._policy_evaluator.may_access(
                     output_perms, submitting_site):
                 logger.debug('Submitter may not access results')

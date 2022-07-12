@@ -1,0 +1,7 @@
+ca_root.conf
+ca_intermediate.conf
+site_user_ca.conf
+
+**/database.*
+**/serial*
+**/*.pem

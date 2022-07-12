@@ -42,11 +42,11 @@ pilot_image:
 
 .PHONY: registry_docker_tar
 registry_docker_tar: registry_docker_image
-	docker save -o build/mahiru-registry-latest.tar mahiru-registry:latest
+	docker save -o build/images/mahiru-registry-latest.tar mahiru-registry:latest
 
 .PHONY: site_docker_tar
 site_docker_tar: site_docker_image
-	docker save -o build/mahiru-site-latest.tar mahiru-site:latest
+	docker save -o build/images/mahiru-site-latest.tar mahiru-site:latest
 
 .PHONY: pilot_tar
 pilot_tar: pilot_image
@@ -71,15 +71,15 @@ assets: data_asset_base_tar data_asset_input_tar compute_asset_tar
 
 .PHONY: data_asset_base_tar
 data_asset_base_tar: data_asset_base
-	docker save mahiru-test/data-asset-base:latest | gzip -1 -c >build/data-asset-base.tar.gz
+	docker save mahiru-test/data-asset-base:latest | gzip -1 -c >build/images/data-asset-base.tar.gz
 
 .PHONY: data_asset_input_tar
 data_asset_input_tar: data_asset_input
-	docker save mahiru-test/data-asset-input:latest | gzip -1 -c >build/data-asset-input.tar.gz
+	docker save mahiru-test/data-asset-input:latest | gzip -1 -c >build/images/data-asset-input.tar.gz
 
 .PHONY: compute_asset_tar
 compute_asset_tar: compute_asset
-	docker save mahiru-test/compute-asset:latest | gzip -1 -c >build/compute-asset.tar.gz
+	docker save mahiru-test/compute-asset:latest | gzip -1 -c >build/images/compute-asset.tar.gz
 
 
 .PHONY: data_asset_base
@@ -97,3 +97,7 @@ compute_asset_base:
 .PHONY: compute_asset
 compute_asset: compute_asset_base
 	docker build docker/assets -f docker/assets/compute-asset.Dockerfile -t mahiru-test/compute-asset:latest
+
+.PHONY: certificates
+certificates:
+	$(MAKE) -C build/certs all

@@ -12,22 +12,26 @@ if __name__ == '__main__':
                     name='compute',
                     inputs={'input0': 'input'},
                     outputs={'output0':
-                        'asset:party1_ns:da.data.output_base'
-                        ':party1_ns:site1'},
+                        'asset:party1.mahiru.example.org:da.data.output_base'
+                        ':party1.mahiru.example.org:site1'},
                     compute_asset_id=(
-                        'asset:party1_ns:da.software.script1'
-                        ':party1_ns:site1'))
+                        'asset:party1.mahiru.example.org:da.software.script1'
+                        ':party1.mahiru.example.org:site1'))
             ]
     )
 
-    inputs = {'input': 'asset:party2_ns:da.data.input:party2_ns:site2'}
+    inputs = {
+            'input':
+                'asset:party2.mahiru.example.org:da.data.input'
+                ':party2.mahiru.example.org:site2'}
 
     # run workflow
     client = InternalSiteRestClient(
-            'party:party1_ns:party1', 'site:party1_ns:site1',
-            'http://site1:1080')
+            'party:party1.mahiru.example.org:party1',
+            'site:party1.mahiru.example.org:site1', 'http://site1:1080')
     print('Submitting job...')
-    job_id = client.submit_job(Job('party:party1_ns:party1', workflow, inputs))
+    job_id = client.submit_job(Job(
+        'party:party1.mahiru.example.org:party1', workflow, inputs))
     print(f'Submitted, waiting for result at {job_id}')
     result = client.get_job_result(job_id)
 

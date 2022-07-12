@@ -6,6 +6,8 @@
     home: "{{ ansible_facts['user_dir'] }}"
     asset_dir: "{{ home }}/mahiru/assets"
     script_dir: "{{ home }}/mahiru/scripts"
+    certs_dir: "{{ home }}/mahiru/certs"
+    private_dir: "{{ home }}/mahiru/private"
 
   tasks:
   - name: Create assets directory
@@ -15,11 +17,39 @@
 
   - name: Copy assets
     synchronize:
-      src: "../../build/{{ item }}"
+      src: "../../build/images/{{ item }}"
       dest: "{{ asset_dir }}/{{ item }}"
     loop:
       - data-asset-base.tar.gz
       - compute-asset.tar.gz
+
+  - name: Create private dir
+    file:
+      path: "{{ private_dir }}"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: "../../build/certs/site1/private/party1_main_key.pem"
+      dest: "{{ private_dir }}/party1_main_key.pem"
+
+  - name: Create certs dir
+    file:
+      path: "{{ home }}/mahiru/certs"
+      state: directory
+
+  - name: Copy certs
+    synchronize:
+      src: "../../build/certs/{{ item.src }}"
+      dest: "{{ certs_dir }}/{{ item.dest }}"
+    loop:
+      - src: site1/certs/party1_main_cert.pem
+        dest: party1_main_cert.pem
+      - src: site1/certs/party1_user_ca_cert.pem
+        dest: party1_user_ca_cert.pem
+      - src: site1/certs/site1_https_cert.pem
+        dest: site1_https_cert.pem
 
   - name: Create script directory
     file:
@@ -45,6 +75,8 @@
     home: "{{ ansible_facts['user_dir'] }}"
     asset_dir: "{{ home }}/mahiru/assets"
     script_dir: "{{ home }}/mahiru/scripts"
+    certs_dir: "{{ home }}/mahiru/certs"
+    private_dir: "{{ home }}/mahiru/private"
 
   tasks:
   - name: Create assets dir
@@ -54,8 +86,36 @@
 
   - name: Copy assets
     synchronize:
-      src: ../../build/data-asset-input.tar.gz
+      src: ../../build/images/data-asset-input.tar.gz
       dest: "{{ asset_dir }}/data-asset-input.tar.gz"
+
+  - name: Create private dir
+    file:
+      path: "{{ private_dir }}"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: "../../build/certs/site2/private/party2_main_key.pem"
+      dest: "{{ private_dir }}/party2_main_key.pem"
+
+  - name: Create certs dir
+    file:
+      path: "{{ home }}/mahiru/certs"
+      state: directory
+
+  - name: Copy certs
+    synchronize:
+      src: "../../build/certs/{{ item.src }}"
+      dest: "{{ certs_dir }}/{{ item.dest }}"
+    loop:
+      - src: site2/certs/party2_main_cert.pem
+        dest: party2_main_cert.pem
+      - src: site2/certs/party2_user_ca_cert.pem
+        dest: party2_user_ca_cert.pem
+      - src: site2/certs/site2_https_cert.pem
+        dest: site2_https_cert.pem
 
   - name: Create script directory
     file:

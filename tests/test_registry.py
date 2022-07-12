@@ -5,7 +5,8 @@ from mahiru.definitions.registry import PartyDescription, SiteDescription
 from mahiru.registry.registry import Registry
 
 
-def test_parties_are_values(private_key):
+def test_parties_are_values(
+        party1_main_key, party1_main_certificate, party1_user_ca_certificate):
     # If a party is removed and then reinserted into the registry
     # with the same properties, then the reinserted version of the
     # party should be considered the same party, and if a replica
@@ -13,9 +14,10 @@ def test_parties_are_values(private_key):
     # to a version in which it is again present, then the party should
     # not show up in the update at all.
     registry = Registry()
-    party1_key = private_key.public_key()
     party1 = PartyDescription(
-            Identifier('party:party1_ns:party1'), 'ns', party1_key)
+            Identifier('party:party1_ns:party1'), 'ns',
+            party1_main_certificate, party1_user_ca_certificate, [])
+    party1.sign(party1_main_key)
 
     registry.register_party(copy(party1))
     update1 = registry.get_updates_since(0)
@@ -29,12 +31,15 @@ def test_parties_are_values(private_key):
     assert not update2.deleted
 
 
-def test_sites_are_values(private_key):
+def test_sites_are_values(
+        party1_main_key, party1_main_certificate, party1_user_ca_certificate,
+        site1_https_certificate):
     # See test_parties_are_values, but for a site.
     registry = Registry()
-    party1_key = private_key.public_key()
     party1 = PartyDescription(
-            Identifier('party:party1_ns:party1'), 'ns', party1_key)
+            Identifier('party:party1_ns:party1'), 'ns',
+            party1_main_certificate, party1_user_ca_certificate, [])
+    party1.sign(party1_main_key)
     registry.register_party(copy(party1))
 
     site1 = SiteDescription(
@@ -42,7 +47,9 @@ def test_sites_are_values(private_key):
             Identifier('party:party1_ns:party1'),
             Identifier('party:party1_ns:party1'),
             'https://party1.example.com/mahiru',
+            site1_https_certificate,
             True, True, 'party1_ns')
+    site1.sign(party1_main_key)
 
     registry.register_site(copy(site1))
     update1 = registry.get_updates_since(0)

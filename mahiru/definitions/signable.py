@@ -2,29 +2,24 @@
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.asymmetric.rsa import (
-        RSAPrivateKey, RSAPublicKey)
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PrivateKey, Ed25519PublicKey)
 
 
 class Signable:
     """An abstract base class for signable classes."""
     signature = None      # type: bytes
 
-    def sign(self, key: RSAPrivateKey) -> None:
+    def sign(self, key: Ed25519PrivateKey) -> None:
         """Sign the object.
 
         Args:
             key: The private key to use.
         """
         message = self.signing_representation()
-        self.signature = key.sign(
-                message,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH),
-                hashes.SHA256())
+        self.signature = key.sign(message)
 
-    def has_valid_signature(self, key: RSAPublicKey) -> bool:
+    def has_valid_signature(self, key: Ed25519PublicKey) -> bool:
         """Verify the signature on the object.
 
         Args:
@@ -38,12 +33,7 @@ class Signable:
 
         message = self.signing_representation()
         try:
-            key.verify(
-                    self.signature, message,
-                    padding.PSS(
-                        mgf=padding.MGF1(hashes.SHA256()),
-                        salt_length=padding.PSS.MAX_LENGTH),
-                    hashes.SHA256())
+            key.verify(self.signature, message)
             return True
         except InvalidSignature:
             return False

@@ -40,7 +40,7 @@ class Site:
 
         """
         # Metadata
-        self.id = Identifier(f'site:{config.namespace}:{config.name}')
+        self.id = config.site_id
         self.owner = config.owner
         # Owner and administrator are the same for now, but could
         # in principle be different, e.g. in a SaaS scenario. They also

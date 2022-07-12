@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 from wsgiref.simple_server import WSGIServer
 
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
+from cryptography import x509
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import pytest
 
 from mahiru.components.registry_client import RegistryClient
@@ -69,12 +69,131 @@ def registration_client():
 
 
 @pytest.fixture
-def private_key():
-    """Create a private RSA key."""
-    return rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend())
+def certs_dir():
+    return Path(__file__).parents[1] / 'build' / 'certs'
+
+
+@pytest.fixture
+def party1_main_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site1' / 'certs' / 'party1_main_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def party2_main_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site2' / 'certs' / 'party2_main_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def party3_main_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site3' / 'certs' / 'party3_main_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def party1_main_key(certs_dir):
+    """Load the main private key."""
+    key_file = certs_dir / 'site1' / 'private' / 'party1_main_key.pem'
+    with key_file.open('rb') as f:
+        return load_pem_private_key(f.read(), None)
+
+
+@pytest.fixture
+def party2_main_key(certs_dir):
+    """Load the main private key."""
+    key_file = certs_dir / 'site2' / 'private' / 'party2_main_key.pem'
+    with key_file.open('rb') as f:
+        return load_pem_private_key(f.read(), None)
+
+
+@pytest.fixture
+def party3_main_key(certs_dir):
+    """Load the main private key."""
+    key_file = certs_dir / 'site3' / 'private' / 'party3_main_key.pem'
+    with key_file.open('rb') as f:
+        return load_pem_private_key(f.read(), None)
+
+
+@pytest.fixture
+def site1_https_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site1' / 'certs' / 'site1_https_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def site2_https_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site2' / 'certs' / 'site2_https_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def site3_https_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site3' / 'certs' / 'site3_https_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def party1_user_ca_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site1' / 'certs' / 'party1_user_ca_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def party2_user_ca_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site2' / 'certs' / 'party2_user_ca_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
+
+
+@pytest.fixture
+def party3_user_ca_certificate(certs_dir):
+    """Load certificate from disk.
+
+    Use 'make certificates' to generate the file.
+    """
+    cert_file = certs_dir / 'site3' / 'certs' / 'party3_user_ca_cert.pem'
+    with cert_file.open('rb') as f:
+        return x509.load_pem_x509_certificate(f.read())
 
 
 @pytest.fixture

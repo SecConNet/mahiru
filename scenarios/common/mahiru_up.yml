@@ -29,7 +29,7 @@
     lineinfile:
       path: "{{ home }}/mahiru/registry_nginx.conf"
       regexp: '^        server_name.*'
-      line: '        server_name registry;'
+      line: '        server_name registry.mahiru.example.org;'
 
   - name: Configure upstream in proxy config
     lineinfile:
@@ -170,7 +170,7 @@
     lineinfile:
       path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
       regexp: '^        server_name.*'
-      line: '        server_name site{{ site_id }};'
+      line: '        server_name site{{ site_id }}.mahiru.example.org;'
     with_items:
       - internal
       - external
@@ -249,7 +249,7 @@
       state: present
       create: yes
       regexp: '^registry_endpoint: .*$'
-      line: 'registry_endpoint: http://registry:80'
+      line: 'registry_endpoint: http://registry.mahiru.example.org:80'
 
 - name: Set up site
   hosts: site*

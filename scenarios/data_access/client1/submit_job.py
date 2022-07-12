@@ -28,7 +28,8 @@ if __name__ == '__main__':
     # run workflow
     client = InternalSiteRestClient(
             'party:party1.mahiru.example.org:party1',
-            'site:party1.mahiru.example.org:site1', 'http://site1:1080')
+            'site:party1.mahiru.example.org:site1',
+            'http://site1.mahiru.example.org:1080')
     print('Submitting job...')
     job_id = client.submit_job(Job(
         'party:party1.mahiru.example.org:party1', workflow, inputs))

@@ -21,6 +21,8 @@ party3_id := party:$(party3_ns):party3
 site3_domain := site3.mahiru.example.org
 
 
+trust_store := ca/intermediate/certs/ca_trust_store.pem
+
 https_certs := registry/certs/registry_https_cert.pem registry/private/registry_https_key.pem
 https_certs += site1/certs/site1_https_cert.pem site1/private/site1_https_key.pem
 https_certs += site2/certs/site2_https_cert.pem site2/private/site2_https_key.pem
@@ -38,7 +40,7 @@ user_certs := site1/users/user1/party1_user1_key.pem site1/users/user1/party1_us
 user_certs += site2/users/user1/party2_user1_key.pem site2/users/user1/party2_user1_cert.pem
 user_certs += site3/users/user1/party3_user1_key.pem site3/users/user1/party3_user1_cert.pem
 
-all_certs := $(https_certs) $(main_certs) $(user_ca_certs) $(user_certs)
+all_certs := $(trust_store) $(https_certs) $(main_certs) $(user_ca_certs) $(user_certs)
 
 
 .PHONY: all
@@ -98,6 +100,9 @@ ca/intermediate/certs/ca_intermediate_cert.pem: ca/root/csr/ca_intermediate_csr.
 	sed -e "s^BASEDIR^$(basedir)^" <ca_intermediate.conf.in >ca_intermediate.conf
 	openssl ca -config ca_root.conf -batch -days 3650 -extensions v3 -notext -md sha256 -in $< -out $@
 	chmod 444 $@
+
+ca/intermediate/certs/ca_trust_store.pem: ca/intermediate/certs/ca_intermediate_cert.pem ca/root/certs/ca_root_cert.pem
+	cat $^ >$@
 
 ca_intermediate := ca/intermediate/private/ca_intermediate_key.pem ca/intermediate/certs/ca_intermediate_cert.pem
 

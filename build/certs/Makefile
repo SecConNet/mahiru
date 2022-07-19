@@ -2,6 +2,9 @@ basedir := $(shell pwd)
 
 subj_location := /C=NL/ST=North Holland/L=Amsterdam
 
+registry_org := O=Mahiru Demo Registry
+registry_domain := registry.mahiru.example.org
+
 party1_org := O=Mahiru Demo Party 1
 party1_ns := party1.mahiru.example.org
 party1_id := party:$(party1_ns):party1
@@ -18,7 +21,8 @@ party3_id := party:$(party3_ns):party3
 site3_domain := site3.mahiru.example.org
 
 
-https_certs := site1/certs/site1_https_cert.pem site1/private/site1_https_key.pem
+https_certs := registry/certs/registry_https_cert.pem registry/private/registry_https_key.pem
+https_certs += site1/certs/site1_https_cert.pem site1/private/site1_https_key.pem
 https_certs += site2/certs/site2_https_cert.pem site2/private/site2_https_key.pem
 https_certs += site3/certs/site3_https_cert.pem site3/private/site3_https_key.pem
 
@@ -51,6 +55,8 @@ clean:
 	rm -rf ca/intermediate/private/*.pem ca/intermediate/certs/*.pem
 	rm -rf ca/intermediate/csr/*.pem ca/intermediate/new_certs/*.pem
 	rm -rf ca/intermediate/database.txt* ca/intermediate/serial* ca_intermediate.conf
+	# Registry
+	rm -rf registry/private/*.pem registry/certs/*.pem
 	# Sites
 	rm -rf site1/private/*.pem site1/certs/*.pem
 	rm -rf site1/csr/*.pem site1/new_certs/*.pem
@@ -119,6 +125,16 @@ ca/intermediate/csr/party3_main_csr.pem: site3/private/party3_main_key.pem
 
 site3/certs/party3_main_cert.pem: ca/intermediate/csr/party3_main_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions main_cert -days 375 -notext -md sha256 -in $< -out $@
+	chmod 444 $@
+
+
+# Generate HTTPS certificate for the registry
+
+ca/intermediate/csr/registry_https_csr.pem: registry/private/registry_https_key.pem
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(registry_org)/CN=$(registry_domain)" -addext "subjectAltName=DNS:$(registry_domain)" -out $@
+
+registry/certs/registry_https_cert.pem: ca/intermediate/csr/registry_https_csr.pem $(ca_intermediate)
+	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
 	chmod 444 $@
 
 

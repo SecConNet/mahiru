@@ -25,6 +25,32 @@
       - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/registry_nginx.conf"
 
+  - name: Create private dir
+    file:
+      path: "{{ home }}/mahiru/private"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: '../../build/certs/registry/private/registry_https_key.pem'
+      dest: '{{ home }}/mahiru/private/registry_https_key.pem'
+
+  - name: Create certs dir
+    file:
+      path: "{{ home }}/mahiru/certs"
+      state: directory
+
+  - name: Copy certs
+    synchronize:
+      src: '../../build/certs/{{ item.src }}'
+      dest: '{{ home }}/mahiru/certs/{{ item.dest }}'
+    loop:
+      - src: 'registry/certs/registry_https_cert.pem'
+        dest: 'registry_https_cert.pem'
+      - src: 'ca/intermediate/certs/ca_trust_store.pem'
+        dest: 'trust_store.pem'
+
   - name: Configure site name in proxy config
     lineinfile:
       path: "{{ home }}/mahiru/registry_nginx.conf"

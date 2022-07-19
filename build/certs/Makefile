@@ -5,17 +5,17 @@ subj_location := /C=NL/ST=North Holland/L=Amsterdam
 party1_org := O=Mahiru Demo Party 1
 party1_ns := party1.mahiru.example.org
 party1_id := party:$(party1_ns):party1
-site1_domain := site1
+site1_domain := site1.mahiru.example.org
 
 party2_org := O=Mahiru Demo Party 2
 party2_ns := party2.mahiru.example.org
 party2_id := party:$(party2_ns):party2
-site2_domain := site2
+site2_domain := site2.mahiru.example.org
 
 party3_org := O=Mahiru Demo Party 3
 party3_ns := party3.mahiru.example.org
 party3_id := party:$(party3_ns):party3
-site3_domain := site3
+site3_domain := site3.mahiru.example.org
 
 
 https_certs := site1/certs/site1_https_cert.pem site1/private/site1_https_key.pem
@@ -125,7 +125,7 @@ site3/certs/party3_main_cert.pem: ca/intermediate/csr/party3_main_csr.pem $(ca_i
 # Generate HTTPS certificates for the sites
 
 ca/intermediate/csr/site1_https_csr.pem: site1/private/site1_https_key.pem
-	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party1_org)/CN=$(site1_domain)" -out $@
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party1_org)/CN=$(site1_domain)" -addext "subjectAltName=DNS:$(site1_domain)" -out $@
 
 site1/certs/site1_https_cert.pem: ca/intermediate/csr/site1_https_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
@@ -133,7 +133,7 @@ site1/certs/site1_https_cert.pem: ca/intermediate/csr/site1_https_csr.pem $(ca_i
 
 
 ca/intermediate/csr/site2_https_csr.pem: site2/private/site2_https_key.pem
-	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party2_org)/CN=$(site2_domain)" -out $@
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party2_org)/CN=$(site2_domain)" -addext "subjectAltName=DNS:$(site2_domain)" -out $@
 
 site2/certs/site2_https_cert.pem: ca/intermediate/csr/site2_https_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
@@ -141,7 +141,7 @@ site2/certs/site2_https_cert.pem: ca/intermediate/csr/site2_https_csr.pem $(ca_i
 
 
 ca/intermediate/csr/site3_https_csr.pem: site3/private/site3_https_key.pem
-	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party3_org)/CN=$(site3_domain)" -out $@
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party3_org)/CN=$(site3_domain)" -addext "subjectAltName=DNS:$(site3_domain)" -out $@
 
 site3/certs/site3_https_cert.pem: ca/intermediate/csr/site3_https_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@

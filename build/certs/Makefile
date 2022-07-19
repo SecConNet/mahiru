@@ -79,7 +79,7 @@ ca/root/certs/ca_root_cert.pem: ca/root/private/ca_root_key.pem
 	touch ca/root/database.txt.attr
 	echo 1000 >ca/root/serial
 	sed -e "s^BASEDIR^$(basedir)^" <ca_root.conf.in >ca_root.conf
-	openssl req -config ca_root_self.conf -new -x509 -key ca/root/private/ca_root_key.pem -days 730 -out $@
+	openssl req -config ca_root_self.conf -new -x509 -key ca/root/private/ca_root_key.pem -days 730 -extensions cert_extensions -out $@
 	chmod 444 $@
 
 ca/root/csr/ca_intermediate_csr.pem: ca/intermediate/private/ca_intermediate_key.pem
@@ -90,7 +90,7 @@ ca/intermediate/certs/ca_intermediate_cert.pem: ca/root/csr/ca_intermediate_csr.
 	touch ca/intermediate/database.txt.attr
 	echo 1000 >ca/intermediate/serial
 	sed -e "s^BASEDIR^$(basedir)^" <ca_intermediate.conf.in >ca_intermediate.conf
-	openssl ca -config ca_root.conf -batch -days 3650 -notext -md sha256 -in $< -out $@
+	openssl ca -config ca_root.conf -batch -days 3650 -extensions v3 -notext -md sha256 -in $< -out $@
 	chmod 444 $@
 
 ca_intermediate := ca/intermediate/private/ca_intermediate_key.pem ca/intermediate/certs/ca_intermediate_cert.pem

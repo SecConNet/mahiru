@@ -1,8 +1,9 @@
 """REST API handlers/clients for the replication system."""
 from datetime import datetime, timedelta
 import logging
+from pathlib import Path
 import requests
-from typing import Dict, Generic, Optional, Type, TypeVar
+from typing import Dict, Generic, Optional, Type, TypeVar, Union
 
 from falcon import Request, Response
 from retrying import retry
@@ -56,7 +57,7 @@ class ReplicationRestClient(IReplicationService[T]):
     """Client for a ReplicationHandler REST endpoint."""
     UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
-    def __init__(self, endpoint: str) -> None:
+    def __init__(self, endpoint: str, trust_store: Optional[Path]) -> None:
         """Create a ReplicationRestClient.
 
         Note that UpdateType must be set to ReplicaUpdate[T] with the
@@ -66,8 +67,15 @@ class ReplicationRestClient(IReplicationService[T]):
 
         Args:
             endpoint: URL of the endpoint to connect to.
+            trust_store: A file with trusted certificates/anchors.
         """
         self._endpoint = endpoint
+
+        # Convert trust store to argument for verify option of requests
+        if trust_store:
+            self._verify = str(trust_store)     # type: Union[str, bool]
+        else:
+            self._verify = True
 
     def get_updates_since(
             self, from_version: Optional[int]) -> ReplicaUpdate[T]:
@@ -89,10 +97,10 @@ class ReplicationRestClient(IReplicationService[T]):
     @retry(                                             # type: ignore
             stop_max_delay=20000, wait_fixed=500,
             retry_on_exception=_retry_on_connection_error)
-    def _retry_http_get(
-            self, params: Dict[str, int]) -> requests.Response:
+    def _retry_http_get(self, params: Dict[str, int]) -> requests.Response:
         """Do an HTTP get and retry for a while on failure."""
-        return requests.get(self._endpoint, params=params)
+        return requests.get(
+                self._endpoint, params=params, verify=self._verify)
 
 
 class PolicyRestClient(ReplicationRestClient[Rule]):

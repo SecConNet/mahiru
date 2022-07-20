@@ -59,6 +59,7 @@ class SiteConfiguration:
         network_settings: Settings for external asset network
                 connections.
         registry_endpoint: Registry endpoint location.
+        trust_store: File with trusted certificates/trust anchors.
         loglevel: Logging level to use, one of 'critical', 'error',
                 'warning', 'info', or 'debug'.
     """
@@ -66,7 +67,9 @@ class SiteConfiguration:
             self,
             site_id: Identifier, namespace: str, owner: Identifier,
             network_settings: NetworkSettings,
-            registry_endpoint: str, loglevel: str = 'info'
+            registry_endpoint: str,
+            trust_store: Optional[Path] = None,
+            loglevel: str = 'info'
             ) -> None:
         """Create a SiteConfiguration object.
 
@@ -78,6 +81,7 @@ class SiteConfiguration:
             network_settings: Settings for external asset network
                     connections.
             registry_endpoint: Registry endpoint location.
+            trust_store: File with trusted certificates/trust anchors.
             loglevel: Logging level to use, one of 'critical', 'error',
                     'warning', 'info', or 'debug'.
         """
@@ -90,6 +94,7 @@ class SiteConfiguration:
         self.owner = owner
         self.network_settings = network_settings
         self.registry_endpoint = registry_endpoint
+        self.trust_store = trust_store
         self.loglevel = loglevel
 
     @classmethod

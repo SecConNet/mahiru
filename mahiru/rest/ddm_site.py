@@ -660,7 +660,8 @@ def wsgi_app() -> App:
 
     logging.basicConfig(level=settings.loglevel.upper())
 
-    registry_rest_client = RegistryRestClient(settings.registry_endpoint)
+    registry_rest_client = RegistryRestClient(
+            settings.registry_endpoint, settings.trust_store)
     registry_client = RegistryClient(registry_rest_client)
     site = Site(settings, [], [], registry_client)
     return SiteRestApi(

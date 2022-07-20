@@ -32,14 +32,20 @@ http {
         # Default server which closes the connection immediately.
         # This is used if the host header doesn't match, and prevents
         # host spoofing.
-        listen      80 default_server;
+        listen      443 default_server ssl;
+        ssl_certificate /etc/nginx/https_cert.pem;
+        ssl_certificate_key /etc/nginx/https_key.pem;
+
         return 444;
     }
 
     server {
-        listen 80 deferred;
+        listen 443 ssl deferred;
 
         server_name server;     # gets patched by Ansible
+
+        ssl_certificate /etc/nginx/https_cert.pem;
+        ssl_certificate_key /etc/nginx/https_key.pem;
 
         keepalive_timeout 5;
 

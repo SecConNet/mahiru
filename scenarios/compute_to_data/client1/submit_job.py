@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
+
 from mahiru.definitions.workflows import Job, Workflow, WorkflowStep
 from mahiru.rest.internal_client import InternalSiteRestClient
+
+
+CERTS_DIR = Path.home() / 'mahiru' / 'certs'
 
 
 if __name__ == '__main__':
@@ -29,7 +34,8 @@ if __name__ == '__main__':
     client = InternalSiteRestClient(
             'party:party1.mahiru.example.org:party1',
             'site:party1.mahiru.example.org:site1',
-            'http://site1.mahiru.example.org:1080')
+            'https://site1.mahiru.example.org:1443',
+            CERTS_DIR / 'trust_store.pem')
     print('Submitting job...')
     job_id = client.submit_job(Job(
         'party:party1.mahiru.example.org:party1', workflow, inputs))

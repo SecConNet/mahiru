@@ -33,7 +33,8 @@ def asset_store(temp_path, test_image_file, asset_id):
 @pytest.fixture
 def image_server(asset_store):
     app = App()
-    asset_image_access = AssetImageAccessHandler(asset_store)
+    asset_image_access = AssetImageAccessHandler(
+            MagicMock(), asset_store)
     app.add_route('/assets/{asset_id}/image', asset_image_access)
     server = ThreadingWSGIServer(('0.0.0.0', 0), WSGIRequestHandler)
     server.set_app(app)

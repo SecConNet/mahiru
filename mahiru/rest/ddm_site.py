@@ -1,14 +1,19 @@
 """REST-style API for a site."""
 from copy import copy
+from enum import Enum
 import logging
 from pathlib import Path
 from socketserver import ThreadingMixIn
 from tempfile import NamedTemporaryFile
 from threading import Thread
-from typing import Dict
-from urllib.parse import quote
+from typing import Dict, List
+from urllib.parse import quote, unquote_to_bytes
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography import x509
+from cryptography.x509 import Certificate
+from cryptography.x509.oid import ExtensionOID
 from falcon import (
         App, HTTP_200, HTTP_201, HTTP_204, HTTP_303, HTTP_400, HTTP_403,
         HTTP_404, Request, Response)
@@ -78,14 +83,159 @@ def _request_url(request: Request) -> str:
         return f'{request.prefix}{path}'
 
 
+class InternalOperation(Enum):
+    """Operation on the internal API.
+
+    This enumerates the different kinds of operations that can be
+    performed by local users through the internal API. It's intended
+    to model the relevant operations for a Role-Based Access Control
+    system.
+    """
+    MANAGE_ASSETS = 1
+    MANAGE_POLICIES = 2
+    SUBMIT_WORKFLOWS = 3
+
+
+class AccessController:
+    """Performs access control for the internal REST API.
+
+    For now, we just check whether the user presented a valid
+    certificate that identifies them as a user affiliated with the
+    owner of this site. Some kind of RBAC should be implemented in a
+    production version.
+    """
+    def __init__(
+            self, registry_client: RegistryClient, owner: Identifier) -> None:
+        """Create an AccessController.
+
+        Args:
+            registry_client: Registry client to use to check
+                certificates.
+            owner: The owner of this site.
+        """
+        self._registry_client = registry_client
+        self._owner = owner
+
+    def check_requester(
+            self, requester: Identifier, client_cert: Certificate) -> None:
+        """Checks whether the requester is who they say they are.
+
+        Used by the external API endpoints to validate the site making
+        the request.
+
+        This checks the value of the 'requester' parameter against the
+        identity of the client as specified in their HTTPS certificate.
+        If the endpoint specified by the latter is indeed the endpoint
+        of the site specified by the former, then the request comes
+        from where we think it comes, and we can return the asset if
+        that site has permission to have it.
+
+        Args:
+            requester: The claimed requester.
+            client_cert: The client's HTTPS certificate.
+        """
+        logger.info(f'Requester cert: {client_cert}')
+        subj_alt_name_ext = client_cert.extensions.get_extension_for_oid(
+                ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+        client_dns_names = subj_alt_name_ext.value.get_values_for_type(
+                x509.DNSName)
+        if len(client_dns_names) != 1:
+            raise RuntimeError(
+                    'Client certificate has more than one subjAltName')
+        client_domain = client_dns_names[0]
+        logger.debug(f'Client domain from certificate: {client_domain}')
+
+        try:
+            self._registry_client.update()
+            site_desc = self._registry_client.get_site_by_id(requester)
+        except Exception as e:
+            logger.error(f'Invalid requester {requester}: {e}')
+            raise RuntimeError('Invalid requester')
+
+        logger.debug(f'Site endpoint: {site_desc.endpoint}')
+        site_domain = site_desc.endpoint.split('://')[1]
+        logger.debug(f'Site domain from registry: {site_domain}')
+        if client_domain != site_domain:
+            raise RuntimeError(
+                    f'Request claims to be from {requester} which has domain'
+                    f' {site_domain}, but came from {client_domain}')
+
+    def check_user_authorization(
+            self, client_cert: bytes, operation: InternalOperation) -> None:
+        """Checks that the client is authorised.
+
+        Used by the internal API endpoints to validate the user making
+        the request.
+
+        This function would implement a role-based access mechanism to
+        check that the user is authorised to perform an action. Since
+        those are well-proven, we don't implement any in this proof-
+        of-concept.
+
+        Args:
+            client_cert: The client's certificate as presented to the
+                HTTPS server.
+            operation: The operation the client is asking to perform.
+        """
+        pass
+
+    def _load_certs(self, cert_bytes: bytes) -> List[Certificate]:
+        """Load a list of certificates from a byte stream.
+
+        This loads zero or more X.509 certificates from a byte
+        stream as typically sent to an HTTPS server.
+
+        Args:
+            cert_bytes: The certificate data.
+
+        Return:
+            A list of parsed certificates.
+
+        Raises:
+            RuntimeError: If there was a problem parsing the data.
+        """
+        lines = cert_bytes.decode('ascii').splitlines()
+        logger.debug(f'lines: {lines}')
+        cert_list = list()      # type: List[List[str]]
+        state = 'before cert'
+        for line in lines:
+            logger.debug(f'cert list: {cert_list}')
+            logger.debug(f'state: "{state}"')
+            logger.debug(f'line: "{line}"')
+            if line.split() == []:      # skip whitespace only lines
+                continue
+
+            if state == 'before cert':
+                if line != '-----BEGIN CERTIFICATE-----':
+                    raise RuntimeError('Could not parse certificate')
+                cert_list.append([line])    # lines for this cert
+                state = 'in cert'
+            elif state == 'in cert':
+                cert_list[-1].append(line)
+                if line == '-----END CERTIFICATE-----':
+                    state = 'before cert'
+
+        if state != 'before cert':
+            raise RuntimeError('Could not parse certificate')
+
+        return [
+                x509.load_pem_x509_certificate(
+                    '\n'.join(cert_lines).encode('ascii'))
+                for cert_lines in cert_list]
+
+
 class AssetAccessHandler:
     """A handler for the external /assets endpoint."""
-    def __init__(self, store: IAssetStore) -> None:
+    def __init__(
+            self, access_controller: AccessController, store: IAssetStore
+            ) -> None:
         """Create an AssetAccessHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             store: The asset store to send requests to.
         """
+        self._access_controller = access_controller
         self._store = store
 
     def on_get(
@@ -99,7 +249,7 @@ class AssetAccessHandler:
             asset_id: The id of the requested asset
 
         """
-        logger.info(f'Asset access request, store = {self._store}')
+        logger.info(f'Asset access request')
         if 'requester' not in request.params:
             logger.info(f'Invalid asset access request')
             response.status = HTTP_400
@@ -109,6 +259,14 @@ class AssetAccessHandler:
                     f'Received request for asset {asset_id} from'
                     f' {request.params["requester"]}')
             try:
+                requester = Identifier(request.params['requester'])
+                client_cert_header = request.get_header('X-Client-Certificate')
+                if client_cert_header:
+                    client_cert = x509.load_pem_x509_certificate(
+                        unquote_to_bytes(client_cert_header))
+                    self._access_controller.check_requester(
+                            requester, client_cert)
+
                 asset = copy(self._store.retrieve(
                         Identifier(asset_id), request.params['requester']))
                 # Send URL instead of local file location
@@ -136,12 +294,16 @@ class AssetAccessHandler:
 
 class AssetImageAccessHandler:
     """A handler for the external /assets/{assetId}/image endpoints."""
-    def __init__(self, store: IAssetStore) -> None:
+    def __init__(
+            self, access_controller: AccessController, store: IAssetStore
+            ) -> None:
         """Create an AssetImageAccessHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             store: The asset store to send requests to.
         """
+        self._access_controller = access_controller
         self._store = store
 
     def on_get(
@@ -160,6 +322,13 @@ class AssetImageAccessHandler:
             response.status = HTTP_400
             response.body = 'Invalid request'
         else:
+            requester = Identifier(request.params['requester'])
+            client_cert_header = request.get_header('X-Client-Certificate')
+            if client_cert_header:
+                client_cert = x509.load_pem_x509_certificate(
+                    unquote_to_bytes(client_cert_header))
+                self._access_controller.check_requester(requester, client_cert)
+
             logger.info(
                     f'Received request for asset {asset_id} from'
                     f' {request.params["requester"]}')
@@ -192,12 +361,16 @@ class AssetImageAccessHandler:
 
 class AssetConnectionAccessHandler:
     """A handler for the /assets/{assetId}/connect endpoints."""
-    def __init__(self, store: IAssetStore) -> None:
+    def __init__(
+            self, access_controller: AccessController, store: IAssetStore
+            ) -> None:
         """Create an AssetConnectionAccessHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             store: The asset store to send requests to.
         """
+        self._access_controller = access_controller
         self._store = store
 
     def on_post(
@@ -215,10 +388,18 @@ class AssetConnectionAccessHandler:
                 logger.info(f'Invalid asset access request')
                 raise ValidationError('No requester specified')
             else:
-
                 logger.info(
                         f'Received request to connect to asset {asset_id} from'
                         f' {request.params["requester"]}')
+
+                requester = Identifier(request.params['requester'])
+                client_cert_header = request.get_header('X-Client-Certificate')
+                if client_cert_header:
+                    client_cert = x509.load_pem_x509_certificate(
+                        unquote_to_bytes(client_cert_header))
+                    self._access_controller.check_requester(
+                            requester, client_cert)
+
                 validate_json('ConnectionRequest', request.media)
                 conn_request = deserialize(ConnectionRequest, request.media)
 
@@ -253,12 +434,16 @@ class AssetConnectionAccessHandler:
 
 class ConnectionsHandler:
     """A handler for the /connections/{connId} endpoint."""
-    def __init__(self, store: IAssetStore) -> None:
+    def __init__(
+            self, access_controller: AccessController, store: IAssetStore
+            ) -> None:
         """Create an AssetDisconnectionHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             store: The asset store to send requests to.
         """
+        self._access_controller = access_controller
         self._store = store
 
     def on_delete(
@@ -277,6 +462,14 @@ class ConnectionsHandler:
                 logger.info(f'Invalid asset access request')
                 raise ValidationError('No requester specified')
             else:
+                requester = Identifier(request.params['requester'])
+                client_cert_header = request.get_header('X-Client-Certificate')
+                if client_cert_header:
+                    client_cert = x509.load_pem_x509_certificate(
+                        unquote_to_bytes(client_cert_header))
+                    self._access_controller.check_requester(
+                            requester, client_cert)
+
                 logger.info(
                         f'Received request to disconnect connection {conn_id}'
                         f' from {request.params["requester"]}')
@@ -298,13 +491,17 @@ class ConnectionsHandler:
 
 class AssetManagementHandler:
     """A handler for the internal /assets endpoint."""
-    def __init__(self, store: IAssetStore) -> None:
+    def __init__(
+            self, access_controller: AccessController, store: IAssetStore
+            ) -> None:
         """Create an AssetManagementHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             store: The asset store to send requests to.
 
         """
+        self._access_controller = access_controller
         self._store = store
 
     def on_post(self, request: Request, response: Response) -> None:
@@ -317,6 +514,11 @@ class AssetManagementHandler:
         """
         try:
             logger.info(f'Asset storage request')
+            client_cert_header = request.get_header('X-Client-Certificate')
+            if client_cert_header:
+                self._access_controller.check_user_authorization(
+                        unquote_to_bytes(client_cert_header),
+                        InternalOperation.MANAGE_ASSETS)
             validate_json('Asset', request.media)
             asset = deserialize(Asset, request.media)
             logger.info(f'Storing asset {asset}')
@@ -334,13 +536,17 @@ class AssetImageManagementHandler:
 
     _CHUNK_SIZE = 1024 * 1024
 
-    def __init__(self, store: IAssetStore) -> None:
+    def __init__(
+            self, access_controller: AccessController, store: IAssetStore
+            ) -> None:
         """Create an AssetImageManagementHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             store: The asset store to send images to.
 
         """
+        self._access_controller = access_controller
         self._store = store
 
     def on_put(
@@ -353,6 +559,12 @@ class AssetImageManagementHandler:
             asset_id: ID of the asset to store an image for.
 
         """
+        client_cert_header = request.get_header('X-Client-Certificate')
+        if client_cert_header:
+            self._access_controller.check_user_authorization(
+                    unquote_to_bytes(client_cert_header),
+                    InternalOperation.MANAGE_ASSETS)
+
         try:
             asset_id = Identifier(asset_id)
         except ValueError:
@@ -381,13 +593,17 @@ class AssetImageManagementHandler:
 
 class PolicyManagementHandler:
     """A handler for the internal /rules endpoint."""
-    def __init__(self, policy_store: PolicyStore) -> None:
+    def __init__(
+            self, access_controller: AccessController,
+            policy_store: PolicyStore) -> None:
         """Create a PolicyManagementHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             policy_store: A policy store to store rules in.
 
         """
+        self._access_controller = access_controller
         self._policy_store = policy_store
 
     def on_post(self, request: Request, response: Response) -> None:
@@ -399,6 +615,12 @@ class PolicyManagementHandler:
 
         """
         try:
+            client_cert_header = request.get_header('X-Client-Certificate')
+            if client_cert_header:
+                self._access_controller.check_user_authorization(
+                        unquote_to_bytes(client_cert_header),
+                        InternalOperation.MANAGE_POLICIES)
+
             validate_json('Rule', request.media)
             rule = deserialize(Rule, request.media)
             self._policy_store.insert(rule)
@@ -448,14 +670,18 @@ class WorkflowSubmissionHandler:
     unique URI.
 
     """
-    def __init__(self, orchestrator: WorkflowOrchestrator) -> None:
+    def __init__(
+            self, access_controller: AccessController,
+            orchestrator: WorkflowOrchestrator) -> None:
         """Create a WorkflowSubmissionHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             orchestrator: The orchestrator to use to execute the
                     submitted workflows.
 
         """
+        self._access_controller = access_controller
         self._orchestrator = orchestrator
 
     def on_post(self, request: Request, response: Response) -> None:
@@ -478,6 +704,11 @@ class WorkflowSubmissionHandler:
         requesting_site = request.params['requesting_site']
 
         try:
+            client_cert_header = request.get_header('X-Client-Certificate')
+            if client_cert_header:
+                self._access_controller.check_user_authorization(
+                        unquote_to_bytes(client_cert_header),
+                        InternalOperation.SUBMIT_WORKFLOWS)
             validate_json('Job', request.media)
             job = deserialize(Job, request.media)
             logger.info(
@@ -501,14 +732,18 @@ class WorkflowStatusHandler:
     results.
 
     """
-    def __init__(self, orchestrator: WorkflowOrchestrator) -> None:
+    def __init__(
+            self, access_controller: AccessController,
+            orchestrator: WorkflowOrchestrator) -> None:
         """Create a WorkflowStatusHandler handler.
 
         Args:
+            access_controller: Access controller to use.
             orchestrator: The orchestrator to use to retrieve the
                     requested results from.
 
         """
+        self._access_controller = access_controller
         self._orchestrator = orchestrator
 
     def on_get(
@@ -522,6 +757,12 @@ class WorkflowStatusHandler:
 
         """
         logger.debug(f'Handling request for status of job {job_id}')
+
+        client_cert_header = request.get_header('X-Client-Certificate')
+        if client_cert_header:
+            self._access_controller.check_user_authorization(
+                    unquote_to_bytes(client_cert_header),
+                    InternalOperation.SUBMIT_WORKFLOWS)
         try:
             job = self._orchestrator.get_submitted_job(job_id)
             plan = self._orchestrator.get_plan(job_id)
@@ -550,6 +791,7 @@ class SiteRestApi:
     """
     def __init__(
             self,
+            access_controller: AccessController,
             policy_store: PolicyStore,
             asset_store: IAssetStore,
             runner: IStepRunner,
@@ -557,6 +799,7 @@ class SiteRestApi:
         """Create a SiteRestApi instance.
 
         Args:
+            access_controller: Access controller to use.
             policy_store: The store to offer policy updates from.
             asset_store: The store to serve assets from.
             runner: The workflow runner to send requests to.
@@ -569,39 +812,46 @@ class SiteRestApi:
         rule_replication = ReplicationHandler[Rule](policy_store)
         self.app.add_route('/external/rules/updates', rule_replication)
 
-        asset_access = AssetAccessHandler(asset_store)
+        asset_access = AssetAccessHandler(access_controller, asset_store)
         self.app.add_route('/external/assets/{asset_id}', asset_access)
 
-        asset_image_access = AssetImageAccessHandler(asset_store)
+        asset_image_access = AssetImageAccessHandler(
+                access_controller, asset_store)
         self.app.add_route(
                 '/external/assets/{asset_id}/image', asset_image_access)
 
-        asset_connection_access = AssetConnectionAccessHandler(asset_store)
+        asset_connection_access = AssetConnectionAccessHandler(
+                access_controller, asset_store)
         self.app.add_route(
                 '/external/assets/{asset_id}/connect',
                 asset_connection_access)
 
-        connections = ConnectionsHandler(asset_store)
+        connections = ConnectionsHandler(access_controller, asset_store)
         self.app.add_route(
                 '/external/connections/{conn_id}', connections)
 
         workflow_execution = WorkflowExecutionHandler(runner)
         self.app.add_route('/external/jobs', workflow_execution)
 
-        asset_management = AssetManagementHandler(asset_store)
+        asset_management = AssetManagementHandler(
+                access_controller, asset_store)
         self.app.add_route('/internal/assets', asset_management)
 
-        asset_image_management = AssetImageManagementHandler(asset_store)
+        asset_image_management = AssetImageManagementHandler(
+                access_controller, asset_store)
         self.app.add_route(
                 '/internal/assets/{asset_id}/image', asset_image_management)
 
-        policy_management = PolicyManagementHandler(policy_store)
+        policy_management = PolicyManagementHandler(
+                access_controller, policy_store)
         self.app.add_route('/internal/rules', policy_management)
 
-        workflow_status = WorkflowStatusHandler(orchestrator)
+        workflow_status = WorkflowStatusHandler(
+                access_controller, orchestrator)
         self.app.add_route('/internal/jobs/{job_id}', workflow_status)
 
-        workflow_submission = WorkflowSubmissionHandler(orchestrator)
+        workflow_submission = WorkflowSubmissionHandler(
+                access_controller, orchestrator)
         self.app.add_route('/internal/jobs', workflow_submission)
 
 
@@ -661,8 +911,11 @@ def wsgi_app() -> App:
     logging.basicConfig(level=settings.loglevel.upper())
 
     registry_rest_client = RegistryRestClient(
-            settings.registry_endpoint, settings.trust_store)
+            settings.registry_endpoint, settings.trust_store,
+            settings.client_creds())
     registry_client = RegistryClient(registry_rest_client)
+    access_controller = AccessController(registry_client, settings.owner)
     site = Site(settings, [], [], registry_client)
     return SiteRestApi(
-            site.policy_store, site.store, site.runner, site.orchestrator).app
+            access_controller, site.policy_store, site.store, site.runner,
+            site.orchestrator).app

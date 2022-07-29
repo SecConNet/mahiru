@@ -50,7 +50,10 @@ def register(main_key: Ed25519PrivateKey) -> None:
 
     client = RegistrationRestClient(
             'https://registry.mahiru.example.org',
-            CERTS_DIR / 'trust_store.pem')
+            CERTS_DIR / 'trust_store.pem',
+            (
+                CERTS_DIR / 'site1_https_cert.pem',
+                PRIVATE_DIR / 'site1_https_key.pem'))
 
     # Remove stale registrations, if any
     try:
@@ -164,6 +167,9 @@ if __name__ == "__main__":
             'party:party1.mahiru.example.org:party1',
             'site:party1.mahiru.example.org:site1',
             'https://site1.mahiru.example.org:1443',
-            CERTS_DIR / 'trust_store.pem')
+            CERTS_DIR / 'trust_store.pem',
+            (
+                CERTS_DIR / 'party1_user1_cert.pem',
+                PRIVATE_DIR / 'party1_user1_key.pem'))
     add_initial_assets(client)
     add_initial_rules(client, main_key)

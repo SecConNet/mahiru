@@ -31,8 +31,13 @@
 
   - name: Copy keys
     synchronize:
-      src: "../../build/certs/site1/private/party1_main_key.pem"
-      dest: "{{ private_dir }}/party1_main_key.pem"
+      src: "../../build/certs/site1/{{ item.src }}"
+      dest: "{{ private_dir }}/{{ item.dest }}"
+    loop:
+      - src: private/party1_main_key.pem
+        dest: party1_main_key.pem
+      - src: users/user1/party1_user1_key.pem
+        dest: party1_user1_key.pem
 
   - name: Create certs dir
     file:
@@ -41,15 +46,17 @@
 
   - name: Copy certs
     synchronize:
-      src: "../../build/certs/{{ item.src }}"
+      src: "../../build/certs/site1/{{ item.src }}"
       dest: "{{ certs_dir }}/{{ item.dest }}"
     loop:
-      - src: site1/certs/party1_main_cert.pem
+      - src: certs/party1_main_cert.pem
         dest: party1_main_cert.pem
-      - src: site1/certs/party1_user_ca_cert.pem
+      - src: certs/party1_user_ca_cert.pem
         dest: party1_user_ca_cert.pem
-      - src: site1/certs/site1_https_cert.pem
+      - src: certs/site1_https_cert.pem
         dest: site1_https_cert.pem
+      - src: users/user1/party1_user1_cert.pem
+        dest: party1_user1_cert.pem
 
   - name: Create script directory
     file:
@@ -97,8 +104,13 @@
 
   - name: Copy keys
     synchronize:
-      src: "../../build/certs/site2/private/party2_main_key.pem"
-      dest: "{{ private_dir }}/party2_main_key.pem"
+      src: "../../build/certs/site2/{{ item.src }}"
+      dest: "{{ private_dir }}/{{ item.dest }}"
+    loop:
+      - src: private/party2_main_key.pem
+        dest: party2_main_key.pem
+      - src: users/user1/party2_user1_key.pem
+        dest: party2_user1_key.pem
 
   - name: Create certs dir
     file:
@@ -107,15 +119,17 @@
 
   - name: Copy certs
     synchronize:
-      src: "../../build/certs/{{ item.src }}"
+      src: "../../build/certs/site2/{{ item.src }}"
       dest: "{{ certs_dir }}/{{ item.dest }}"
     loop:
-      - src: site2/certs/party2_main_cert.pem
+      - src: certs/party2_main_cert.pem
         dest: party2_main_cert.pem
-      - src: site2/certs/party2_user_ca_cert.pem
+      - src: certs/party2_user_ca_cert.pem
         dest: party2_user_ca_cert.pem
-      - src: site2/certs/site2_https_cert.pem
+      - src: certs/site2_https_cert.pem
         dest: site2_https_cert.pem
+      - src: users/user1/party2_user1_cert.pem
+        dest: party2_user1_cert.pem
 
   - name: Create script directory
     file:

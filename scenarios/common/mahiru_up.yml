@@ -139,6 +139,9 @@
         - type: bind
           source: "{{ home }}/mahiru/private/registry_https_key.pem"
           target: /etc/nginx/https_key.pem
+        - type: bind
+          source: "{{ home }}/mahiru/certs/trust_store.pem"
+          target: /etc/nginx/trust_store.pem
 
 
 - name: Copy files to site
@@ -269,14 +272,6 @@
       regexp: '^network_settings: .*$'
       line: 'network_settings: { enabled: True, external_ip: {{ hostvars[inventory_hostname].ansible_ssh_host }}, ports: [10000, 11000] }'
 
-  - name: Configure loglevel
-    lineinfile:
-      path: "{{ config_file }}"
-      state: present
-      create: yes
-      regexp: '^loglevel: .*$'
-      line: 'loglevel: DEBUG'
-
   - name: Configure registry endpoint
     lineinfile:
       path: "{{ config_file }}"
@@ -292,6 +287,30 @@
       create: yes
       regexp: '^trust_store: .*$'
       line: 'trust_store: /etc/mahiru/trust_store.pem'
+
+  - name: Configure HTTPS client certificate
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^client_cert: .*$'
+      line: 'client_cert: /etc/mahiru/https_cert.pem'
+
+  - name: Configure HTTPS client key
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^client_key: .*$'
+      line: 'client_key: /etc/mahiru/https_key.pem'
+
+  - name: Configure loglevel
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^loglevel: .*$'
+      line: 'loglevel: DEBUG'
 
 - name: Set up site
   hosts: site*
@@ -341,6 +360,8 @@
         - '/var/run/docker.sock:/var/run/docker.sock'
         - '{{ home }}/mahiru/mahiru.conf:/etc/mahiru/mahiru.conf:ro'
         - '{{ home }}/mahiru/certs/trust_store.pem:/etc/mahiru/trust_store.pem:ro'
+        - '{{ home }}/mahiru/certs/site{{ site_id }}_https_cert.pem:/etc/mahiru/https_cert.pem:ro'
+        - '{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem:/etc/mahiru/https_key.pem:ro'
       networks:
         - name: mahiru
           aliases: mahiru-site
@@ -375,6 +396,9 @@
         - type: bind
           source: "{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem"
           target: /etc/nginx/https_key.pem
+        - type: bind
+          source: "{{ home }}/mahiru/certs/trust_store.pem"
+          target: /etc/nginx/trust_store.pem
 
   - name: Ensure the external reverse proxy is up
     docker_container:
@@ -405,13 +429,18 @@
         - type: bind
           source: "{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem"
           target: /etc/nginx/https_key.pem
+        - type: bind
+          source: "{{ home }}/mahiru/certs/trust_store.pem"
+          target: /etc/nginx/trust_store.pem
 
 
-- name: Install Mahiru Python module and CA cert on clients
+- name: Install Mahiru Python module and certificates on clients
   hosts: client*
   vars:
     source_dir: "{{ansible_facts['user_dir']}}/mahiru/source"
     certs_dir: "{{ansible_facts['user_dir']}}/mahiru/certs"
+    private_dir: "{{ansible_facts['user_dir']}}/mahiru/private"
+    site_id: "{{ inventory_hostname | regex_replace('^client(.*)', '\\1') }}"
 
   tasks:
   - name: Create certs dir
@@ -426,6 +455,24 @@
     loop:
       - src: ca/intermediate/certs/ca_trust_store.pem
         dest: trust_store.pem
+      - src: site{{ site_id }}/users/user1/party{{ site_id }}_user1_cert.pem
+        dest: party{{ site_id }}_user1_cert.pem
+
+  - name: Create private dir
+    file:
+      path: "{{ private_dir }}"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: '../../build/certs/{{ item.src }}'
+      dest: '{{ private_dir }}/{{ item.dest }}'
+    loop:
+      - src: site{{ site_id }}/private/site{{ site_id }}_https_key.pem
+        dest: site{{ site_id }}_https_key.pem
+      - src: site{{ site_id }}/users/user1/party{{ site_id }}_user1_key.pem
+        dest: party{{ site_id }}_user1_key.pem
 
   - name: Make directory for source
     file:

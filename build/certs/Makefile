@@ -214,22 +214,28 @@ site1/csr/party1_user1_csr.pem: site1/users/user1/party1_user1_key.pem
 	openssl req -config party_user_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party1_org)/CN=user:$(party1_ns):user1" -out $@
 
 site1/users/user1/party1_user1_cert.pem: site1/csr/party1_user1_csr.pem $(party1_user_ca)
-	openssl ca -config site1/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@
+	openssl ca -config site1/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@.only
+	cat $@.only site1/certs/party1_user_ca_cert.pem >$@
 	chmod 444 $@
+	rm $@.only
 
 
 site2/csr/party2_user1_csr.pem: site2/users/user1/party2_user1_key.pem
 	openssl req -config party_user_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party2_org)/CN=user:$(party2_ns):user1" -out $@
 
 site2/users/user1/party2_user1_cert.pem: site2/csr/party2_user1_csr.pem $(party2_user_ca)
-	openssl ca -config site2/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@
+	openssl ca -config site2/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@.only
+	cat $@.only site2/certs/party2_user_ca_cert.pem >$@
 	chmod 444 $@
+	rm $@.only
 
 
 site3/csr/party3_user1_csr.pem: site3/users/user1/party3_user1_key.pem
 	openssl req -config party_user_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party3_org)/CN=user:$(party3_ns):user1" -out $@
 
 site3/users/user1/party3_user1_cert.pem: site3/csr/party3_user1_csr.pem $(party3_user_ca)
-	openssl ca -config site3/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@
+	openssl ca -config site3/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@.only
+	cat $@.only site3/certs/party3_user_ca_cert.pem >$@
 	chmod 444 $@
+	rm $@.only
 

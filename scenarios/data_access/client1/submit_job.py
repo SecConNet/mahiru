@@ -7,6 +7,7 @@ from mahiru.rest.internal_client import InternalSiteRestClient
 
 
 CERTS_DIR = Path.home() / 'mahiru' / 'certs'
+PRIVATE_DIR = Path.home() / 'mahiru' / 'private'
 
 
 if __name__ == '__main__':
@@ -35,7 +36,10 @@ if __name__ == '__main__':
             'party:party1.mahiru.example.org:party1',
             'site:party1.mahiru.example.org:site1',
             'https://site1.mahiru.example.org:1443',
-            CERTS_DIR / 'trust_store.pem')
+            CERTS_DIR / 'trust_store.pem',
+            (
+                CERTS_DIR / 'site1_https_cert.pem',
+                PRIVATE_DIR / 'site1_https_key.pem'))
     print('Submitting job...')
     job_id = client.submit_job(Job(
         'party:party1.mahiru.example.org:party1', workflow, inputs))

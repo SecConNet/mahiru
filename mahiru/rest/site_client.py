@@ -1,7 +1,7 @@
 """Client for external REST APIs."""
 from pathlib import Path
 import requests
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 from urllib.parse import quote
 
 from mahiru.definitions.assets import Asset
@@ -17,13 +17,17 @@ class SiteRestClient:
     """Handles connecting to other sites' runners and stores."""
     def __init__(
             self, site: str, registry_client: RegistryClient,
-            trust_store: Optional[Path] = None) -> None:
+            trust_store: Optional[Path] = None,
+            client_credentials: Optional[Tuple[Path, Path]] = None
+            ) -> None:
         """Create a SiteRestClient.
 
         Args:
             site: The site at which this client acts.
             registry_client: A registry client to get sites from.
             trust_store: A file with trusted certificates/anchors.
+            client_credentials: An HTTPS client certificate and the
+                    corresponding key, as paths to PEM files.
         """
         self._site = site
         self._registry_client = registry_client
@@ -31,6 +35,12 @@ class SiteRestClient:
             self._verify = str(trust_store)     # type: Union[str, bool]
         else:
             self._verify = True
+
+        if not client_credentials:
+            self._cred = None   # type: Optional[Tuple[str, str]]
+        else:
+            self._cred = (
+                    str(client_credentials[0]), str(client_credentials[1]))
 
     def retrieve_asset(self, site_id: Identifier, asset_id: Identifier
                        ) -> Asset:
@@ -45,7 +55,7 @@ class SiteRestClient:
             r = requests.get(
                     f'{site.endpoint}/assets/{safe_asset_id}',
                     params={'requester': self._site},
-                    verify=self._verify)
+                    verify=self._verify, cert=self._cred)
             if r.status_code == 404:
                 raise KeyError('Asset not found')
             elif not r.ok:
@@ -70,7 +80,7 @@ class SiteRestClient:
         with requests.get(
                 asset_location,
                 params={'requester': self._site},
-                stream=True, verify=self._verify) as r:
+                stream=True, verify=self._verify, cert=self._cred) as r:
             if r.status_code == 404:
                 raise KeyError('Asset image not found')
             elif not r.ok:
@@ -114,7 +124,7 @@ class SiteRestClient:
             r = requests.post(
                     f'{site.endpoint}/assets/{safe_asset_id}/connect',
                     params={'requester': self._site}, json=serialize(request),
-                    verify=self._verify)
+                    verify=self._verify, cert=self._cred)
             if not r.ok:
                 raise RuntimeError('Could not connect to asset')
 
@@ -143,7 +153,8 @@ class SiteRestClient:
 
         r = requests.delete(
                 f'{site.endpoint}/connections/{conn_id}',
-                params={'requester': self._site}, verify=self._verify)
+                params={'requester': self._site}, verify=self._verify,
+                cert=self._cred)
         if not r.ok:
             raise RuntimeError('Could not disconnect asset')
 
@@ -164,6 +175,6 @@ class SiteRestClient:
         if site.has_runner:
             requests.post(
                     f'{site.endpoint}/jobs', json=serialize(request),
-                    verify=self._verify)
+                    verify=self._verify, cert=self._cred)
         else:
             raise ValueError(f'Site {site_id} does not have a runner')

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 import requests
-from typing import Dict, Generic, Optional, Type, TypeVar, Union
+from typing import Dict, Generic, Optional, Tuple, Type, TypeVar, Union
 
 from falcon import Request, Response
 from retrying import retry
@@ -57,7 +57,10 @@ class ReplicationRestClient(IReplicationService[T]):
     """Client for a ReplicationHandler REST endpoint."""
     UpdateType = ReplicaUpdate[T]   # type: Type[ReplicaUpdate[T]]
 
-    def __init__(self, endpoint: str, trust_store: Optional[Path]) -> None:
+    def __init__(
+            self, endpoint: str, trust_store: Optional[Path],
+            client_credentials: Optional[Tuple[Path, Path]] = None
+            ) -> None:
         """Create a ReplicationRestClient.
 
         Note that UpdateType must be set to ReplicaUpdate[T] with the
@@ -68,6 +71,9 @@ class ReplicationRestClient(IReplicationService[T]):
         Args:
             endpoint: URL of the endpoint to connect to.
             trust_store: A file with trusted certificates/anchors.
+            client_credentials: Paths to PEM files containing the HTTPS
+                    client certificate and key to use for
+                    authentication.
         """
         self._endpoint = endpoint
 
@@ -76,6 +82,12 @@ class ReplicationRestClient(IReplicationService[T]):
             self._verify = str(trust_store)     # type: Union[str, bool]
         else:
             self._verify = True
+
+        if not client_credentials:
+            self._cred = None   # type: Optional[Tuple[str, str]]
+        else:
+            self._cred = (
+                    str(client_credentials[0]), str(client_credentials[1]))
 
     def get_updates_since(
             self, from_version: Optional[int]) -> ReplicaUpdate[T]:
@@ -100,7 +112,8 @@ class ReplicationRestClient(IReplicationService[T]):
     def _retry_http_get(self, params: Dict[str, int]) -> requests.Response:
         """Do an HTTP get and retry for a while on failure."""
         return requests.get(
-                self._endpoint, params=params, verify=self._verify)
+                self._endpoint, params=params, verify=self._verify,
+                cert=self._cred)
 
 
 class PolicyRestClient(ReplicationRestClient[Rule]):

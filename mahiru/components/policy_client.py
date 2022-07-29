@@ -1,6 +1,6 @@
 """Component for making DDM policies available locally."""
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, Optional, Set, Tuple
 
 from mahiru.components.registry_client import RegistryClient
 from mahiru.definitions.identifier import Identifier
@@ -16,7 +16,9 @@ class PolicyClient(IPolicyCollection):
     """Ties together various sources of policies."""
     def __init__(
             self, registry_client: RegistryClient,
-            trust_store: Optional[Path] = None) -> None:
+            trust_store: Optional[Path] = None,
+            client_credentials: Optional[Tuple[Path, Path]] = None
+            ) -> None:
         """Create a PolicyClient.
 
         This will automatically keep the replicas up-to-date as needed.
@@ -25,9 +27,12 @@ class PolicyClient(IPolicyCollection):
             registry_client: A RegistryClient to use for getting
                 servers.
             trust_store: A file with trusted certificates/anchors.
+            client_credentials: Paths to PEM files with the HTTPS
+                    client certificate and key to use when connecting.
         """
         self._registry_client = registry_client
         self._trust_store = trust_store
+        self._client_credentials = client_credentials
 
         self._policy_replicas = dict()  # type: Dict[Identifier, Replica[Rule]]
         self._registry_client.register_callback(self.on_update)
@@ -61,7 +66,8 @@ class PolicyClient(IPolicyCollection):
         for o in created:
             if isinstance(o, SiteDescription) and o.has_policies:
                 client = PolicyRestClient(
-                        o.endpoint + '/rules/updates', self._trust_store)
+                        o.endpoint + '/rules/updates', self._trust_store,
+                        self._client_credentials)
 
                 namespace, key = self._registry_client.get_ns_and_key(
                         o.owner_id)

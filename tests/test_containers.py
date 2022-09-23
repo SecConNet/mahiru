@@ -148,7 +148,8 @@ def run_container_step(
     site = Site(config, [], [], registry_client)
 
     site_server = SiteServer(SiteRestApi(
-        site.policy_store, site.store, site.runner, site.orchestrator))
+        registry_client, site.policy_store, site.store, site.runner,
+        site.orchestrator))
 
     # wait for it to come up
     requests.get(site_server.internal_endpoint, timeout=(600.0, 1.0))

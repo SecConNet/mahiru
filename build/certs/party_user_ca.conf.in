@@ -53,5 +53,5 @@ emailAddress                    = Email Address
 basicConstraints = CA:FALSE
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
-keyUsage = critical, nonRepudiation, digitalSignature
-
+keyUsage = critical, digitalSignature, keyEncipherment, nonRepudiation
+extendedKeyUsage = clientAuth

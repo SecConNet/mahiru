@@ -42,13 +42,18 @@ def register(main_key: Ed25519PrivateKey) -> None:
         https_cert = x509.load_pem_x509_certificate(f.read())
 
     site_id = 'site:party1.mahiru.example.org:site1'
-    endpoint = 'http://site1'
+    endpoint = 'https://site1.mahiru.example.org'
     site_desc = SiteDescription(
             site_id, party_id, party_id, endpoint, https_cert, True, True,
             True)
     site_desc.sign(main_key)
 
-    client = RegistrationRestClient("http://registry")
+    client = RegistrationRestClient(
+            'https://registry.mahiru.example.org',
+            CERTS_DIR / 'trust_store.pem',
+            (
+                CERTS_DIR / 'site1_https_cert.pem',
+                PRIVATE_DIR / 'site1_https_key.pem'))
 
     # Remove stale registrations, if any
     try:
@@ -161,6 +166,10 @@ if __name__ == "__main__":
     client = InternalSiteRestClient(
             'party:party1.mahiru.example.org:party1',
             'site:party1.mahiru.example.org:site1',
-            'http://site1:1080')
+            'https://site1.mahiru.example.org:1443',
+            CERTS_DIR / 'trust_store.pem',
+            (
+                CERTS_DIR / 'party1_user1_cert.pem',
+                PRIVATE_DIR / 'party1_user1_key.pem'))
     add_initial_assets(client)
     add_initial_rules(client, main_key)

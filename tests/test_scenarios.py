@@ -15,7 +15,7 @@ from mahiru.definitions.workflows import Job, WorkflowStep, Workflow
 from mahiru.policy.rules import (
     InAssetCollection, MayAccess, MayUse, ResultOfDataIn,
     ResultOfComputeIn)
-from mahiru.rest.ddm_site import SiteRestApi, SiteServer
+from mahiru.rest.ddm_site import AccessController, SiteRestApi, SiteServer
 from mahiru.rest.internal_client import InternalSiteRestClient
 from mahiru.rest.registry_client import RegistrationRestClient
 
@@ -61,13 +61,19 @@ def create_sites(
             for site_id, desc in site_descriptions.items()}
 
 
-def create_servers(sites: Dict[str, Site]) -> Dict[str, SiteServer]:
+def create_servers(
+        registry_client: RegistryClient, sites: Dict[str, Site]
+        ) -> Dict[str, SiteServer]:
     """Create REST servers for sites."""
+    access_controllers = {
+            site_name: AccessController(registry_client, site.owner)
+            for site_name, site in sites.items()}
+
     servers = {
             site_name: SiteServer(
                     SiteRestApi(
-                        site.policy_store, site.store, site.runner,
-                        site.orchestrator))
+                        access_controllers[site_name], site.policy_store,
+                        site.store, site.runner, site.orchestrator))
             for site_name, site in sites.items()}
 
     # wait for them to come up
@@ -153,7 +159,7 @@ def run_scenario(
 
     sign_rules(scenario['sites'], scenario['parties'])
     sites = create_sites(registry_client, scenario['sites'])
-    servers = create_servers(sites)
+    servers = create_servers(registry_client, sites)
     clients = create_clients(servers, sites)
     upload_assets(scenario['sites'], clients)
     add_rules(scenario['sites'], clients)

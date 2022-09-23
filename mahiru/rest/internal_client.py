@@ -3,6 +3,7 @@ from copy import copy
 from pathlib import Path
 from urllib.parse import quote, urlparse
 import time
+from typing import Optional, Tuple, Union
 
 import requests
 
@@ -22,18 +23,36 @@ _STANDARD_PORTS = {'http': 80, 'https': 443}
 
 class InternalSiteRestClient:
     """Handles connections to a local site."""
-    def __init__(self, party: str, site: str, endpoint: str) -> None:
+    def __init__(
+            self, party: str, site: str, endpoint: str,
+            trust_store: Optional[Path] = None,
+            client_credentials: Optional[Tuple[Path, Path]] = None) -> None:
         """Create an InternalSiteRestClient.
 
         Args:
             party: Party on whose behalf this client operates.
             site: Site this client is at.
             endpoint: Network location of the site's internal endpoint.
-
+            trust_store: A file with trusted certificates/anchors.
+            client_credentials: Paths to PEM-files with an HTTPS
+                    certificate and corresponding key to use for
+                    HTTPS client authentication.
         """
         self._party = party
         self._site = site
         self._endpoint = endpoint
+
+        # Convert trust store to argument for verify option of requests
+        if trust_store:
+            self._verify = str(trust_store)     # type: Union[str, bool]
+        else:
+            self._verify = True
+
+        if not client_credentials:
+            self._creds = None  # type: Optional[Tuple[str, str]]
+        else:
+            self._creds = (
+                    str(client_credentials[0]), str(client_credentials[1]))
 
     def store_asset(self, asset: Asset) -> None:
         """Stores an asset in the site's asset store.
@@ -45,17 +64,20 @@ class InternalSiteRestClient:
         stripped_asset = copy(asset)
         stripped_asset.image_location = None
 
-        r = requests.post(f'{self._endpoint}/assets', json=serialize(
-            stripped_asset))
+        r = requests.post(
+                f'{self._endpoint}/assets', json=serialize(stripped_asset),
+                verify=self._verify, cert=self._creds)
         if r.status_code != 201:
-            raise RuntimeError('Error uploading asset to site')
+            raise RuntimeError(
+                    f'Error uploading asset to site: {r.status_code}')
 
         if asset.image_location is not None:
             with Path(asset.image_location).open('rb') as f:
                 r = requests.put(
                         f'{self._endpoint}/assets/{quote(asset.id)}/image',
-                        headers={'Content-Type': 'application/octet-stream'},
-                        data=f)
+                        headers={
+                            'Content-Type': 'application/octet-stream'},
+                        data=f, verify=self._verify, cert=self._creds)
                 if r.status_code != 201:
                     raise RuntimeError('Error uploading asset image to site')
 
@@ -66,7 +88,9 @@ class InternalSiteRestClient:
             rule: The rule to add.
 
         """
-        r = requests.post(f'{self._endpoint}/rules', json=serialize(rule))
+        r = requests.post(
+                f'{self._endpoint}/rules', json=serialize(rule),
+                verify=self._verify, cert=self._creds)
         if r.status_code != 201:
             raise RuntimeError(f'Error adding rule to site: {r.text}')
 
@@ -85,7 +109,7 @@ class InternalSiteRestClient:
                 params={
                     'requesting_site': self._site,
                     'requesting_party': self._party},
-                allow_redirects=False)
+                allow_redirects=False, verify=self._verify, cert=self._creds)
         if r.status_code != 303:
             raise RuntimeError(f'Error submitting job: {r.text}')
         if 'location' not in r.headers:
@@ -153,7 +177,7 @@ class InternalSiteRestClient:
 
     def _get_job_result(self, job_id: str) -> JobResult:
         """Gets the job's current result from the server."""
-        r = requests.get(job_id)
+        r = requests.get(job_id, verify=self._verify, cert=self._creds)
         if r.status_code == 404:
             raise KeyError('Job not found')
         if r.status_code != 200:

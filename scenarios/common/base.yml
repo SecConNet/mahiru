@@ -9,7 +9,7 @@
     lineinfile:
       path: /etc/hosts
       regexp: '.*{{ item }}$'
-      line: "{{ hostvars[item].ansible_ssh_host }} {{ item }}"
+      line: "{{ hostvars[item].ansible_ssh_host }} {{ item }}.mahiru.example.org"
       state: present
     when: hostvars[item].ansible_ssh_host is defined
     with_items: "{{ groups['all'] }}"

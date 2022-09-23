@@ -63,7 +63,7 @@ class AssetStore(IAssetStore):
 
         """
         if asset.id in self._assets:
-            raise KeyError(f'There is already an asset with id {id}')
+            raise KeyError(f'There is already an asset with id {asset.id}')
 
         # TODO: ordering, get file first then insert Asset object
         self._assets[asset.id] = copy(asset)

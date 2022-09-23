@@ -1,6 +1,6 @@
 """Site configuration."""
 from pathlib import Path
-from typing import AnyStr, IO, List, Optional, Union
+from typing import AnyStr, IO, List, Optional, Tuple, Union
 
 import ruamel.yaml as yaml
 import yatiml
@@ -59,6 +59,10 @@ class SiteConfiguration:
         network_settings: Settings for external asset network
                 connections.
         registry_endpoint: Registry endpoint location.
+        trust_store: File with trusted certificates/trust anchors.
+        client_cert: File with an HTTPS client certificate to use. This
+                is the same file as we use for our HTTPS server.
+        client_key: File with the key for client_cert.
         loglevel: Logging level to use, one of 'critical', 'error',
                 'warning', 'info', or 'debug'.
     """
@@ -66,7 +70,11 @@ class SiteConfiguration:
             self,
             site_id: Identifier, namespace: str, owner: Identifier,
             network_settings: NetworkSettings,
-            registry_endpoint: str, loglevel: str = 'info'
+            registry_endpoint: str,
+            trust_store: Optional[Path] = None,
+            client_cert: Optional[Path] = None,
+            client_key: Optional[Path] = None,
+            loglevel: str = 'info'
             ) -> None:
         """Create a SiteConfiguration object.
 
@@ -78,6 +86,9 @@ class SiteConfiguration:
             network_settings: Settings for external asset network
                     connections.
             registry_endpoint: Registry endpoint location.
+            trust_store: File with trusted certificates/trust anchors.
+            client_cert: File with an HTTPS client certificate to use.
+            client_key: File with the key for client_cert.
             loglevel: Logging level to use, one of 'critical', 'error',
                     'warning', 'info', or 'debug'.
         """
@@ -85,12 +96,35 @@ class SiteConfiguration:
             raise ValueError(
                     'Expected a name of the form "party:<namespace>:<name>"')
 
+        if client_cert and not client_key:
+            raise ValueError(
+                    'A client certificate was given but not the corresponding'
+                    ' key. Please specify either neither or both.')
+
+        if client_key and not client_cert:
+            raise ValueError(
+                    'A client key was given but not the corresponding'
+                    ' certificate. Please specify either neither or both.')
+
         self.site_id = site_id
         self.namespace = namespace
         self.owner = owner
         self.network_settings = network_settings
         self.registry_endpoint = registry_endpoint
+        self.trust_store = trust_store
+        self.client_cert = client_cert
+        self.client_key = client_key
         self.loglevel = loglevel
+
+    def client_creds(self) -> Optional[Tuple[Path, Path]]:
+        """Get the HTTPS client credentials.
+
+        This returns the certificate and the corresponding key as a
+        tuple.
+        """
+        if self.client_cert and self.client_key:
+            return self.client_cert, self.client_key
+        return None
 
     @classmethod
     def _yatiml_recognize(cls, node: yatiml.UnknownNode) -> None:

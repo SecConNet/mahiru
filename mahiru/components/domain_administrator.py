@@ -335,7 +335,9 @@ class PlainDockerDA(IDomainAdministrator):
                     raise RuntimeError(
                             f'Asset {asset} does not have an image.')
 
-                if asset.image_location.startswith('http:'):
+                if (
+                        asset.image_location.startswith('http:') or
+                        asset.image_location.startswith('https:')):
                     if workdir is None:
                         raise RuntimeError(
                                 f'Remote asset and no workdir given.')

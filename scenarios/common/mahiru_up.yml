@@ -25,11 +25,37 @@
       - src: ./nginx.conf.tmpl
         dest: "{{ home }}/mahiru/registry_nginx.conf"
 
+  - name: Create private dir
+    file:
+      path: "{{ home }}/mahiru/private"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: '../../build/certs/registry/private/registry_https_key.pem'
+      dest: '{{ home }}/mahiru/private/registry_https_key.pem'
+
+  - name: Create certs dir
+    file:
+      path: "{{ home }}/mahiru/certs"
+      state: directory
+
+  - name: Copy certs
+    synchronize:
+      src: '../../build/certs/{{ item.src }}'
+      dest: '{{ home }}/mahiru/certs/{{ item.dest }}'
+    loop:
+      - src: 'registry/certs/registry_https_cert.pem'
+        dest: 'registry_https_cert.pem'
+      - src: 'ca/intermediate/certs/ca_trust_store.pem'
+        dest: 'trust_store.pem'
+
   - name: Configure site name in proxy config
     lineinfile:
       path: "{{ home }}/mahiru/registry_nginx.conf"
       regexp: '^        server_name.*'
-      line: '        server_name registry;'
+      line: '        server_name registry.mahiru.example.org;'
 
   - name: Configure upstream in proxy config
     lineinfile:
@@ -88,7 +114,7 @@
     docker_container:
       name: reverse-proxy
       image: nginx:alpine
-      published_ports: '80:80'
+      published_ports: '443:443'
       container_default_behavior: no_defaults
       state: started
       privileged: no
@@ -107,18 +133,27 @@
           source: "{{ home }}/mahiru/registry_nginx.conf"
           target: /etc/nginx/nginx.conf
           read_only: yes
+        - type: bind
+          source: "{{ home }}/mahiru/certs/registry_https_cert.pem"
+          target: /etc/nginx/https_cert.pem
+        - type: bind
+          source: "{{ home }}/mahiru/private/registry_https_key.pem"
+          target: /etc/nginx/https_key.pem
+        - type: bind
+          source: "{{ home }}/mahiru/certs/trust_store.pem"
+          target: /etc/nginx/trust_store.pem
 
 
 - name: Copy files to site
   hosts: site*
-  vars:
-    home: "{{ansible_facts['user_dir']}}"
-    site_id: "{{ inventory_hostname | regex_replace('^site(.*)', '\\1') }}"
-    config_file: "{{ home }}/mahiru/mahiru.conf"
   # This needs to run without become, because synchronize
   # doesn't work with it. So we copy here as an ordinary
   # user, then start things up as root in the second play
   # below.
+  vars:
+    home: "{{ansible_facts['user_dir']}}"
+    site_id: "{{ inventory_hostname | regex_replace('^site(.*)', '\\1') }}"
+    config_file: "{{ home }}/mahiru/mahiru.conf"
 
   tasks:
   - name: Create working directory
@@ -165,12 +200,14 @@
         dest: party{{ site_id }}_user_ca_cert.pem
       - src: site{{ site_id }}/certs/site{{ site_id }}_https_cert.pem
         dest: site{{ site_id }}_https_cert.pem
+      - src: ca/intermediate/certs/ca_trust_store.pem
+        dest: trust_store.pem
 
   - name: Configure site name in proxy config
     lineinfile:
       path: "{{ home }}/mahiru/{{ item }}_site_nginx.conf"
       regexp: '^        server_name.*'
-      line: '        server_name site{{ site_id }};'
+      line: '        server_name site{{ site_id }}.mahiru.example.org;'
     with_items:
       - internal
       - external
@@ -182,8 +219,8 @@
       line: '        client_max_body_size 2G;'
 
   - name: Configure Docker-mapped external port in proxy config
-    # We use external port 1080 for the internal interface, mapping it
-    # to the internal proxy's port 80 in the Docker configuration. So
+    # We use external port 1443 for the internal interface, mapping it
+    # to the internal proxy's port 443 in the Docker configuration. So
     # using the default server_port doesn't work, because nginx isn't
     # listening on the port it thinks it's listening on. So we override
     # it here and hard-code in the actual port, which gets passed to
@@ -192,7 +229,7 @@
     lineinfile:
       path: "{{ home }}/mahiru/internal_site_nginx.conf"
       regexp: '^            proxy_set_header X-Forwarded-Host.*'
-      line: '            proxy_set_header X-Forwarded-Host "$host:1080";'
+      line: '            proxy_set_header X-Forwarded-Host "$host:1443";'
 
   - name: Configure upstream in proxy config
     lineinfile:
@@ -217,7 +254,7 @@
       state: present
       create: yes
       regexp: '^namespace: .*$'
-      line: 'namespace: party{{ site_id }}_ns'
+      line: 'namespace: party{{ site_id }}.mahiru.example.org'
 
   - name: Configure owner
     lineinfile:
@@ -225,7 +262,7 @@
       state: present
       create: yes
       regexp: '^owner: .*$'
-      line: 'owner: party:party{{ site_id }}_ns:party{{ site_id }}'
+      line: 'owner: party:party{{ site_id }}.mahiru.example.org:party{{ site_id }}'
 
   - name: Configure asset connections
     lineinfile:
@@ -235,6 +272,38 @@
       regexp: '^network_settings: .*$'
       line: 'network_settings: { enabled: True, external_ip: {{ hostvars[inventory_hostname].ansible_ssh_host }}, ports: [10000, 11000] }'
 
+  - name: Configure registry endpoint
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^registry_endpoint: .*$'
+      line: 'registry_endpoint: https://registry.mahiru.example.org'
+
+  - name: Configure trust store
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^trust_store: .*$'
+      line: 'trust_store: /etc/mahiru/trust_store.pem'
+
+  - name: Configure HTTPS client certificate
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^client_cert: .*$'
+      line: 'client_cert: /etc/mahiru/https_cert.pem'
+
+  - name: Configure HTTPS client key
+    lineinfile:
+      path: "{{ config_file }}"
+      state: present
+      create: yes
+      regexp: '^client_key: .*$'
+      line: 'client_key: /etc/mahiru/https_key.pem'
+
   - name: Configure loglevel
     lineinfile:
       path: "{{ config_file }}"
@@ -243,14 +312,6 @@
       regexp: '^loglevel: .*$'
       line: 'loglevel: DEBUG'
 
-  - name: Configure registry endpoint
-    lineinfile:
-      path: "{{ config_file }}"
-      state: present
-      create: yes
-      regexp: '^registry_endpoint: .*$'
-      line: 'registry_endpoint: http://registry:80'
-
 - name: Set up site
   hosts: site*
   become: true
@@ -258,6 +319,8 @@
     # Clunky, but best I can do. This gets the home dir of the non-root
     # user we're logging in as.
     home: "/home/{{ansible_facts['env']['SUDO_USER']}}"
+    site_id: "{{ inventory_hostname | regex_replace('^site(.*)', '\\1') }}"
+
 
   tasks:
   - name: Load mahiru-site image into Docker
@@ -296,6 +359,9 @@
       volumes:
         - '/var/run/docker.sock:/var/run/docker.sock'
         - '{{ home }}/mahiru/mahiru.conf:/etc/mahiru/mahiru.conf:ro'
+        - '{{ home }}/mahiru/certs/trust_store.pem:/etc/mahiru/trust_store.pem:ro'
+        - '{{ home }}/mahiru/certs/site{{ site_id }}_https_cert.pem:/etc/mahiru/https_cert.pem:ro'
+        - '{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem:/etc/mahiru/https_key.pem:ro'
       networks:
         - name: mahiru
           aliases: mahiru-site
@@ -305,7 +371,7 @@
     docker_container:
       name: internal-reverse-proxy
       image: nginx:alpine
-      published_ports: '1080:80'
+      published_ports: '1443:443'
       container_default_behavior: no_defaults
       state: started
       privileged: no
@@ -324,12 +390,21 @@
           source: "{{ home }}/mahiru/internal_site_nginx.conf"
           target: /etc/nginx/nginx.conf
           read_only: yes
+        - type: bind
+          source: "{{ home }}/mahiru/certs/site{{ site_id }}_https_cert.pem"
+          target: /etc/nginx/https_cert.pem
+        - type: bind
+          source: "{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem"
+          target: /etc/nginx/https_key.pem
+        - type: bind
+          source: "{{ home }}/mahiru/certs/trust_store.pem"
+          target: /etc/nginx/trust_store.pem
 
   - name: Ensure the external reverse proxy is up
     docker_container:
       name: external-reverse-proxy
       image: nginx:alpine
-      published_ports: '80:80'
+      published_ports: '443:443'
       container_default_behavior: no_defaults
       state: started
       privileged: no
@@ -348,14 +423,57 @@
           source: "{{ home }}/mahiru/external_site_nginx.conf"
           target: /etc/nginx/nginx.conf
           read_only: yes
+        - type: bind
+          source: "{{ home }}/mahiru/certs/site{{ site_id }}_https_cert.pem"
+          target: /etc/nginx/https_cert.pem
+        - type: bind
+          source: "{{ home }}/mahiru/private/site{{ site_id }}_https_key.pem"
+          target: /etc/nginx/https_key.pem
+        - type: bind
+          source: "{{ home }}/mahiru/certs/trust_store.pem"
+          target: /etc/nginx/trust_store.pem
 
 
-- name: Install Mahiru Python module on clients so scripts can use it
+- name: Install Mahiru Python module and certificates on clients
   hosts: client*
   vars:
     source_dir: "{{ansible_facts['user_dir']}}/mahiru/source"
+    certs_dir: "{{ansible_facts['user_dir']}}/mahiru/certs"
+    private_dir: "{{ansible_facts['user_dir']}}/mahiru/private"
+    site_id: "{{ inventory_hostname | regex_replace('^client(.*)', '\\1') }}"
 
   tasks:
+  - name: Create certs dir
+    file:
+      path: "{{ certs_dir }}"
+      state: directory
+
+  - name: Copy certs
+    synchronize:
+      src: '../../build/certs/{{ item.src }}'
+      dest: '{{ certs_dir }}/{{ item.dest }}'
+    loop:
+      - src: ca/intermediate/certs/ca_trust_store.pem
+        dest: trust_store.pem
+      - src: site{{ site_id }}/users/user1/party{{ site_id }}_user1_cert.pem
+        dest: party{{ site_id }}_user1_cert.pem
+
+  - name: Create private dir
+    file:
+      path: "{{ private_dir }}"
+      state: directory
+      mode: 0700
+
+  - name: Copy keys
+    synchronize:
+      src: '../../build/certs/{{ item.src }}'
+      dest: '{{ private_dir }}/{{ item.dest }}'
+    loop:
+      - src: site{{ site_id }}/private/site{{ site_id }}_https_key.pem
+        dest: site{{ site_id }}_https_key.pem
+      - src: site{{ site_id }}/users/user1/party{{ site_id }}_user1_key.pem
+        dest: party{{ site_id }}_user1_key.pem
+
   - name: Make directory for source
     file:
       path: "{{ source_dir }}"

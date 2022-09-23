@@ -2,23 +2,29 @@ basedir := $(shell pwd)
 
 subj_location := /C=NL/ST=North Holland/L=Amsterdam
 
+registry_org := O=Mahiru Demo Registry
+registry_domain := registry.mahiru.example.org
+
 party1_org := O=Mahiru Demo Party 1
 party1_ns := party1.mahiru.example.org
 party1_id := party:$(party1_ns):party1
-site1_domain := site1
+site1_domain := site1.mahiru.example.org
 
 party2_org := O=Mahiru Demo Party 2
 party2_ns := party2.mahiru.example.org
 party2_id := party:$(party2_ns):party2
-site2_domain := site2
+site2_domain := site2.mahiru.example.org
 
 party3_org := O=Mahiru Demo Party 3
 party3_ns := party3.mahiru.example.org
 party3_id := party:$(party3_ns):party3
-site3_domain := site3
+site3_domain := site3.mahiru.example.org
 
 
-https_certs := site1/certs/site1_https_cert.pem site1/private/site1_https_key.pem
+trust_store := ca/intermediate/certs/ca_trust_store.pem
+
+https_certs := registry/certs/registry_https_cert.pem registry/private/registry_https_key.pem
+https_certs += site1/certs/site1_https_cert.pem site1/private/site1_https_key.pem
 https_certs += site2/certs/site2_https_cert.pem site2/private/site2_https_key.pem
 https_certs += site3/certs/site3_https_cert.pem site3/private/site3_https_key.pem
 
@@ -34,7 +40,7 @@ user_certs := site1/users/user1/party1_user1_key.pem site1/users/user1/party1_us
 user_certs += site2/users/user1/party2_user1_key.pem site2/users/user1/party2_user1_cert.pem
 user_certs += site3/users/user1/party3_user1_key.pem site3/users/user1/party3_user1_cert.pem
 
-all_certs := $(https_certs) $(main_certs) $(user_ca_certs) $(user_certs)
+all_certs := $(trust_store) $(https_certs) $(main_certs) $(user_ca_certs) $(user_certs)
 
 
 .PHONY: all
@@ -51,6 +57,8 @@ clean:
 	rm -rf ca/intermediate/private/*.pem ca/intermediate/certs/*.pem
 	rm -rf ca/intermediate/csr/*.pem ca/intermediate/new_certs/*.pem
 	rm -rf ca/intermediate/database.txt* ca/intermediate/serial* ca_intermediate.conf
+	# Registry
+	rm -rf registry/private/*.pem registry/certs/*.pem
 	# Sites
 	rm -rf site1/private/*.pem site1/certs/*.pem
 	rm -rf site1/csr/*.pem site1/new_certs/*.pem
@@ -79,7 +87,7 @@ ca/root/certs/ca_root_cert.pem: ca/root/private/ca_root_key.pem
 	touch ca/root/database.txt.attr
 	echo 1000 >ca/root/serial
 	sed -e "s^BASEDIR^$(basedir)^" <ca_root.conf.in >ca_root.conf
-	openssl req -config ca_root_self.conf -new -x509 -key ca/root/private/ca_root_key.pem -days 730 -out $@
+	openssl req -config ca_root_self.conf -new -x509 -key ca/root/private/ca_root_key.pem -days 730 -extensions cert_extensions -out $@
 	chmod 444 $@
 
 ca/root/csr/ca_intermediate_csr.pem: ca/intermediate/private/ca_intermediate_key.pem
@@ -90,8 +98,11 @@ ca/intermediate/certs/ca_intermediate_cert.pem: ca/root/csr/ca_intermediate_csr.
 	touch ca/intermediate/database.txt.attr
 	echo 1000 >ca/intermediate/serial
 	sed -e "s^BASEDIR^$(basedir)^" <ca_intermediate.conf.in >ca_intermediate.conf
-	openssl ca -config ca_root.conf -batch -days 3650 -notext -md sha256 -in $< -out $@
+	openssl ca -config ca_root.conf -batch -days 3650 -extensions v3 -notext -md sha256 -in $< -out $@
 	chmod 444 $@
+
+ca/intermediate/certs/ca_trust_store.pem: ca/intermediate/certs/ca_intermediate_cert.pem ca/root/certs/ca_root_cert.pem
+	cat $^ >$@
 
 ca_intermediate := ca/intermediate/private/ca_intermediate_key.pem ca/intermediate/certs/ca_intermediate_cert.pem
 
@@ -122,10 +133,20 @@ site3/certs/party3_main_cert.pem: ca/intermediate/csr/party3_main_csr.pem $(ca_i
 	chmod 444 $@
 
 
+# Generate HTTPS certificate for the registry
+
+ca/intermediate/csr/registry_https_csr.pem: registry/private/registry_https_key.pem
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(registry_org)/CN=$(registry_domain)" -addext "subjectAltName=DNS:$(registry_domain)" -out $@
+
+registry/certs/registry_https_cert.pem: ca/intermediate/csr/registry_https_csr.pem $(ca_intermediate)
+	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
+	chmod 444 $@
+
+
 # Generate HTTPS certificates for the sites
 
 ca/intermediate/csr/site1_https_csr.pem: site1/private/site1_https_key.pem
-	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party1_org)/CN=$(site1_domain)" -out $@
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party1_org)/CN=$(site1_domain)" -addext "subjectAltName=DNS:$(site1_domain)" -out $@
 
 site1/certs/site1_https_cert.pem: ca/intermediate/csr/site1_https_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
@@ -133,7 +154,7 @@ site1/certs/site1_https_cert.pem: ca/intermediate/csr/site1_https_csr.pem $(ca_i
 
 
 ca/intermediate/csr/site2_https_csr.pem: site2/private/site2_https_key.pem
-	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party2_org)/CN=$(site2_domain)" -out $@
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party2_org)/CN=$(site2_domain)" -addext "subjectAltName=DNS:$(site2_domain)" -out $@
 
 site2/certs/site2_https_cert.pem: ca/intermediate/csr/site2_https_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
@@ -141,7 +162,7 @@ site2/certs/site2_https_cert.pem: ca/intermediate/csr/site2_https_csr.pem $(ca_i
 
 
 ca/intermediate/csr/site3_https_csr.pem: site3/private/site3_https_key.pem
-	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party3_org)/CN=$(site3_domain)" -out $@
+	openssl req -config site_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party3_org)/CN=$(site3_domain)" -addext "subjectAltName=DNS:$(site3_domain)" -out $@
 
 site3/certs/site3_https_cert.pem: ca/intermediate/csr/site3_https_csr.pem $(ca_intermediate)
 	openssl ca -config ca_intermediate.conf -batch -extensions https_cert -days 375 -notext -md sha256 -in $< -out $@
@@ -193,22 +214,28 @@ site1/csr/party1_user1_csr.pem: site1/users/user1/party1_user1_key.pem
 	openssl req -config party_user_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party1_org)/CN=user:$(party1_ns):user1" -out $@
 
 site1/users/user1/party1_user1_cert.pem: site1/csr/party1_user1_csr.pem $(party1_user_ca)
-	openssl ca -config site1/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@
+	openssl ca -config site1/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@.only
+	cat $@.only site1/certs/party1_user_ca_cert.pem >$@
 	chmod 444 $@
+	rm $@.only
 
 
 site2/csr/party2_user1_csr.pem: site2/users/user1/party2_user1_key.pem
 	openssl req -config party_user_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party2_org)/CN=user:$(party2_ns):user1" -out $@
 
 site2/users/user1/party2_user1_cert.pem: site2/csr/party2_user1_csr.pem $(party2_user_ca)
-	openssl ca -config site2/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@
+	openssl ca -config site2/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@.only
+	cat $@.only site2/certs/party2_user_ca_cert.pem >$@
 	chmod 444 $@
+	rm $@.only
 
 
 site3/csr/party3_user1_csr.pem: site3/users/user1/party3_user1_key.pem
 	openssl req -config party_user_csr.conf -new -sha256 -key $< -subj "$(subj_location)/$(party3_org)/CN=user:$(party3_ns):user1" -out $@
 
 site3/users/user1/party3_user1_cert.pem: site3/csr/party3_user1_csr.pem $(party3_user_ca)
-	openssl ca -config site3/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@
+	openssl ca -config site3/party_user_ca.conf -batch -extensions user_cert -days 375 -notext -md sha256 -in $< -out $@.only
+	cat $@.only site3/certs/party3_user_ca_cert.pem >$@
 	chmod 444 $@
+	rm $@.only
 

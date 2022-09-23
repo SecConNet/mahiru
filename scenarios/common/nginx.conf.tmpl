@@ -3,7 +3,7 @@
 user nginx;
 worker_processes 1;
 
-error_log  /var/log/nginx/error.log warn;
+error_log  stderr info;
 pid        /var/run/nginx.pid;
 
 events {
@@ -32,14 +32,24 @@ http {
         # Default server which closes the connection immediately.
         # This is used if the host header doesn't match, and prevents
         # host spoofing.
-        listen      80 default_server;
+        listen      443 default_server ssl;
+        ssl_certificate /etc/nginx/https_cert.pem;
+        ssl_certificate_key /etc/nginx/https_key.pem;
+
         return 444;
     }
 
     server {
-        listen 80 deferred;
+        listen 443 ssl deferred;
 
         server_name server;     # gets patched by Ansible
+
+        ssl_certificate /etc/nginx/https_cert.pem;
+        ssl_certificate_key /etc/nginx/https_key.pem;
+        ssl_verify_client on;
+        ssl_trusted_certificate /etc/nginx/trust_store.pem;
+        ssl_client_certificate /etc/nginx/trust_store.pem;
+        ssl_verify_depth 2;
 
         keepalive_timeout 5;
 
@@ -51,6 +61,7 @@ http {
             # gets patched by Ansible to reflect Docker port mapping
             proxy_set_header X-Forwarded-Host "$host:$server_port";
             proxy_set_header X-Forwarded-Path "$uri";
+            proxy_set_header X-Client-Certificate "$ssl_client_escaped_cert";
 
             proxy_redirect off;
             # gets patched by Ansible

@@ -61,7 +61,7 @@ class PolicyClient(IPolicyCollection):
         """
         for o in deleted:
             if isinstance(o, SiteDescription) and o.has_policies:
-                del(self._policy_replicas[o.id])
+                del self._policy_replicas[o.id]
 
         for o in created:
             if isinstance(o, SiteDescription) and o.has_policies:
